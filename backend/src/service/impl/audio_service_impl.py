@@ -330,8 +330,10 @@ class AudioServiceImpl(AudioService):
 
             resp = response.strip().rstrip(". ").replace(" ", "_")
             if resp and resp not in ('none', 'none()'):
-                all_results.append({"sound_class": resp, "start_frame": sf_, "end_frame": ef_, "confidence": 1.0})
-                log_fn(f"  Window {window_idx}: {resp}")
+                csc = normalize(resp)
+                if csc:
+                    all_results.append({"sound_class": csc, "start_frame": sf_, "end_frame": ef_, "confidence": 1.0})
+                    log_fn(f"  Window {window_idx}: {csc}")
 
             window_idx += 1
             if window_idx >= 30:
