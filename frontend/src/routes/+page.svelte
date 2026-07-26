@@ -30,9 +30,16 @@
   import CardTitle from '$lib/components/ui/card-title.svelte';
   import CardContent from '$lib/components/ui/card-content.svelte';
   import Button from '$lib/components/ui/button.svelte';
-  import Badge from '$lib/components/ui/badge.svelte';
   import Separator from '$lib/components/ui/separator.svelte';
   import { Play, RotateCcw, AlertTriangle, CheckCircle2 } from 'lucide-svelte';
+
+  type AnalysisRecord = {
+    id: string;
+    video_filename: string;
+    condition: string;
+    stage: string;
+    created_at: string;
+  };
 
   let video = $state<File | null>(null);
   let condition = $state<Condition>('A');
@@ -75,9 +82,15 @@
   let busy = $state(false);
   let detecting = $state(false);
 
-  let previousAnalysis = $state<{id: string, video_filename: string, condition: string, stage: string, created_at: number} | null>(null);
+  let previousAnalyses = $state<AnalysisRecord[]>([]);
 
   let closeSse: (() => void) | null = null;
+
+  async function refreshAnalysisList() {
+    try {
+      previousAnalyses = await api.get<AnalysisRecord[]>('/api/analysis/list');
+    } catch { /* non-fatal */ }
+  }
 
   onMount(async () => {
     try {
@@ -89,17 +102,8 @@
       const schema = await api.get<SchemaResponse>('/api/schema');
       availableProviders = schema.available_providers || [];
       availableAudioProviders = schema.available_audio_providers || ['panns', 'huggingface'];
-    } catch {
-      /* non-fatal */
-    }
-    try {
-      const analyses = await api.get<Array<{id: string, video_filename: string, condition: string, stage: string, created_at: number}>>('/api/analysis/list');
-      if (analyses.length > 0) {
-        previousAnalysis = analyses[0];
-      }
-    } catch {
-      /* non-fatal */
-    }
+    } catch { /* non-fatal */ }
+    await refreshAnalysisList();
   });
 
   $effect(() => {
@@ -127,18 +131,14 @@
     logs = [];
   }
 
-  async function loadAnalysis() {
-    if (!previousAnalysis) return;
+  function loadAnalysis(item: AnalysisRecord) {
     reset();
-    
-    analysisId = previousAnalysis.id;
-    condition = previousAnalysis.condition as Condition;
-    stage = previousAnalysis.stage;
-    
-    appendLog('info', `>>> Loaded previous analysis ${previousAnalysis.id} (condition ${previousAnalysis.condition}, stage ${previousAnalysis.stage})`);
-    
-    if (previousAnalysis.stage !== 'done') {
-      appendLog('warning', `Analysis is not complete (stage: ${previousAnalysis.stage}). Detection may not be available.`);
+    analysisId = item.id;
+    condition = item.condition as Condition;
+    stage = item.stage;
+    appendLog('info', `>>> Loaded previous analysis ${item.id} (condition ${item.condition}, stage ${item.stage})`);
+    if (item.stage !== 'done') {
+      appendLog('warning', `Analysis is not complete (stage: ${item.stage}). Detection may not be available.`);
     }
   }
 
@@ -173,6 +173,7 @@
       analysisId = resp.analysis_id;
       stage = resp.stage;
       appendLog('queued', `analysis_id = ${analysisId} (condition ${resp.condition})`);
+      await refreshAnalysisList();
 
       closeSse = openLogStream(
         `/api/analysis/${analysisId}/logs`,
@@ -190,11 +191,13 @@
             const s = await api.get<AnalysisStatusResponse>(`/api/analysis/${analysisId}/status`);
             stage = s.stage;
           } catch { /* ignore */ }
+          await refreshAnalysisList();
         },
         (err) => {
           stage = 'failed';
           busy = false;
           appendLog('failed', `SSE error: ${err.message}`);
+          refreshAnalysisList();
         }
       );
     } catch (e) {
@@ -242,6 +245,7 @@
 
   const canStart = $derived(video !== null && !busy);
   const canDetect = $derived(analysisId !== null && stage === 'done' && !detecting);
+  const canReset = $derived(!busy || stage === 'done' || stage === 'failed');
   const audioLabel = $derived(
     audioConfig.provider === 'huggingface' ? 'HuggingFace LALM' : 'PANNs CNN14',
   );
@@ -255,87 +259,20 @@
 </script>
 
 <div class="flex h-screen w-screen overflow-hidden bg-background text-foreground">
-  <AppSidebar currentStage={stage} currentEvent={selectedEvent}>
-    <div class="space-y-2 text-sm">
-      <p class="text-xs font-medium text-muted-foreground">PIPELINE</p>
-      <ol class="space-y-1 text-xs">
-        <li><span class="font-mono text-foreground">1.</span> Upload video</li>
-        <li><span class="font-mono text-foreground">2.</span> Pick condition (A / B / C)</li>
-        <li><span class="font-mono text-foreground">3.</span> Configure VLM</li>
-        <li><span class="font-mono text-foreground">4.</span> Configure Audio</li>
-        <li><span class="font-mono text-foreground">5.</span> Pick event + delta</li>
-        <li><span class="font-mono text-foreground">6.</span> Run analysis</li>
-        <li><span class="font-mono text-foreground">7.</span> Run detection</li>
-      </ol>
-    </div>
-    <Separator />
-    <div class="space-y-2 text-xs">
-      <p class="font-medium text-muted-foreground">CONDITION</p>
-      <p>
-        <Badge variant="outline">{condition}</Badge>
-        {conditionLabel}
-      </p>
-      <p class="text-muted-foreground">
-        A = visual baseline &middot; B = sound only &middot; C = full multimodal
-      </p>
-    </div>
-    <Separator />
-    <div class="space-y-2 text-xs">
-      <p class="font-medium text-muted-foreground">EVENTS</p>
-      <p>A (visual): {eventTypes.A_visual.length}</p>
-      <p>B (sound only): {eventTypes.B_sound_only.length}</p>
-      <p>C (sound+visual): {eventTypes.C_sound_visual.length}</p>
-    </div>
-    <Separator />
-    <p class="text-xs text-muted-foreground">
-      {APP_NAME} v{APP_VERSION}
-      <br />© 2026 WATCHOUT Project
-    </p>
-  </AppSidebar>
+  <AppSidebar currentStage={stage} currentEvent={selectedEvent} {previousAnalyses} {analysisId} {loadAnalysis} />
 
   <main class="flex flex-1 flex-col gap-4 overflow-hidden p-4">
     <div class="grid flex-1 grid-cols-12 gap-4 overflow-hidden">
       <section class="col-span-5 flex flex-col gap-4 overflow-y-auto pr-1">
         <Card>
-          <CardHeader>
-            <CardTitle>1. Video</CardTitle>
-          </CardHeader>
+          <CardHeader><CardTitle>1. Video</CardTitle></CardHeader>
           <CardContent>
             <VideoUploader file={video} onChange={(f) => (video = f)} disabled={busy} />
           </CardContent>
         </Card>
 
-        {#if previousAnalysis}
-          <Card>
-            <CardHeader>
-              <CardTitle>Previous Analysis</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div class="flex items-center justify-between rounded-md border p-3 text-sm">
-                <div class="flex-1 min-w-0">
-                  <p class="font-medium truncate">{previousAnalysis.video_filename}</p>
-                  <p class="text-xs text-muted-foreground">
-                    ID: {previousAnalysis.id} · Condition {previousAnalysis.condition} · {previousAnalysis.stage}
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onclick={loadAnalysis}
-                  disabled={busy}
-                  class="ml-2 shrink-0"
-                >
-                  Load
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        {/if}
-
         <Card>
-          <CardHeader>
-            <CardTitle>2. Ablation condition</CardTitle>
-          </CardHeader>
+          <CardHeader><CardTitle>2. Ablation condition</CardTitle></CardHeader>
           <CardContent>
             <ConditionSelector
               value={condition}
@@ -347,9 +284,7 @@
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle>3. VLM (conditions A and C)</CardTitle>
-          </CardHeader>
+          <CardHeader><CardTitle>3. VLM (conditions A and C)</CardTitle></CardHeader>
           <CardContent>
             <VlmConfigForm
               value={vlmConfig}
@@ -366,9 +301,7 @@
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle>4. Audio (conditions B and C)</CardTitle>
-          </CardHeader>
+          <CardHeader><CardTitle>4. Audio (conditions B and C)</CardTitle></CardHeader>
           <CardContent>
             <AudioConfigForm
               value={audioConfig}
@@ -385,9 +318,7 @@
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle>5. Event + deltas</CardTitle>
-          </CardHeader>
+          <CardHeader><CardTitle>5. Event + deltas</CardTitle></CardHeader>
           <CardContent>
             <EventPicker
               condition={condition}
@@ -405,13 +336,13 @@
 
         <div class="flex gap-2">
           <Button class="flex-1" onclick={startAnalysis} disabled={!canStart}>
-            <Play /> Start analysis
+            <Play class="size-4" /> Start analysis
           </Button>
           <Button variant="outline" onclick={runDetection} disabled={!canDetect}>
             Run detection
           </Button>
-          <Button variant="ghost" onclick={reset} disabled={busy && stage !== 'done' && stage !== 'failed'}>
-            <RotateCcw /> Reset
+          <Button variant="ghost" onclick={reset} disabled={!canReset}>
+            <RotateCcw class="size-4" /> Reset
           </Button>
         </div>
 

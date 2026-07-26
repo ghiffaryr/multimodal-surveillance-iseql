@@ -1,42 +1,122 @@
 <script lang="ts">
-import type { Snippet } from 'svelte';
-import { APP_NAME, APP_TAGLINE } from '$lib/app';
-import Separator from '$lib/components/ui/separator.svelte';
-import Badge from '$lib/components/ui/badge.svelte';
-import type { BadgeVariant } from '$lib/components/ui/badge';
-import { cn } from '$lib/utils';
+  import { APP_NAME, APP_TAGLINE } from '$lib/app';
+  import Separator from '$lib/components/ui/separator.svelte';
+  import Badge from '$lib/components/ui/badge.svelte';
+  import type { BadgeVariant } from '$lib/components/ui/badge';
+  import { cn } from '$lib/utils';
+  import { Clock, FileVideo } from 'lucide-svelte';
 
-const STAGE_VARIANT: Record<string, BadgeVariant> = {
-  done: 'default',
-  failed: 'destructive',
-};
+  type AnalysisRecord = {
+    id: string;
+    video_filename: string;
+    condition: string;
+    stage: string;
+    created_at: string;
+  };
 
-  type Props = { class?: string; currentStage?: string; currentEvent?: string; children?: Snippet };
-  let { class: className = '', currentStage = 'idle', currentEvent = '', children }: Props = $props();
+  const STAGE_VARIANT: Record<string, BadgeVariant> = {
+    done: 'default',
+    failed: 'destructive',
+  };
+  const CONDITION_COLORS: Record<string, string> = {
+    A: 'bg-sky-500/10 text-sky-300 border-sky-500/30',
+    B: 'bg-amber-500/10 text-amber-300 border-amber-500/30',
+    C: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30',
+  };
+
+  type Props = {
+    class?: string;
+    currentStage?: string;
+    currentEvent?: string;
+    previousAnalyses?: AnalysisRecord[];
+    analysisId?: string | null;
+    loadAnalysis?: (item: AnalysisRecord) => void;
+  };
+  let {
+    class: className = '',
+    currentStage = 'idle',
+    currentEvent = '',
+    previousAnalyses = [],
+    analysisId = null,
+    loadAnalysis,
+  }: Props = $props();
+
+  function formatDate(iso: string): string {
+    if (!iso) return '--';
+    const d = new Date(iso);
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  }
 </script>
 
-<aside class={cn('flex h-full w-80 shrink-0 flex-col border-r border-border bg-card text-card-foreground', className)}>
-  <div class="flex flex-col gap-1 px-6 py-4">
-    <h1 class="text-2xl font-bold tracking-tight">{APP_NAME}</h1>
+<aside class={cn('flex h-full w-72 shrink-0 flex-col border-r border-border bg-card text-card-foreground', className)}>
+  <div class="flex flex-col gap-1 px-5 py-3">
+    <h1 class="text-xl font-bold tracking-tight">{APP_NAME}</h1>
     <p class="text-xs text-muted-foreground">{APP_TAGLINE}</p>
   </div>
   <Separator />
-  <div class="flex-1 overflow-y-auto px-4 py-4">
-    {@render children?.()}
+  <div class="flex-1 overflow-y-auto px-3 py-3">
+    {#if previousAnalyses.length > 0}
+      <div class="space-y-2">
+        <p class="text-xs font-medium text-muted-foreground">PREVIOUS ANALYSES</p>
+        <div class="space-y-1">
+          {#each previousAnalyses as item (item.id)}
+            <button
+              class={cn(
+                'flex w-full flex-col gap-0.5 rounded-md px-2.5 py-2 text-left text-xs transition-colors hover:bg-muted',
+                item.id === analysisId && 'bg-primary/10 border border-primary/30',
+                item.id !== analysisId && 'border border-transparent',
+              )}
+              onclick={() => loadAnalysis?.(item)}
+              title={item.id}
+            >
+              <div class="flex items-center gap-1.5">
+                <FileVideo class="size-3 shrink-0 text-muted-foreground" />
+                <span class="truncate font-medium text-foreground">{item.video_filename}</span>
+              </div>
+              <div class="flex items-center gap-1.5 mt-0.5">
+                <span class={cn('rounded border px-1 py-px text-[10px] font-medium', CONDITION_COLORS[item.condition] || 'bg-muted text-muted-foreground')}>
+                  {item.condition}
+                </span>
+                <span class={cn(
+                  'rounded px-1 py-px text-[10px]',
+                  item.stage === 'done' && 'bg-emerald-500/15 text-emerald-300',
+                  item.stage === 'failed' && 'bg-red-500/15 text-red-300',
+                  item.stage !== 'done' && item.stage !== 'failed' && 'bg-muted text-muted-foreground',
+                )}>
+                  {item.stage}
+                </span>
+                {#if item.created_at}
+                  <span class="ml-auto flex items-center gap-0.5 text-[10px] text-muted-foreground">
+                    <Clock class="size-2.5" />{formatDate(item.created_at)}
+                  </span>
+                {:else}
+                  <span class="ml-auto text-[10px] text-muted-foreground">--</span>
+                {/if}
+              </div>
+            </button>
+          {/each}
+        </div>
+      </div>
+    {:else}
+      <p class="text-xs text-muted-foreground">No previous analyses.</p>
+    {/if}
   </div>
   <Separator />
-  <div class="flex flex-col gap-2 px-4 py-4 text-xs text-muted-foreground">
+  <div class="flex flex-col gap-2 px-5 py-3 text-xs text-muted-foreground">
     <div class="flex items-center justify-between">
       <span>Status</span>
-      <Badge variant={STAGE_VARIANT[currentStage] || 'secondary'}>
+      <Badge variant={STAGE_VARIANT[currentStage] || 'secondary'} class="text-[10px]">
         {currentStage}
       </Badge>
     </div>
     {#if currentEvent}
       <div class="flex items-center justify-between">
         <span>Event</span>
-        <code class="rounded bg-muted px-1.5 py-0.5 text-foreground">{currentEvent}</code>
+        <code class="rounded bg-muted px-1.5 py-0.5 text-[10px] text-foreground">{currentEvent}</code>
       </div>
     {/if}
+    <p class="text-[10px]">
+      {APP_NAME} v0.2.0 · © 2026
+    </p>
   </div>
 </aside>
