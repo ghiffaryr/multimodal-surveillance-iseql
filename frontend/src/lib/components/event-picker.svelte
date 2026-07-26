@@ -41,7 +41,7 @@
     disabled?: boolean;
   };
   let {
-    condition = $bindable('A' as Condition),
+    condition = $bindable(),
     aEvents,
     bEvents,
     cEvents,
@@ -62,10 +62,9 @@
   const currentDeltaKey = $derived(currentEvent?.delta_param);
   const currentDeltaKey2 = $derived(currentEvent?.delta_param2);
 
-  const _cond = condition as string;
   const visibleDeltaFields = $derived(
-    _cond === 'A' ? DELTA_FIELDS.filter(f => f.key.startsWith('delta_visual_')) :
-    _cond === 'B' ? DELTA_FIELDS.filter(f => f.key.startsWith('delta_sound_')) :
+    condition === 'A' ? DELTA_FIELDS.filter(f => f.key.startsWith('delta_visual_')) :
+    condition === 'B' ? DELTA_FIELDS.filter(f => f.key.startsWith('delta_sound_')) :
     DELTA_FIELDS
   );
 
