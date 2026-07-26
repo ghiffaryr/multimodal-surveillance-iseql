@@ -62,11 +62,9 @@
     delta_visual_vehicle_escape: 50,
     delta_visual_loitering: 150,
     delta_visual_handoff: 240,
-    delta_visual_fight: 60,
     delta_sound_fight: 120,
     delta_sound_vehicle_escape: 150,
     delta_sound_vehicle_collision: 60,
-    delta_audio_visual_proximity: 60,
   });
   let eventTypes = $state<EventTypesResponse>({ A_visual: [], B_sound_only: [], C_sound_visual: [] });
 
