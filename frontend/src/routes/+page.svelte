@@ -100,10 +100,10 @@
 
   // Reset restart shortcut when non-delta config changes
   $effect(() => {
-    if (!analysisDone) return;
+    if (stage !== 'done') return;
     const snap = takeConfigSnapshot();
-    if (snap && lastConfigSnapshot && snap !== lastConfigSnapshot) {
-      analysisDone = false;
+    if (snap && lastConfigSnapshot) {
+      analysisDone = snap === lastConfigSnapshot;
     }
   });
 
@@ -162,10 +162,13 @@
     stage = item.stage;
     appendLog('info', `>>> Loaded previous analysis ${item.id} (condition ${item.condition}, stage ${item.stage})`);
     if (item.stage === 'done') {
+      lastConfigSnapshot = takeConfigSnapshot();
+      analysisDone = true;
       setTimeout(() => runAllDetections(), 300);
     } else {
       appendLog('warning', `Analysis is not complete (stage: ${item.stage}). Detection may not be available.`);
     }
+  }
   }
 
   async function startAnalysis() {
