@@ -10,7 +10,7 @@ import uvicorn
 
 from __init__ import __app_name__, __version__
 from api import ROUTES
-from api.analysis_controller import load_runs_from_db
+from service.impl.analysis_service_impl import AnalysisServiceImpl
 from utils.config import Config
 from utils.api_logger import get_logger, setup_logging
 
@@ -31,7 +31,8 @@ async def lifespan(app: FastAPI):
     log.info("Available VLM providers: %s", Config.get_available_providers())
     
     # Load previous runs from database
-    restored = load_runs_from_db()
+    analysis_svc = AnalysisServiceImpl()
+    restored = analysis_svc.load_from_db()
     if restored > 0:
         log.info("Restored %d previous analysis run(s)", restored)
     

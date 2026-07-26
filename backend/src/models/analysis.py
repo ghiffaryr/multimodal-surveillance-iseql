@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import asyncio
+from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
@@ -19,6 +22,30 @@ class AnalysisStage(str, Enum):
     DETECTION = "detection"
     DONE = "done"
     FAILED = "failed"
+
+@dataclass
+class RunState:
+    id: str
+    video_path: Path
+    video_filename: str
+    condition: str
+    vlm_provider: str
+    model: str
+    grid_rows: int
+    grid_cols: int
+    sampling_rate: int
+    vlm_delay: float = 0.0
+    vlm_quantization: str = "none"
+    max_retries: int = 3
+    audio_provider: str = "panns"
+    audio_model: str = "cnn14"
+    audio_quantization: str = "none"
+    stage: AnalysisStage = AnalysisStage.QUEUED
+    counters: Dict[str, int] = field(default_factory=dict)
+    log_queue: "asyncio.Queue" = field(default_factory=asyncio.Queue)
+    done: bool = False
+    error: Optional[str] = None
+
 
 class LogEvent(BaseModel):
     ts: float

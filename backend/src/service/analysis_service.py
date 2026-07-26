@@ -1,0 +1,57 @@
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from pathlib import Path
+from typing import Optional
+
+from models.analysis import RunState
+
+
+class AnalysisService(ABC):
+
+    @abstractmethod
+    def get_run(self, analysis_id: str) -> RunState:
+        pass
+
+    @abstractmethod
+    def start_analysis(
+        self,
+        *,
+        video_path: Path,
+        video_filename: str,
+        condition: str,
+        vlm_provider: str,
+        model: str,
+        grid_rows: int,
+        grid_cols: int,
+        sampling_rate: int,
+        vlm_delay: float,
+        vlm_quantization: str,
+        max_retries: int,
+        audio_provider: str,
+        audio_model: str,
+        audio_quantization: str,
+    ) -> RunState:
+        pass
+
+    @abstractmethod
+    def get_status(self, analysis_id: str) -> dict:
+        pass
+
+    @abstractmethod
+    def list_analyses(self) -> list[dict]:
+        pass
+
+    @abstractmethod
+    def detect_event(
+        self,
+        *,
+        analysis_id: str,
+        event_type: str,
+        condition: str,
+    ) -> dict:
+        pass
+
+    @abstractmethod
+    def load_from_db(self) -> int:
+        pass
