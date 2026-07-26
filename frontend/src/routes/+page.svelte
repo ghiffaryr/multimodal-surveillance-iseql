@@ -30,8 +30,7 @@
   import CardTitle from '$lib/components/ui/card-title.svelte';
   import CardContent from '$lib/components/ui/card-content.svelte';
   import Button from '$lib/components/ui/button.svelte';
-  import Separator from '$lib/components/ui/separator.svelte';
-  import { Play, AlertTriangle, CheckCircle2, Square } from 'lucide-svelte';
+  import { Play, AlertTriangle, Square } from 'lucide-svelte';
 
   type AnalysisRecord = {
     id: string;
@@ -71,7 +70,6 @@
     delta_audio_visual_proximity: 60,
   });
   let eventTypes = $state<EventTypesResponse>({ A_visual: [], B_sound_only: [], C_sound_visual: [] });
-  let selectedEvent = $state<string>('');
 
   let analysisId = $state<string | null>(null);
   let stage = $state<string>('idle');
@@ -114,18 +112,6 @@
     await refreshAnalysisList();
   });
 
-  $effect(() => {
-    const list =
-      condition === 'A'
-        ? eventTypes.A_visual
-        : condition === 'B'
-          ? eventTypes.B_sound_only
-          : eventTypes.C_sound_visual;
-    if (list.length > 0 && !list.some((e) => e.id === selectedEvent)) {
-      selectedEvent = list[0].id;
-    }
-  });
-
   function appendLog(stage: string, message: string) {
     logs = [...logs, { ts: Date.now() / 1000, stage, message }];
   }
@@ -139,6 +125,12 @@
     logs = [];
   }
 
+  function getAllEventIds(): string[] {
+    if (condition === 'A') return eventTypes.A_visual.map(e => e.id);
+    if (condition === 'B') return eventTypes.B_sound_only.map(e => e.id);
+    return eventTypes.C_sound_visual.map(e => e.id);
+  }
+
   function loadAnalysis(item: AnalysisRecord) {
     reset();
     analysisId = item.id;
@@ -146,8 +138,8 @@
     stage = item.stage;
     appendLog('info', `>>> Loaded previous analysis ${item.id} (condition ${item.condition}, stage ${item.stage})`);
     if (item.stage === 'done') {
-      setTimeout(() => runDetection(), 200);
-    } else if (item.stage !== 'done') {
+      setTimeout(() => runAllDetections(), 300);
+    } else {
       appendLog('warning', `Analysis is not complete (stage: ${item.stage}). Detection may not be available.`);
     }
   }
@@ -196,13 +188,13 @@
         async () => {
           stage = 'done';
           busy = false;
-          appendLog('done', '>>> Run finished, ready to detect.');
+          appendLog('done', '>>> Run finished, running detection on all events...');
           try {
             const s = await api.get<AnalysisStatusResponse>(`/api/analysis/${analysisId}/status`);
             stage = s.stage;
           } catch { /* ignore */ }
           await refreshAnalysisList();
-          if (selectedEvent) runDetection();
+          runAllDetections();
         },
         (err) => {
           stage = 'failed';
@@ -222,43 +214,35 @@
     }
   }
 
-  async function runDetection() {
-    if (!analysisId) {
-      error = 'Run an analysis first.';
-      return;
-    }
-    if (stage !== 'done') {
-      error = `Analysis is not done yet (current stage: ${stage}).`;
-      return;
-    }
+  async function runAllDetections() {
+    if (!analysisId || stage !== 'done') return;
+    const events = getAllEventIds();
+    if (events.length === 0) return;
+
     detecting = true;
     result = null;
     error = null;
-    appendLog('detection', `>>> Running '${selectedEvent}' (condition ${condition})`);
+    appendLog('detection', `>>> Auto-detecting all ${events.length} events for condition ${condition}`);
 
-    try {
-      const r = await api.post<DetectionResult>(
-        `/api/analysis/${analysisId}/detect?event_type=${encodeURIComponent(selectedEvent)}`
-      );
-      result = {
-        ...r,
-        rows: r.rows.map(row => ({ Event: selectedEvent, ...row })),
-      };
-      appendLog('detection', `<<< ${r.rows.length} row(s) for '${selectedEvent}'.`);
-      detecting = false;
-    } catch (e) {
-      detecting = false;
-      if (e instanceof ApiError) {
-        error = `${e.status}: ${typeof e.body === 'string' ? e.body : JSON.stringify(e.body)}`;
-      } else {
-        error = (e as Error).message;
+    const allRows: Array<Record<string, unknown>> = [];
+    for (const evt of events) {
+      try {
+        const r = await api.post<DetectionResult>(
+          `/api/analysis/${analysisId}/detect?event_type=${encodeURIComponent(evt)}`
+        );
+        for (const row of r.rows) {
+          allRows.push({ Event: evt, ...row });
+        }
+      } catch (e) {
+        appendLog('failed', `Detection query failed for '${evt}': ${(e as Error).message}`);
       }
-      appendLog('failed', `Detection failed: ${error}`);
     }
+    result = { analysis_id: analysisId!, event_type: 'all', condition: condition, rows: allRows };
+    appendLog('detection', `<<< ${allRows.length} total row(s) across ${events.length} events.`);
+    detecting = false;
   }
 
   const canStart = $derived(video !== null && !busy);
-  const canDetect = $derived(analysisId !== null && stage === 'done' && !detecting);
   const canStop = $derived(busy);
 
   async function stopAnalysis() {
@@ -271,18 +255,10 @@
       appendLog('failed', `Stop request failed: ${(e as Error).message}`);
     }
   }
-  const audioLabel = $derived('Audio Model');
-  const conditionLabel = $derived(
-    condition === 'A'
-      ? 'A · Visual only (VLM + ISEQL)'
-      : condition === 'B'
-        ? `B · Sound only (${audioLabel} + ISEQL)`
-        : `C · Full multimodal (VLM + ${audioLabel} + ISEQL)`,
-  );
 </script>
 
 <div class="flex h-screen w-screen overflow-hidden bg-background text-foreground">
-  <AppSidebar currentStage={stage} currentEvent={selectedEvent} {previousAnalyses} {analysisId} {loadAnalysis}
+  <AppSidebar currentStage={stage} {previousAnalyses} {analysisId} {loadAnalysis}
     onDeleteAnalysis={deleteAnalysis} onResetDb={reset} />
 
   <main class="flex flex-1 flex-col gap-4 overflow-hidden p-4">
@@ -300,9 +276,7 @@
           <CardContent>
             <ConditionSelector
               value={condition}
-              onChange={(c) => {
-                condition = c;
-              }}
+              onChange={(c) => { condition = c; }}
               disabled={busy}
             />
           </CardContent>
@@ -344,15 +318,10 @@
         </Card>
 
         <Card>
-          <CardHeader><CardTitle>5. Event + deltas</CardTitle></CardHeader>
+          <CardHeader><CardTitle>5. Deltas</CardTitle></CardHeader>
           <CardContent>
             <EventPicker
               condition={condition}
-              aEvents={eventTypes.A_visual}
-              bEvents={eventTypes.B_sound_only}
-              cEvents={eventTypes.C_sound_visual}
-              selected={selectedEvent}
-              onChangeSelected={(id) => (selectedEvent = id)}
               deltas={deltas}
               onChangeDeltas={(d) => (deltas = d)}
               disabled={busy}
@@ -370,21 +339,12 @@
               <Play class="size-4" /> Start analysis
             </Button>
           {/if}
-          <Button variant="outline" onclick={runDetection} disabled={!canDetect}>
-            Run detection
-          </Button>
         </div>
 
         {#if error}
           <div class="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
             <AlertTriangle class="size-4 shrink-0" />
             <p class="break-all">{error}</p>
-          </div>
-        {/if}
-        {#if stage === 'done' && !error}
-          <div class="flex items-center gap-2 rounded-md border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm text-emerald-300">
-            <CheckCircle2 class="size-4" />
-            Analysis complete - ready to detect.
           </div>
         {/if}
       </section>

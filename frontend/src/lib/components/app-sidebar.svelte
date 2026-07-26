@@ -28,7 +28,6 @@
   type Props = {
     class?: string;
     currentStage?: string;
-    currentEvent?: string;
     previousAnalyses?: AnalysisRecord[];
     analysisId?: string | null;
     loadAnalysis?: (item: AnalysisRecord) => void;
@@ -38,7 +37,6 @@
   let {
     class: className = '',
     currentStage = 'idle',
-    currentEvent = '',
     previousAnalyses = [],
     analysisId = null,
     loadAnalysis,
@@ -138,12 +136,6 @@
         {currentStage}
       </Badge>
     </div>
-    {#if currentEvent}
-      <div class="flex items-center justify-between">
-        <span>Event</span>
-        <code class="rounded bg-muted px-1.5 py-0.5 text-[10px] text-foreground">{currentEvent}</code>
-      </div>
-    {/if}
     <p class="text-[10px]">
       {APP_NAME} v{APP_VERSION} · © 2026
     </p>
