@@ -36,14 +36,14 @@ def _stem(word: str) -> str:
     return w
 
 _GT_KEYWORDS = {
-    "shout":                 {"shout", "yell", "scream"},
-    "impact":                {"impact", "thump", "thud", "bang", "slam", "smash", "crash", "punch", "hit"},
-    "gunshot_or_explosion":  {"gunshot", "gunfire", "artillery_fire", "artillery", "explosion", "explosive", "firework", "boom", "burst", "pop"},
-    "engine":                {"engine", "vehicle", "car", "vroom"},
-    "tire_squeal":           {"tire", "tyre", "tire_squeal", "screech", "squeal"},
-    "skidding":              {"skidding", "skid"},
-    "glass_breaking":        {"glass", "glass_breaking", "shatter", "shattering"},
-    "horn":                  {"horn", "honk", "honking"},
+    "shout": {"shout", "yell", "scream"},
+    "impact": {"impact", "thump", "thud", "bang", "slam", "smash", "crash", "punch", "hit"},
+    "gunshot_or_explosion": {"gunshot", "gunfire", "artillery_fire", "artillery", "explosion", "explosive", "firework", "boom", "burst", "pop"},
+    "engine": {"engine", "vehicle", "car", "vroom"},
+    "tire_squeal": {"tire", "tyre", "tire_squeal", "screech", "squeal"},
+    "skidding": {"skidding", "skid"},
+    "glass_breaking": {"glass", "glass_breaking", "shatter", "shattering"},
+    "horn": {"horn", "honk", "honking"},
 }
 
 _SYNONYM_LOOKUP: dict[str, str] = {}
