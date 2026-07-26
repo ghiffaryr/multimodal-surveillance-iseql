@@ -11,24 +11,24 @@ export class ApiError extends Error {
   }
 }
 
-function resolveBase(): string {
-  if (!browser) return PUBLIC_API_BASE_URL;
-  return '';
-}
-
-const BASE = resolveBase() || PUBLIC_API_BASE_URL;
+const BASE = browser ? '' : PUBLIC_API_BASE_URL;
 
 async function request<T>(
   method: string,
   path: string,
-  body?: BodyInit | null | undefined,
-  headers?: Record<string, string>
+  body?: BodyInit | null,
+  headers?: Record<string, string>,
 ): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    method,
-    body: body ?? null,
-    headers: { ...(headers ?? {}) },
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      method,
+      body: body ?? null,
+      headers: { ...(headers ?? {}) },
+    });
+  } catch (e) {
+    throw new ApiError(0, null, `Network error: ${(e as Error).message}`);
+  }
   const text = await res.text();
   let parsed: unknown = null;
   try {
@@ -45,7 +45,6 @@ async function request<T>(
 export const api = {
   get: <T,>(path: string) => request<T>('GET', path),
   post: <T,>(path: string, body?: BodyInit | null) => request<T>('POST', path, body),
-  postForm: <T,>(path: string, form: FormData) =>
-    request<T>('POST', path, form),
+  postForm: <T,>(path: string, form: FormData) => request<T>('POST', path, form),
   sse: (path: string) => new EventSource(`${BASE}${path}`),
 };

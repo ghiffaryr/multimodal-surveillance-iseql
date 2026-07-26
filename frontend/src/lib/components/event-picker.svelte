@@ -7,21 +7,28 @@
   import TabsList from '$lib/components/ui/tabs-list.svelte';
   import TabsTrigger from '$lib/components/ui/tabs-trigger.svelte';
   import TabsContent from '$lib/components/ui/tabs-content.svelte';
-  import type { Condition, EventTypeInfo } from '$lib/types';
+  import type { Condition, EventTypeInfo, Deltas } from '$lib/types';
+  import { inputInt } from '$lib/dom-helpers';
   import { Database } from 'lucide-svelte';
 
-  export type Deltas = {
-    delta_visual_vehicle_escape: number;
-    delta_visual_loitering: number;
-    delta_visual_handoff: number;
-    delta_visual_fight: number;
-    delta_sound_fight: number;
-    delta_sound_gunshot_or_explosion: number;
-    delta_sound_vehicle_escape: number;
-    delta_sound_loitering: number;
-    delta_sound_vehicle_collision: number;
-    delta_audio_visual_proximity: number;
-  };
+  const DELTA_FIELDS: Array<{ key: keyof Deltas; label: string; id: string; fallback: number }> = [
+    { key: 'delta_visual_vehicle_escape', label: 'delta_visual_vehicle_escape', id: 'd-visual-vehicle-escape', fallback: 50 },
+    { key: 'delta_visual_loitering', label: 'delta_visual_loitering', id: 'd-visual-loitering', fallback: 150 },
+    { key: 'delta_visual_handoff', label: 'delta_visual_handoff', id: 'd-visual-handoff', fallback: 240 },
+    { key: 'delta_visual_fight', label: 'delta_visual_fight', id: 'd-visual-fight', fallback: 60 },
+    { key: 'delta_sound_fight', label: 'delta_sound_fight', id: 'd-s-fight', fallback: 120 },
+    { key: 'delta_sound_gunshot_or_explosion', label: 'delta_sound_gunshot_or_explosion', id: 'd-s-ge', fallback: 60 },
+    { key: 'delta_sound_vehicle_escape', label: 'delta_sound_vehicle_escape', id: 'd-s-ve', fallback: 150 },
+    { key: 'delta_sound_loitering', label: 'delta_sound_loitering', id: 'd-s-loit', fallback: 30 },
+    { key: 'delta_sound_vehicle_collision', label: 'delta_sound_vehicle_collision', id: 'd-s-vc', fallback: 60 },
+    { key: 'delta_audio_visual_proximity', label: 'delta_audio_visual_proximity', id: 'd-av-prox', fallback: 60 },
+  ];
+
+  const CONDITION_TABS: Array<{ value: Condition; label: string; desc: string }> = [
+    { value: 'A', label: 'A. Visual', desc: 'Visual ISEQL event (condition A)' },
+    { value: 'B', label: 'B. Sound only', desc: 'Sound ISEQL event (condition B)' },
+    { value: 'C', label: 'C. Multimodal', desc: 'Multimodal fusion event (condition C)' },
+  ];
 
   type Props = {
     condition: Condition;
@@ -50,127 +57,56 @@
     onChangeDeltas({ ...deltas, ...p });
   }
 
-  const currentList = $derived(
-    condition === 'A' ? aEvents : condition === 'B' ? bEvents : cEvents,
-  );
+  const eventsByCondition = $derived<Record<Condition, EventTypeInfo[]>>({ A: aEvents, B: bEvents, C: cEvents });
+  const currentList = $derived(eventsByCondition[condition]);
   const currentEvent = $derived(currentList.find((e) => e.id === selected));
   const currentDeltaKey = $derived(currentEvent?.delta_param);
+
+  function handleSelect(e: Event) {
+    onChangeSelected((e.currentTarget as HTMLSelectElement).value);
+  }
 </script>
 
 <Tabs value={condition} class="w-full">
   <TabsList class="w-full">
-    <TabsTrigger value="A" disabled>A. Visual ({aEvents.length})</TabsTrigger>
-    <TabsTrigger value="B" disabled>B. Sound only ({bEvents.length})</TabsTrigger>
-    <TabsTrigger value="C" disabled>C. Multimodal ({cEvents.length})</TabsTrigger>
+    {#each CONDITION_TABS as tab}
+      <TabsTrigger value={tab.value}>{tab.label} ({eventsByCondition[tab.value].length})</TabsTrigger>
+    {/each}
   </TabsList>
 
-  <TabsContent value="A">
-    <Field>
-      <Label for="event-a">Visual ISEQL event (condition A)</Label>
-      <Select
-        id="event-a"
-        options={aEvents.map((e) => ({ value: e.id, label: e.label }))}
-        value={selected}
-        onchange={(e) => onChangeSelected((e.currentTarget as HTMLSelectElement).value)}
-        {disabled}
-      />
-    </Field>
-  </TabsContent>
-
-  <TabsContent value="B">
-    <Field>
-      <Label for="event-b">Sound ISEQL event (condition B)</Label>
-      <Select
-        id="event-b"
-        options={bEvents.map((e) => ({ value: e.id, label: e.label }))}
-        value={selected}
-        onchange={(e) => onChangeSelected((e.currentTarget as HTMLSelectElement).value)}
-        {disabled}
-      />
-      <p class="mt-1 text-xs text-muted-foreground">
-        Temporal sound sequence query over SoundIntervals. No VLM.
-      </p>
-    </Field>
-  </TabsContent>
-
-  <TabsContent value="C">
-    <Field>
-      <Label for="event-c">Multimodal fusion event (condition C)</Label>
-      <Select
-        id="event-c"
-        options={cEvents.map((e) => ({ value: e.id, label: e.label }))}
-        value={selected}
-        onchange={(e) => onChangeSelected((e.currentTarget as HTMLSelectElement).value)}
-        {disabled}
-      />
-      <p class="mt-1 text-xs text-muted-foreground">
-        Visual JOIN sound with ISEQL temporal operators.
-      </p>
-    </Field>
-  </TabsContent>
+  {#each CONDITION_TABS as tab}
+    <TabsContent value={tab.value}>
+      <Field>
+        <Label for="event-{tab.value}">{tab.desc}</Label>
+        <Select
+          id="event-{tab.value}"
+          options={eventsByCondition[tab.value].map((e) => ({ value: e.id, label: e.label }))}
+          value={selected}
+          onchange={handleSelect}
+          {disabled}
+        />
+      </Field>
+      {#if tab.value === 'B' || tab.value === 'C'}
+        <p class="mt-1 text-xs text-muted-foreground">
+          {tab.value === 'B' ? 'Temporal sound sequence query over SoundIntervals. No VLM.' : 'Visual JOIN sound with ISEQL temporal operators.'}
+        </p>
+      {/if}
+    </TabsContent>
+  {/each}
 </Tabs>
 
 <div class="mt-4 grid grid-cols-2 gap-3">
-  <Field>
-    <Label for="d-visual-vehicle-escape">delta_visual_vehicle_escape</Label>
-    <Input id="d-visual-vehicle-escape" type="number" min="0" value={deltas.delta_visual_vehicle_escape}
-      onchange={(e) => patch({ delta_visual_vehicle_escape: parseInt((e.currentTarget as HTMLInputElement).value, 10) || 50 })}
-      {disabled} />
-  </Field>
-  <Field>
-    <Label for="d-visual-loitering">delta_visual_loitering</Label>
-    <Input id="d-visual-loitering" type="number" min="0" value={deltas.delta_visual_loitering}
-      onchange={(e) => patch({ delta_visual_loitering: parseInt((e.currentTarget as HTMLInputElement).value, 10) || 150 })}
-      {disabled} />
-  </Field>
-  <Field>
-    <Label for="d-visual-handoff">delta_visual_handoff</Label>
-    <Input id="d-visual-handoff" type="number" min="0" value={deltas.delta_visual_handoff}
-      onchange={(e) => patch({ delta_visual_handoff: parseInt((e.currentTarget as HTMLInputElement).value, 10) || 240 })}
-      {disabled} />
-  </Field>
-  <Field>
-    <Label for="d-visual-fight">delta_visual_fight</Label>
-    <Input id="d-visual-fight" type="number" min="0" value={deltas.delta_visual_fight}
-      onchange={(e) => patch({ delta_visual_fight: parseInt((e.currentTarget as HTMLInputElement).value, 10) || 60 })}
-      {disabled} />
-  </Field>
-  <Field>
-    <Label for="d-s-fight">delta_sound_fight</Label>
-    <Input id="d-s-fight" type="number" min="0" value={deltas.delta_sound_fight}
-      onchange={(e) => patch({ delta_sound_fight: parseInt((e.currentTarget as HTMLInputElement).value, 10) || 120 })}
-      {disabled} />
-  </Field>
-  <Field>
-    <Label for="d-s-ge">delta_sound_gunshot_or_explosion</Label>
-    <Input id="d-s-ge" type="number" min="0" value={deltas.delta_sound_gunshot_or_explosion}
-      onchange={(e) => patch({ delta_sound_gunshot_or_explosion: parseInt((e.currentTarget as HTMLInputElement).value, 10) || 60 })}
-      {disabled} />
-  </Field>
-  <Field>
-    <Label for="d-s-ve">delta_sound_vehicle_escape</Label>
-    <Input id="d-s-ve" type="number" min="0" value={deltas.delta_sound_vehicle_escape}
-      onchange={(e) => patch({ delta_sound_vehicle_escape: parseInt((e.currentTarget as HTMLInputElement).value, 10) || 150 })}
-      {disabled} />
-  </Field>
-  <Field>
-    <Label for="d-s-loit">delta_sound_loitering</Label>
-    <Input id="d-s-loit" type="number" min="0" value={deltas.delta_sound_loitering}
-      onchange={(e) => patch({ delta_sound_loitering: parseInt((e.currentTarget as HTMLInputElement).value, 10) || 30 })}
-      {disabled} />
-  </Field>
-  <Field>
-    <Label for="d-s-vc">delta_sound_vehicle_collision</Label>
-    <Input id="d-s-vc" type="number" min="0" value={deltas.delta_sound_vehicle_collision}
-      onchange={(e) => patch({ delta_sound_vehicle_collision: parseInt((e.currentTarget as HTMLInputElement).value, 10) || 60 })}
-      {disabled} />
-  </Field>
-  <Field>
-    <Label for="d-av-prox">delta_audio_visual_proximity</Label>
-    <Input id="d-av-prox" type="number" min="0" value={deltas.delta_audio_visual_proximity}
-      onchange={(e) => patch({ delta_audio_visual_proximity: parseInt((e.currentTarget as HTMLInputElement).value, 10) || 60 })}
-      {disabled} />
-  </Field>
+  {#each DELTA_FIELDS as f}
+    <Field>
+      <Label for={f.id}>{f.label}</Label>
+      <Input
+        id={f.id} type="number" min="0"
+        value={deltas[f.key]}
+        onchange={(e) => patch({ [f.key]: inputInt(e, f.fallback) } as Partial<Deltas>)}
+        {disabled}
+      />
+    </Field>
+  {/each}
 </div>
 
 {#if currentEvent}

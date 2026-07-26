@@ -3,12 +3,23 @@
   import Label from '$lib/components/ui/label.svelte';
   import Select from '$lib/components/ui/select.svelte';
   import Field from '$lib/components/ui/field.svelte';
+  import type { AudioConfig } from '$lib/types';
+  import { selectValue } from '$lib/dom-helpers';
 
-  export type AudioConfig = {
-    provider: string;
-    model: string;
-    quantization: string;
+  const DEFAULT_AUDIO_MODELS: Record<string, string> = {
+    huggingface: 'Qwen/Qwen2-Audio-7B-Instruct',
+    panns: 'cnn14',
   };
+  const PROVIDER_LABELS: Record<string, string> = {
+    panns: 'PANNs CNN14 (local)',
+    huggingface: 'HuggingFace LALM',
+  };
+
+  const QUANTIZATION_OPTIONS = [
+    { value: 'none', label: 'None (full precision)' },
+    { value: '8bit', label: '8-bit' },
+    { value: '4bit', label: '4-bit (recommended)' },
+  ];
 
   type Props = {
     value: AudioConfig;
@@ -33,32 +44,25 @@
   });
 
   $effect(() => {
-    // Auto-fill default model when provider changes
     if (provider === 'huggingface' && !model) {
-      patch({ model: 'Qwen/Qwen2-Audio-7B-Instruct' });
+      patch({ model: DEFAULT_AUDIO_MODELS.huggingface });
     } else if (provider === 'panns' && !model) {
-      patch({ model: 'cnn14' });
+      patch({ model: DEFAULT_AUDIO_MODELS.panns });
     }
   });
 
   function handleProviderChange(e: Event) {
-    const newProvider = (e.currentTarget as HTMLSelectElement).value;
-    const defaultModel = newProvider === 'huggingface' ? 'Qwen/Qwen2-Audio-7B-Instruct' : 'cnn14';
-    patch({ provider: newProvider, model: defaultModel });
+    const newProvider = selectValue(e);
+    patch({ provider: newProvider, model: DEFAULT_AUDIO_MODELS[newProvider] || '' });
   }
 
   let providerOptions = $derived(
     availableProviders.map(p => ({
       value: p,
-      label: p === 'panns' ? 'PANNs CNN14 (local)' : 'HuggingFace LALM',
+      label: PROVIDER_LABELS[p] || p,
     }))
   );
 
-  let quantizationOptions = [
-    { value: 'none', label: 'None (full precision)' },
-    { value: '8bit', label: '8-bit' },
-    { value: '4bit', label: '4-bit (recommended)' },
-  ];
 </script>
 
 <div class="grid grid-cols-2 gap-4">
@@ -96,7 +100,7 @@
       <Label for="audio-quantization">Quantization</Label>
       <Select
         id="audio-quantization"
-        options={quantizationOptions}
+        options={QUANTIZATION_OPTIONS}
         value={value.quantization}
         onchange={(e) => patch({ quantization: (e.currentTarget as HTMLSelectElement).value })}
         {disabled}

@@ -6,19 +6,22 @@
   import type {
     AnalysisStartResponse,
     AnalysisStatusResponse,
+    AudioConfig,
     Condition,
+    Deltas,
     DetectionResult,
     EventTypesResponse,
     LogEvent,
     SchemaResponse,
+    VlmConfig,
   } from '$lib/types';
 
   import AppSidebar from '$lib/components/app-sidebar.svelte';
   import VideoUploader from '$lib/components/video-uploader.svelte';
-  import VlmConfigForm, { type VlmConfig } from '$lib/components/vlm-config-form.svelte';
-  import AudioConfigForm, { type AudioConfig } from '$lib/components/audio-config-form.svelte';
+  import VlmConfigForm from '$lib/components/vlm-config-form.svelte';
+  import AudioConfigForm from '$lib/components/audio-config-form.svelte';
   import ConditionSelector from '$lib/components/condition-selector.svelte';
-  import EventPicker, { type Deltas } from '$lib/components/event-picker.svelte';
+  import EventPicker from '$lib/components/event-picker.svelte';
   import LogConsole from '$lib/components/log-console.svelte';
   import ResultsTable from '$lib/components/results-table.svelte';
 
@@ -85,7 +88,6 @@
     }
     try {
       const schema = await api.get<SchemaResponse>('/api/schema');
-      console.log(`${schema.app} v${schema.version} -- conditions ${schema.conditions.join(', ')}`);
       availableProviders = schema.available_providers || [];
       availableAudioProviders = schema.available_audio_providers || ['panns', 'huggingface'];
     } catch {
@@ -95,7 +97,6 @@
       const analyses = await api.get<Array<{id: string, video_filename: string, condition: string, stage: string, created_at: number}>>('/api/analysis/list');
       if (analyses.length > 0) {
         previousAnalysis = analyses[0];
-        console.log(`Found previous analysis: ${previousAnalysis.id}`);
       }
     } catch {
       /* non-fatal */

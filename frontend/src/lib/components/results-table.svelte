@@ -15,10 +15,6 @@
   let { result, running = false, error = null }: Props = $props();
 
   const cols = $derived(result && result.rows.length > 0 ? Object.keys(result.rows[0]) : []);
-
-  function badgeFor(k: string): string {
-    return k === 'event_type' || k === 'analysis_id' ? 'outline' : 'secondary';
-  }
 </script>
 
 <Card class="flex h-full min-h-0 flex-col">

@@ -4,21 +4,24 @@
   import Label from '$lib/components/ui/label.svelte';
   import Select from '$lib/components/ui/select.svelte';
   import Field from '$lib/components/ui/field.svelte';
+  import type { VlmConfig } from '$lib/types';
+  import { selectValue, inputInt, inputFloat } from '$lib/dom-helpers';
 
-  export type VlmConfig = {
-    provider: string;
-    model: string;
-    grid_rows: number;
-    grid_cols: number;
-    sampling_rate: number;
-    vlm_delay: number;
-    quantization: string;
-    max_retries: number;
-  };
+  const DEFAULT_GRID_ROWS = 2;
+  const DEFAULT_GRID_COLS = 4;
+  const DEFAULT_SAMPLING_RATE = 24;
+  const DEFAULT_VLM_DELAY = 0;
+  const DEFAULT_MAX_RETRIES = 3;
 
-  type Props = { 
-    value: VlmConfig; 
-    onChange: (v: VlmConfig) => void; 
+  const QUANTIZATION_OPTIONS = [
+    { value: 'none', label: 'None (full precision)' },
+    { value: '8bit', label: '8-bit' },
+    { value: '4bit', label: '4-bit' },
+  ];
+
+  type Props = {
+    value: VlmConfig;
+    onChange: (v: VlmConfig) => void;
     disabled?: boolean;
     availableProviders?: string[];
   };
@@ -26,20 +29,21 @@
 
   let ollamaModels = $state<{ value: string; label: string }[]>([]);
   let ollamaModelsLoading = $state(false);
+  let ollamaModelsFailed = $state(false);
 
-  let provider = $derived(value.provider);
-  let model = $derived(value.model);
-  let isOllama = $derived(provider === 'ollama');
+  let isOllama = $derived(value.provider === 'ollama');
+  let providerOptions = $derived(
+    availableProviders.map(p => ({ value: p, label: p.charAt(0).toUpperCase() + p.slice(1) }))
+  );
 
   function patch(p: Partial<VlmConfig>) {
     onChange({ ...value, ...p });
   }
 
-  let _fetchedOllama = false;
   async function fetchOllamaModels() {
-    if (_fetchedOllama) return;
-    _fetchedOllama = true;
+    if (ollamaModelsLoading) return;
     ollamaModelsLoading = true;
+    ollamaModelsFailed = false;
     try {
       const resp = await api.get<{ models: { name: string; label: string }[]; error?: string }>(
         '/api/vlm/models?provider=ollama'
@@ -48,7 +52,7 @@
         ollamaModels = resp.models.map((m) => ({ value: m.name, label: m.label }));
       }
     } catch {
-      /* non-fatal */
+      ollamaModelsFailed = true;
     } finally {
       ollamaModelsLoading = false;
     }
@@ -61,31 +65,14 @@
   });
 
   $effect(() => {
-    if (availableProviders.length > 0 && !provider) {
+    if (availableProviders.length > 0 && !value.provider) {
       patch({ provider: availableProviders[0], model: '' });
     }
   });
 
   function handleProviderChange(e: Event) {
-    const newProvider = (e.currentTarget as HTMLSelectElement).value;
-    patch({ provider: newProvider, model: '' });
+    patch({ provider: selectValue(e), model: '' });
   }
-
-  let providerOptions = $derived(
-    availableProviders.map(p => ({ value: p, label: p.charAt(0).toUpperCase() + p.slice(1) }))
-  );
-
-  let quantizationOptions = [
-    { value: 'none', label: 'None (full precision)' },
-    { value: '8bit', label: '8-bit' },
-    { value: '4bit', label: '4-bit' },
-  ];
-
-  $effect(() => {
-    if (!isOllama && value.quantization && value.quantization !== 'none') {
-      patch({ quantization: 'none' });
-    }
-  });
 </script>
 
 <div class="grid grid-cols-2 gap-4">
@@ -94,7 +81,7 @@
     <Select
       id="vlm-provider"
       options={providerOptions}
-      value={provider}
+      value={value.provider}
       onchange={handleProviderChange}
       {disabled}
     />
@@ -106,12 +93,16 @@
       <div class="flex h-9 items-center rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground">
         Detecting models...
       </div>
+    {:else if isOllama && ollamaModelsFailed}
+      <div class="flex h-9 items-center rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground">
+        Failed to detect models. <button type="button" class="ml-1 underline" onclick={fetchOllamaModels}>Retry</button>
+      </div>
     {:else if isOllama && ollamaModels.length > 0}
       <Select
         id="vlm-model"
         options={ollamaModels}
-        value={model}
-        onchange={(e) => patch({ model: (e.currentTarget as HTMLSelectElement).value })}
+        value={value.model}
+        onchange={(e) => patch({ model: selectValue(e) })}
         {disabled}
       />
     {:else}
@@ -119,8 +110,8 @@
         id="vlm-model"
         type="text"
         placeholder={isOllama ? 'No models found, type name' : 'Type model name'}
-        value={model}
-        onchange={(e) => patch({ model: (e.currentTarget as HTMLInputElement).value })}
+        value={value.model}
+        onchange={(e) => patch({ model: selectValue(e) })}
         {disabled}
       />
     {/if}
@@ -131,9 +122,9 @@
       <Label for="vlm-quantization">Quantization (Ollama only)</Label>
       <Select
         id="vlm-quantization"
-        options={quantizationOptions}
+        options={QUANTIZATION_OPTIONS}
         value={value.quantization || 'none'}
-        onchange={(e) => patch({ quantization: (e.currentTarget as HTMLSelectElement).value })}
+        onchange={(e) => patch({ quantization: selectValue(e) })}
         {disabled}
       />
     </Field>
@@ -141,51 +132,41 @@
 
   <Field>
     <Label for="grid-rows">Grid Rows</Label>
-    <Input
-      id="grid-rows" type="number" min="1" max="10"
+    <Input id="grid-rows" type="number" min="1" max="10"
       value={value.grid_rows}
-      onchange={(e) => patch({ grid_rows: parseInt((e.currentTarget as HTMLInputElement).value, 10) || 2 })}
-      {disabled}
-    />
+      onchange={(e) => patch({ grid_rows: inputInt(e, DEFAULT_GRID_ROWS) })}
+      {disabled} />
   </Field>
 
   <Field>
     <Label for="grid-cols">Grid Columns</Label>
-    <Input
-      id="grid-cols" type="number" min="1" max="10"
+    <Input id="grid-cols" type="number" min="1" max="10"
       value={value.grid_cols}
-      onchange={(e) => patch({ grid_cols: parseInt((e.currentTarget as HTMLInputElement).value, 10) || 4 })}
-      {disabled}
-    />
+      onchange={(e) => patch({ grid_cols: inputInt(e, DEFAULT_GRID_COLS) })}
+      {disabled} />
   </Field>
 
   <Field class="col-span-2">
     <Label for="sampling-rate">Sampling Rate (analyze every N frames)</Label>
-    <Input
-      id="sampling-rate" type="number" min="1"
+    <Input id="sampling-rate" type="number" min="1"
       value={value.sampling_rate}
-      onchange={(e) => patch({ sampling_rate: parseInt((e.currentTarget as HTMLInputElement).value, 10) || 24 })}
-      {disabled}
-    />
+      onchange={(e) => patch({ sampling_rate: inputInt(e, DEFAULT_SAMPLING_RATE) })}
+      {disabled} />
   </Field>
 
   <Field class="col-span-2">
     <Label for="vlm-delay">Delay between VLM calls (seconds)</Label>
-    <Input
-      id="vlm-delay" type="number" min="0" step="0.5"
+    <Input id="vlm-delay" type="number" min="0" step="0.5"
       value={value.vlm_delay}
-      onchange={(e) => patch({ vlm_delay: parseFloat((e.currentTarget as HTMLInputElement).value) || 0 })}
-      {disabled}
-    />
+      onchange={(e) => patch({ vlm_delay: inputFloat(e, DEFAULT_VLM_DELAY) })}
+      {disabled} />
   </Field>
 
   <Field class="col-span-2">
     <Label for="vlm-max-retries">Max retries on rate limit</Label>
-    <Input
-      id="vlm-max-retries" type="number" min="0" max="20"
+    <Input id="vlm-max-retries" type="number" min="0" max="20"
       value={value.max_retries}
-      onchange={(e) => patch({ max_retries: parseInt((e.currentTarget as HTMLInputElement).value, 10) || 3 })}
-      {disabled}
-    />
+      onchange={(e) => patch({ max_retries: inputInt(e, DEFAULT_MAX_RETRIES) })}
+      {disabled} />
   </Field>
 </div>

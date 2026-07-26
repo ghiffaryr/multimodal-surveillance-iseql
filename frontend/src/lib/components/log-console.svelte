@@ -21,13 +21,19 @@
     const d = new Date(ts * 1000);
     return d.toLocaleTimeString('en-GB', { hour12: false });
   }
-  function stageClass(s: string) {
-    if (s === 'done')  return 'text-emerald-400';
-    if (s === 'failed') return 'text-red-400';
-    if (s.startsWith('vlm')) return 'text-sky-400';
-    if (s.startsWith('interval')) return 'text-violet-400';
-    if (s.startsWith('sound')) return 'text-amber-400';
-    if (s.startsWith('detection')) return 'text-pink-400';
+  const STAGE_PREFIXES: Array<[string, string]> = [
+    ['done', 'text-emerald-400'],
+    ['failed', 'text-red-400'],
+    ['vlm', 'text-sky-400'],
+    ['interval', 'text-violet-400'],
+    ['sound', 'text-amber-400'],
+    ['detection', 'text-pink-400'],
+  ];
+
+  function stageClass(s: string): string {
+    for (const [prefix, cls] of STAGE_PREFIXES) {
+      if (s === prefix || s.startsWith(prefix)) return cls;
+    }
     return 'text-slate-300';
   }
 </script>

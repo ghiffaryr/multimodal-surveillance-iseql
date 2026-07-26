@@ -11,7 +11,7 @@ export type AnalysisStage =
 
 export interface LogEvent {
   ts: number;
-  stage: AnalysisStage | string;
+  stage: string;
   message: string;
   [k: string]: unknown;
 }
@@ -23,7 +23,6 @@ export interface AnalysisStartRequest {
   grid_rows: number;
   grid_cols: number;
   sampling_rate: number;
-  rho_handoff: number;
 }
 
 export interface AnalysisStartResponse {
@@ -43,7 +42,6 @@ export interface EventTypeInfo {
   id: string;
   label: string;
   delta_param: string | null;
-  condition: Condition;
   requires_cpp: boolean;
 }
 
@@ -72,4 +70,34 @@ export interface DetectionResult {
   event_type: string;
   condition: Condition;
   rows: Array<Record<string, unknown>>;
+}
+
+export interface VlmConfig {
+  provider: string;
+  model: string;
+  grid_rows: number;
+  grid_cols: number;
+  sampling_rate: number;
+  vlm_delay: number;
+  quantization: string;
+  max_retries: number;
+}
+
+export interface AudioConfig {
+  provider: string;
+  model: string;
+  quantization: string;
+}
+
+export interface Deltas {
+  delta_visual_vehicle_escape: number;
+  delta_visual_loitering: number;
+  delta_visual_handoff: number;
+  delta_visual_fight: number;
+  delta_sound_fight: number;
+  delta_sound_gunshot_or_explosion: number;
+  delta_sound_vehicle_escape: number;
+  delta_sound_loitering: number;
+  delta_sound_vehicle_collision: number;
+  delta_audio_visual_proximity: number;
 }
