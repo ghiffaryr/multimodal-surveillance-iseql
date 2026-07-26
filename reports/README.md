@@ -32,7 +32,7 @@ preserved in `interval_engine/`):
 ## Reference files
 
 | File | Contents |
-|---|---|---|
+|------|----------|
 | `experiments/evaluation_scenes.md` | Scene-by-scene prompts, ISEQL patterns, expected results |
 | `data/analysis_gemini_3_6_flash_qwen2_audio/` | Best result: Gemini 3.6 Flash + Qwen2-Audio (F1=0.875) |
 | `backend/src/service/impl/events_service_impl.py` | All 16 SQL queries and EventSpec definitions |
