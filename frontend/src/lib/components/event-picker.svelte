@@ -45,7 +45,7 @@
     aEvents,
     bEvents,
     cEvents,
-    selected = $bindable(),
+    selected,
     onChangeSelected,
     deltas = $bindable(),
     onChangeDeltas,
