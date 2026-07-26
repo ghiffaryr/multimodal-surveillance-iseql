@@ -394,6 +394,7 @@ The hand-curated ontology maps AudioSet labels to the event query SoundClass val
   \centering
   \caption{Ontology mapping from AudioSet labels to event queries.}
   \label{tab:ontology}
+  \resizebox{\textwidth}{!}{%
   \begin{tabular}{p{4.2cm}>{\raggedright}p{3.4cm}p{4.5cm}}
     \toprule
     AudioSet Label(s) & Ontology Class & Event Query \\
@@ -406,7 +407,8 @@ The hand-curated ontology maps AudioSet labels to the event query SoundClass val
     Horn, Honk, Car horn & horn & vehicle\_collision \\
     Glass breaking, Shatter & glass\_breaking & vehicle\_collision \\
     \bottomrule
-  \end{tabular}
+  \end{tabular}%
+  }
 \end{table}
 
 \section{Detailed Evaluation Data}
@@ -431,6 +433,7 @@ The evaluation dataset consists of 30 scenes, with 5 positive instances per even
   \centering
   \caption{Per-event F1 for Gemini 3.6 Flash (best visual), Qwen2-Audio (best audio, 2.5 s / 1.25 s), and their UNION.}
   \label{tab:per_event_f1}
+  \resizebox{\textwidth}{!}{%
   \begin{tabular}{lccccc}
     \toprule
     Event & Scenes & A (Gemini 3.6 Flash) & B (Qwen2-Audio) & C (UNION) \\
@@ -444,13 +447,15 @@ The evaluation dataset consists of 30 scenes, with 5 positive instances per even
     \midrule
     Overall & 30 & 0.839 & 0.788 & 0.892 \\
     \bottomrule
-  \end{tabular}
+  \end{tabular}%
+  }
 \end{table}
 
 \begin{table}[h]
   \centering
   \caption{Complete multimodal (condition C) ablation results.}
   \label{tab:full_ablation}
+  \resizebox{\textwidth}{!}{%
   \begin{tabular}{lcccccc}
     \toprule
     VLM + Audio & F1 & Precision & Recall & TP & FP & FN \\
@@ -464,7 +469,8 @@ The evaluation dataset consists of 30 scenes, with 5 positive instances per even
     Pixtral 12B + PANNs & 0.750 & 0.808 & 0.700 & 21 & 5 & 9 \\
     Gemini 2.5 Flash + PANNs & 0.741 & 0.833 & 0.667 & 20 & 4 & 10 \\
     \bottomrule
-  \end{tabular}
+  \end{tabular}%
+  }
 \end{table}
 
 
