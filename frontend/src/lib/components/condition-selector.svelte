@@ -13,9 +13,7 @@
   };
   let { value = $bindable(), onChange, disabled = false, audioProvider = 'panns' }: Props = $props();
 
-  const audioLabel = $derived(
-    audioProvider === 'huggingface' ? 'HuggingFace LALM' : 'PANNs CNN14',
-  );
+  const audioLabel = $derived('Audio Model');
 
   const CONDITIONS = $derived([{
       id: 'A' as Condition,
