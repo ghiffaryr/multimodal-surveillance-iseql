@@ -93,14 +93,14 @@ RELATION_VOCABULARY: list[tuple[str, str]] = [
 
 def _format_relation_vocabulary() -> str:
     descriptions = {
-        "enter_or_exit_vehicle": "A person is entering or exiting any vehicle — car, motorcycle, truck, or van.",
-        "running": "A person is running. To better determine if they are running, look at the position of legs and arms — if they are more extended or farther from the body compared to walking, especially the arms which are only extended when walking.",
-        "carrying": "A person is transporting an object of class 'object' (package, suitcase, bag) — walking or moving with it. A person can carry an object AND perform other actions (gesturing, running) simultaneously.",
+        "enter_or_exit_vehicle": "A person is entering or exiting any vehicle: car, motorcycle, truck, or van.",
+        "running": "A person is running. To better determine if they are running, look at the position of legs and arms; if they are more extended or farther from the body compared to walking, especially the arms which are only extended when walking.",
+        "carrying": "A person is transporting an object of class 'object' (package, suitcase, bag) while walking or moving with it. A person can carry an object AND perform other actions (gesturing, running) simultaneously.",
         "suspicious_near_vehicle": "A person is very close to a vehicle that is not theirs, observing it carefully or touching it suspiciously. Do NOT use for simple passersby.",
-        "physical_altercation": "Two or more people are involved in aggressive behavior — fighting, pushing, hitting, punching, aggressive gestures, or throwing objects. Include IDs of all people involved.",
-        "vehicle_collision": "A vehicle has visible damage from a collision — broken windshield, dented hood, deployed airbags, smoke from engine compartment, or another object embedded in the vehicle.",
-        "gunshot_visible": "A person is holding or firing a gun — visible muzzle flash, gun in hand, recoil motion, or smoke from the barrel.",
-        "explosion_visible": "A visible explosion — fireball, large smoke cloud, debris flying through the air, or shattered windows. Report the VehicleID or nearest object ID.",
+        "physical_altercation": "Two or more people are involved in aggressive behavior: fighting, pushing, hitting, punching, aggressive gestures, or throwing objects. Include IDs of all people involved.",
+        "vehicle_collision": "A vehicle has visible damage from a collision: broken windshield, dented hood, deployed airbags, smoke from engine compartment, or another object embedded in the vehicle.",
+        "gunshot_visible": "A person is holding or firing a gun: visible muzzle flash, gun in hand, recoil motion, or smoke from the barrel.",
+        "explosion_visible": "A visible explosion: fireball, large smoke cloud, debris flying through the air, or shattered windows. Report the VehicleID or nearest object ID.",
     }
     lines = []
     for name, sig in RELATION_VOCABULARY:
@@ -183,7 +183,7 @@ that apply:
 MANDATORY RELATIONS (output all that apply):
 
 1. running(PersonID)
-   The person's body is in a running posture — legs visibly apart, arms
+   The person's body is in a running posture: legs visibly apart, arms
    extended away from the body, or the person is clearly moving fast.
    WALKING is NOT running. Look at leg and arm positions carefully.
 
@@ -202,21 +202,21 @@ MANDATORY RELATIONS (output all that apply):
    or positioned very close to it in a way that draws attention.
 
 5. physical_altercation(PersonID1, PersonID2)
-   Two or more people are involved in aggressive behavior — fighting,
+   Two or more people are involved in aggressive behavior: fighting,
    pushing, hitting, punching, making aggressive gestures, or throwing
    objects at each other. Include IDs of all people involved.
 
 6. vehicle_collision(VehicleID)
-   A vehicle has visible collision damage — broken windshield, dented
+   A vehicle has visible collision damage: broken windshield, dented
    hood or doors, deployed airbags, smoke from the hood, or another
    object embedded in the vehicle.
 
 7. gunshot_visible(PersonID)
-    A person is holding or firing a gun — visible muzzle flash, gun
+    A person is holding or firing a gun: visible muzzle flash, gun
     in hand, recoil motion, or smoke from the barrel.
 
 8. explosion_visible(VehicleID?, ObjectID?)
-    A visible explosion — fireball, large smoke cloud, debris flying
+    A visible explosion: fireball, large smoke cloud, debris flying
     through the air, or shattered windows. Report the VehicleID or
     nearest object ID.
 

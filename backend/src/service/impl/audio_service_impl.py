@@ -255,7 +255,7 @@ class AudioServiceImpl(AudioService):
         for sf_, ef_, clip in _sliding_windows(audio_32k, SAMPLE_RATE, fps):
             if clip.size < SAMPLE_RATE // 2:
                 continue
-            # Pad to 10s (320k samples at 32kHz) — PANNs trained on 10s AudioSet clips
+            # Pad to 10s (320k samples at 32kHz) - PANNs trained on 10s AudioSet clips
             pad_len = max(0, 10 * SAMPLE_RATE - clip.size)
             if pad_len > 0:
                 clip = np.concatenate([clip, np.zeros(pad_len, dtype=np.float32)])

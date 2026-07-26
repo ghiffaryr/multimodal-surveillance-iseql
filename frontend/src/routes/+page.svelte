@@ -355,7 +355,7 @@
         {#if stage === 'done' && !error}
           <div class="flex items-center gap-2 rounded-md border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm text-emerald-300">
             <CheckCircle2 class="size-4" />
-            Analysis complete — ready to detect.
+            Analysis complete - ready to detect.
           </div>
         {/if}
       </section>

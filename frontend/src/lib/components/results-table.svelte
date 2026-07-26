@@ -26,7 +26,7 @@
   </CardHeader>
   <CardContent class="min-h-0 flex-1 overflow-y-auto">
     {#if running}
-      <p class="text-sm text-muted-foreground">Running detection…</p>
+      <p class="text-sm text-muted-foreground">Running detection...</p>
     {:else if error}
       <p class="text-sm text-destructive">{error}</p>
     {:else if !result}
