@@ -9,7 +9,6 @@
 
   const DEFAULT_GRID_ROWS = 2;
   const DEFAULT_GRID_COLS = 4;
-  const DEFAULT_SAMPLING_RATE = 24;
   const DEFAULT_VLM_DELAY = 0;
   const DEFAULT_MAX_RETRIES = 3;
 
@@ -147,11 +146,10 @@
   </Field>
 
   <Field class="col-span-2">
-    <Label for="sampling-rate">Sampling Rate (analyze every N frames)</Label>
-    <Input id="sampling-rate" type="number" min="1"
-      value={value.sampling_rate}
-      onchange={(e) => patch({ sampling_rate: inputInt(e, DEFAULT_SAMPLING_RATE) })}
-      {disabled} />
+    <Label for="sampling-rate">Sampling Rate</Label>
+    <div class="flex h-9 items-center rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground">
+      Auto-detected from video (1 frame/second)
+    </div>
   </Field>
 
   <Field class="col-span-2">

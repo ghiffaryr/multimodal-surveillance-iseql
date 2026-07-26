@@ -50,7 +50,6 @@
     model: '',
     grid_rows: 2,
     grid_cols: 4,
-    sampling_rate: 24,
     vlm_delay: 3.0,
     quantization: 'none',
     max_retries: 3,
@@ -160,7 +159,6 @@
     form.append('model', vlmConfig.model);
     form.append('grid_rows', String(vlmConfig.grid_rows));
     form.append('grid_cols', String(vlmConfig.grid_cols));
-    form.append('sampling_rate', String(vlmConfig.sampling_rate));
     form.append('vlm_delay', String(vlmConfig.vlm_delay));
     form.append('vlm_quantization', vlmConfig.quantization || 'none');
     form.append('max_retries', String(vlmConfig.max_retries));

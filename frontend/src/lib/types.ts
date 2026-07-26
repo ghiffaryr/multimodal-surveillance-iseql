@@ -78,7 +78,6 @@ export interface VlmConfig {
   model: string;
   grid_rows: number;
   grid_cols: number;
-  sampling_rate: number;
   vlm_delay: number;
   quantization: string;
   max_retries: number;

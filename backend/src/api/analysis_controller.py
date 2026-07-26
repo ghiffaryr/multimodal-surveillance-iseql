@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import shutil
+import subprocess
 import uuid
 from pathlib import Path
 
@@ -54,6 +56,23 @@ class AnalysisStartController:
         with target_path.open("wb") as f:
             shutil.copyfileobj(video.file, f)
         log.info("Stored upload as %s (condition=%s)", target_path, condition)
+
+        # Auto-detect video FPS
+        try:
+            probe = subprocess.check_output(
+                ["ffprobe", "-v", "error", "-select_streams", "v:0",
+                 "-show_entries", "stream=r_frame_rate",
+                 "-of", "json", str(target_path)],
+                timeout=10, stderr=subprocess.PIPE,
+            )
+            info = json.loads(probe)
+            fps_str = info["streams"][0].get("r_frame_rate", "24/1")
+            num, den = fps_str.split("/")
+            fps = int(num) // int(den) if int(den) else 24
+            sampling_rate = fps or 24
+            log.info("Detected video FPS: %d (from %s)", sampling_rate, fps_str)
+        except Exception:
+            log.info("Could not detect FPS, using default 24")
 
         run = self._service.start_analysis(
             video_path=target_path,

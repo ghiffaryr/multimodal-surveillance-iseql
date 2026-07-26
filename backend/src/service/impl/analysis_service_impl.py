@@ -24,6 +24,15 @@ DB_TIMEOUT_SEC = 60.0
 ANALYSIS_ID_HEX_LENGTH = 12
 
 
+def _format_time(seconds: float) -> str:
+    h = int(seconds // 3600)
+    m = int((seconds % 3600) // 60)
+    s = seconds % 60
+    if h > 0:
+        return f"{h}:{m:02d}:{s:05.2f}"
+    return f"{m}:{s:05.2f}"
+
+
 def _get_db_conn(cfg: Config) -> sqlite3.Connection:
     conn = sqlite3.connect(str(cfg.data.db_path), timeout=DB_TIMEOUT_SEC)
     conn.row_factory = sqlite3.Row
@@ -186,6 +195,13 @@ class AnalysisServiceImpl(AnalysisService):
         except Exception as e:
             from fastapi import HTTPException
             raise HTTPException(status_code=500, detail=f"detection failed: {e}")
+
+        fps = run.sampling_rate
+        for row in rows:
+            if 'StartFrame' in row:
+                row['StartTime'] = _format_time(row['StartFrame'] / fps)
+            if 'EndFrame' in row:
+                row['EndTime'] = _format_time(row['EndFrame'] / fps)
 
         return {
             "analysis_id": analysis_id,
