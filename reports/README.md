@@ -34,6 +34,6 @@ preserved in `interval_engine/`):
 | File | Contents |
 |------|----------|
 | `experiments/evaluation_scenes.md` | Scene-by-scene prompts, ISEQL patterns, expected results |
-| `data/analysis_gemini_3_6_flash_qwen2_audio/` | Best result: Gemini 3.6 Flash + Qwen2-Audio (F1=0.875) |
+| `data/analysis_gemini_3_6_flash_qwen2_audio/` | Best result: Gemini 3.6 Flash + Qwen2-Audio (29/30, F1=0.892) |
 | `backend/src/service/impl/events_service_impl.py` | All 16 SQL queries and EventSpec definitions |
 | `backend/src/service/impl/iseql_helpers.py` | ISEQL temporal operator definitions |
