@@ -11,16 +11,16 @@
   import { inputInt } from '$lib/dom-helpers';
   import { Database } from 'lucide-svelte';
 
-  const DELTA_FIELDS: Array<{ key: keyof Deltas; label: string; id: string; fallback: number }> = [
-    { key: 'delta_visual_vehicle_escape', label: 'delta_visual_vehicle_escape', id: 'd-visual-vehicle-escape', fallback: 50 },
-    { key: 'delta_visual_loitering', label: 'delta_visual_loitering', id: 'd-visual-loitering', fallback: 150 },
-    { key: 'delta_visual_handoff', label: 'delta_visual_handoff', id: 'd-visual-handoff', fallback: 240 },
-    { key: 'delta_visual_fight', label: 'delta_visual_fight', id: 'd-visual-fight', fallback: 60 },
-    { key: 'delta_sound_fight', label: 'delta_sound_fight', id: 'd-s-fight', fallback: 120 },
-    { key: 'delta_sound_gunshot_or_explosion', label: 'delta_sound_gunshot_or_explosion', id: 'd-s-ge', fallback: 60 },
-    { key: 'delta_sound_vehicle_escape', label: 'delta_sound_vehicle_escape', id: 'd-s-ve', fallback: 150 },
-    { key: 'delta_sound_vehicle_collision', label: 'delta_sound_vehicle_collision', id: 'd-s-vc', fallback: 60 },
-    { key: 'delta_audio_visual_proximity', label: 'delta_audio_visual_proximity', id: 'd-av-prox', fallback: 60 },
+  const DELTA_FIELDS: Array<{ key: keyof Deltas; label: string; id: string; fallback: number; conditions: string[] }> = [
+    { key: 'delta_visual_vehicle_escape', label: 'delta_visual_vehicle_escape', id: 'd-visual-vehicle-escape', fallback: 50, conditions: ['A', 'C'] },
+    { key: 'delta_visual_loitering', label: 'delta_visual_loitering', id: 'd-visual-loitering', fallback: 150, conditions: ['A', 'C'] },
+    { key: 'delta_visual_handoff', label: 'delta_visual_handoff', id: 'd-visual-handoff', fallback: 240, conditions: ['A', 'C'] },
+    { key: 'delta_visual_fight', label: 'delta_visual_fight', id: 'd-visual-fight', fallback: 60, conditions: ['A', 'C'] },
+    { key: 'delta_sound_fight', label: 'delta_sound_fight', id: 'd-s-fight', fallback: 120, conditions: ['B', 'C'] },
+    { key: 'delta_sound_gunshot_or_explosion', label: 'delta_sound_gunshot_or_explosion', id: 'd-s-ge', fallback: 60, conditions: ['B', 'C'] },
+    { key: 'delta_sound_vehicle_escape', label: 'delta_sound_vehicle_escape', id: 'd-s-ve', fallback: 150, conditions: ['B', 'C'] },
+    { key: 'delta_sound_vehicle_collision', label: 'delta_sound_vehicle_collision', id: 'd-s-vc', fallback: 60, conditions: ['B', 'C'] },
+    { key: 'delta_audio_visual_proximity', label: 'delta_audio_visual_proximity', id: 'd-av-prox', fallback: 60, conditions: ['C'] },
   ];
 
   const CONDITION_TABS: Array<{ value: Condition; label: string; desc: string }> = [
@@ -60,6 +60,7 @@
   const currentList = $derived(eventsByCondition[condition]);
   const currentEvent = $derived(currentList.find((e) => e.id === selected));
   const currentDeltaKey = $derived(currentEvent?.delta_param);
+  const visibleDeltaFields = $derived(DELTA_FIELDS.filter(f => f.conditions.includes(condition)));
 
   function handleSelect(e: Event) {
     onChangeSelected((e.currentTarget as HTMLSelectElement).value);
@@ -95,7 +96,7 @@
 </Tabs>
 
 <div class="mt-4 grid grid-cols-2 gap-3">
-  {#each DELTA_FIELDS as f}
+  {#each visibleDeltaFields as f}
     <Field>
       <Label for={f.id}>{f.label}</Label>
       <Input
