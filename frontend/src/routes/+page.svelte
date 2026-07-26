@@ -116,9 +116,9 @@
   async function deleteAnalysis(id: string) {
     try {
       await api.post(`/api/analysis/${id}/delete`);
-      if (analysisId === id) reset();
-      await refreshAnalysisList();
     } catch { /* non-fatal */ }
+    if (analysisId === id) reset();
+    await refreshAnalysisList();
   }
 
   onMount(async () => {
