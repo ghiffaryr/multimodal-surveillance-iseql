@@ -19,7 +19,7 @@
 
 <Card class="flex h-full min-h-0 flex-col">
   <CardHeader class="flex flex-row items-center justify-between">
-    <CardTitle>Detection Results</CardTitle>
+    <CardTitle>Results</CardTitle>
     {#if result}
       <Badge variant="outline">{result.rows.length} row(s)</Badge>
     {/if}
@@ -31,10 +31,10 @@
       <p class="text-sm text-destructive">{error}</p>
     {:else if !result}
       <p class="text-sm text-muted-foreground">
-        Pick an event and click <span class="font-mono">Run Detection</span>.
+        Start or load an analysis to see results.
       </p>
     {:else if result.rows.length === 0}
-      <p class="text-sm text-muted-foreground">No matches for this event with the current deltas.</p>
+      <p class="text-sm text-muted-foreground">No events detected.</p>
     {:else}
       <div class="overflow-x-auto">
         <table class={cn('w-full text-left text-sm')}>
