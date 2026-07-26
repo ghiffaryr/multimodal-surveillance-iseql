@@ -9,8 +9,13 @@
 
   const DEFAULT_GRID_ROWS = 2;
   const DEFAULT_GRID_COLS = 4;
-  const DEFAULT_VLM_DELAY = 0;
-  const DEFAULT_MAX_RETRIES = 3;
+
+  const PROVIDER_DEFAULTS: Record<string, { delay: number; max_retries: number }> = {
+    gemini: { delay: 0.1, max_retries: 10 },
+    mistral: { delay: 3.0, max_retries: 10 },
+    zhipu: { delay: 10.0, max_retries: 10 },
+    ollama: { delay: 0, max_retries: 0 },
+  };
 
   const QUANTIZATION_OPTIONS = [
     { value: 'none', label: 'None (full precision)' },
@@ -70,7 +75,9 @@
   });
 
   function handleProviderChange(e: Event) {
-    patch({ provider: selectValue(e), model: '' });
+    const p = selectValue(e);
+    const d = PROVIDER_DEFAULTS[p] || { delay: 3, max_retries: 10 };
+    patch({ provider: p, model: '', vlm_delay: d.delay, max_retries: d.max_retries });
   }
 </script>
 
@@ -152,19 +159,21 @@
     </div>
   </Field>
 
-  <Field class="col-span-2">
-    <Label for="vlm-delay">Delay between VLM calls (seconds)</Label>
-    <Input id="vlm-delay" type="number" min="0" step="0.5"
-      value={value.vlm_delay}
-      onchange={(e) => patch({ vlm_delay: inputFloat(e, DEFAULT_VLM_DELAY) })}
-      {disabled} />
-  </Field>
+  {#if !isOllama}
+    <Field class="col-span-2">
+      <Label for="vlm-delay">Delay between VLM calls (seconds)</Label>
+      <Input id="vlm-delay" type="number" min="0" step="0.1"
+        value={value.vlm_delay}
+        onchange={(e) => patch({ vlm_delay: inputFloat(e, 3) })}
+        {disabled} />
+    </Field>
 
-  <Field class="col-span-2">
-    <Label for="vlm-max-retries">Max retries on rate limit</Label>
-    <Input id="vlm-max-retries" type="number" min="0" max="20"
-      value={value.max_retries}
-      onchange={(e) => patch({ max_retries: inputInt(e, DEFAULT_MAX_RETRIES) })}
-      {disabled} />
-  </Field>
+    <Field class="col-span-2">
+      <Label for="vlm-max-retries">Max retries on rate limit</Label>
+      <Input id="vlm-max-retries" type="number" min="0" max="20"
+        value={value.max_retries}
+        onchange={(e) => patch({ max_retries: inputInt(e, 10) })}
+        {disabled} />
+    </Field>
+  {/if}
 </div>

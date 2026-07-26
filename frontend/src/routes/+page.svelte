@@ -52,7 +52,7 @@
     grid_cols: 4,
     vlm_delay: 3.0,
     quantization: 'none',
-    max_retries: 3,
+    max_retries: 10,
   });
   let audioConfig = $state<AudioConfig>({
     provider: 'panns',
