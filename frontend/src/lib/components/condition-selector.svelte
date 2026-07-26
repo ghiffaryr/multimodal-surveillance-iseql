@@ -9,9 +9,8 @@
     value: Condition;
     onChange: (c: Condition) => void;
     disabled?: boolean;
-    audioProvider?: string;
   };
-  let { value = $bindable(), onChange, disabled = false, audioProvider = 'panns' }: Props = $props();
+  let { value = $bindable(), onChange, disabled = false }: Props = $props();
 
   const audioLabel = $derived('Audio Model');
 

@@ -276,7 +276,6 @@
               value={condition}
               onChange={(c) => (condition = c)}
               disabled={busy}
-              audioProvider={audioConfig.provider}
             />
           </CardContent>
         </Card>
