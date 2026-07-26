@@ -273,8 +273,7 @@
           <CardHeader><CardTitle>2. Ablation condition</CardTitle></CardHeader>
           <CardContent>
             <ConditionSelector
-              value={condition}
-              onChange={(c) => (condition = c)}
+              bind:value={condition}
               disabled={busy}
             />
           </CardContent>

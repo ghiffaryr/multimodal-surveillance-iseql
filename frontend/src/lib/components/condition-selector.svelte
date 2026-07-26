@@ -7,10 +7,15 @@
 
   type Props = {
     value: Condition;
-    onChange: (c: Condition) => void;
+    onChange?: (c: Condition) => void;
     disabled?: boolean;
   };
   let { value = $bindable(), onChange, disabled = false }: Props = $props();
+
+  function select(c: Condition) {
+    value = c;
+    onChange?.(c);
+  }
 
   const audioLabel = $derived('Audio Model');
 
@@ -60,7 +65,7 @@
           name="condition"
           value={c.id}
           checked={selected}
-          onchange={() => onChange(c.id)}
+          onchange={() => select(c.id)}
           {disabled}
           class="mt-1 size-4 accent-primary"
         />
