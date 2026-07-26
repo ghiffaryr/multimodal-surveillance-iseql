@@ -1,0 +1,184 @@
+\chapter{Background}
+\label{Background}
+
+This chapter introduces the foundational concepts required for the thesis. Section~\ref{sec:domain} describes the surveillance domain and the challenge of detecting temporally extended events. Section~\ref{sec:allen} presents Allen's interval algebra, the formal calculus that underpins temporal reasoning in this work. Section~\ref{sec:iseql} defines the ISEQL operators and gives the formal query expressions for all six event types evaluated in this thesis. Section~\ref{sec:tech} covers the technical components: vision-language models, environmental sound classification, and interval-based video representation.
+
+\section{The Surveillance Domain}
+\label{sec:domain}
+
+Video surveillance is the practice of monitoring behaviour and activities in a physical space using cameras. Traditional surveillance relies on human operators, but this approach suffers from well-documented scalability limitations: performance degrades after approximately twenty minutes of continuous attention, and detection probability decreases with the number of assigned cameras. Automated surveillance aims to detect security-relevant events without continuous human attention. An \textit{event} in this context is a temporally extended occurrence meaningful to an operator ,  a person handing over a package, loitering near a vehicle, or a vehicle collision.
+
+Traditional automated approaches used hand-crafted pipelines: background subtraction, object detection \citep{redmon2016yolo, ren2015fasterrcnn}, tracking algorithms, and rule-based reasoning. These worked in controlled environments but required per-scene calibration and failed to generalise. Deep learning improved object detection through CNNs and Transformer-based architectures \citep{carion2020detr}, and vision-language models (VLMs) now make it possible to extract rich semantic descriptions from video frames. However, VLMs introduce new challenges: they can hallucinate objects, operate at lower frame rates than traditional detectors, and their outputs require post-processing for temporal reasoning.
+
+\section{Allen's Interval Algebra}
+\label{sec:allen}
+
+The theoretical foundation of this thesis is Allen's interval algebra \citep{allen1983}, a calculus that defines thirteen binary relations between time intervals. Each interval has a start point $T_s$ and an endpoint $T_e$ with $T_s \le T_e$. The seven core relations (and their inverses) are:
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Relation & Condition & Meaning \\
+\midrule
+Before & $r.T_e < s.T_s$ & $r$ ends before $s$ starts \\
+Meets & $r.T_e = s.T_s$ & $r$ ends exactly when $s$ starts \\
+Overlaps & $r.T_s < s.T_s < r.T_e < s.T_e$ & $r$ starts first, then overlap \\
+Starts & $r.T_s = s.T_s \land r.T_e < s.T_e$ & Same start, $r$ finishes first \\
+During & $r.T_s > s.T_s \land r.T_e < s.T_e$ & $r$ fully inside $s$ \\
+Finishes & $r.T_s > s.T_s \land r.T_e = s.T_e$ & $r$ starts later, same end \\
+Equals & $r.T_s = s.T_s \land r.T_e = s.T_e$ & Same interval \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The algebra supports composition: given the relation between $A$ and $B$ and between $B$ and $C$, the relation between $A$ and $C$ can be inferred. This forms the basis for temporal query languages that reason about sequences of events.
+
+\section{ISEQL: Interval-based Surveillance Event Query Language}
+\label{sec:iseql}
+
+ISEQL \citep{helmer2016highlevel, persia2017interactive} extends relational algebra with parametrised temporal operators derived from Allen's relations.
+
+\subsection{Interval Relations and Operators}
+
+An interval relation $R$ is a relation where each tuple
+\[
+ r = (A_1, \ldots, A_n, T_s, T_e)
+\]
+includes $n$ explicit attributes $A_i$ and two temporal attributes $T_s, T_e \in \mathbb{N}$ denoting the interval endpoints. The size of an interval is $\mathrm{size}(r) = r.T_e - r.T_s + 1$. An interval labeling $M$ (the output of the perception layer) is an interval relation whose attributes correspond to predicate arguments.
+
+The eight ISEQL operators are parametrised by distance thresholds $\delta$ (start offset) and $\varepsilon$ (end offset):
+
+\begin{itemize}
+  \item \textbf{Before} ($R \ \mathrm{Bef}_{\delta}\ S$): Returns pairs where $r$ ends before $s$ starts, with a gap of at most $\delta$ frames. Condition: $0 < s.T_s - r.T_e \le \delta$. Setting $\delta = 1$ gives Allen's \textit{meets}. Corresponds to Allen's \textit{before}.
+
+  \item \textbf{Left Overlap Join} ($R\ \mathrm{LOJ}_{\delta,\varepsilon}\ S$): Returns pairs where both start and end of $s$ lag those of $r$ by at most $\delta$ and $\varepsilon$. Condition: $0 \le s.T_s - r.T_s \le \delta$, $0 \le s.T_e - r.T_e \le \varepsilon$, with $0 \le \delta < \mathrm{size}(r)$, $0 \le \varepsilon < \mathrm{size}(s)$. Corresponds to Allen's \textit{overlaps}.
+
+  \item \textbf{During Join} ($R\ \mathrm{DJ}_{\delta,\varepsilon}\ S$): Returns pairs where $r$ is contained within $s$ with tolerances $\delta$ and $\varepsilon$. Condition: $0 \le r.T_s - s.T_s \le \delta$, $0 \le s.T_e - r.T_e \le \varepsilon$. Corresponds to Allen's \textit{during}.
+
+  \item \textbf{Start Preceding} ($R\ \mathrm{SP}_{\delta}\ S$): Returns pairs where $r$ starts no later than $s$ and the intervals overlap. Condition: $0 \le s.T_s - r.T_s \le \delta$, $r.T_e - s.T_s \ge 0$. Logical disjunction of LOJ and RDJ.
+
+  \item \textbf{End Following} ($R\ \mathrm{EF}_{\varepsilon}\ S$): Returns pairs where $r$ ends no earlier than $s$, and the intervals overlap. Reverse of SP.
+
+  \item \textbf{Right Overlap Join, Reverse During Join, After}: The reverse counterparts of LOJ, DJ, and Bef respectively.
+\end{itemize}
+
+This thesis uses primarily \textbf{BEFORE} (with delta) and \textbf{OVERLAP} (as LOJ with zero thresholds). When thresholds are omitted, maximum allowed values are used.
+
+\subsection{Formal ISEQL Query Definitions}
+
+High-level events are defined as projection-selection expressions. The general forms are:
+\[
+\begin{aligned}
+\text{Event}_A &\equiv \pi_{F}(\sigma_{P}(M_1)) \qquad \text{(single-interval query)} \\
+\text{Event}_A &\equiv \pi_{F}(\sigma_{C}(\sigma_{P_1}(M_1) \Join_{\mathrm{op}} \sigma_{P_2}(M_2))) \qquad \text{(temporal join query)}
+\end{aligned}
+\]
+where $\pi_F$ projects fields, $\sigma_P$ selects intervals satisfying predicate $P$, $\Join_{\mathrm{op}}$ is a temporal operator, and $\sigma_C$ applies cross-conditions on interval arguments. In the multimodal condition, events combine via set union: $\text{Event}_C \equiv \text{Event}_A \cup \text{Event}_B$.
+
+Below, $M_i.\texttt{arg}_j$ denotes the $j$-th argument of interval $M_i$, and $M_i.s_f$, $M_i.e_f$ denote its start and end frames.
+
+\paragraph{Fight.}
+\[
+\small
+\begin{aligned}
+\text{Fight}_A &\equiv \pi_{M_1.\textit{arg}_1,\; M_1.\textit{arg}_2,\; M_1.s_f,\; M_1.e_f}\,
+  \sigma_{\textit{pred}=\text{`physical\_altercation'}}(M_1)\,, \\[2pt]
+  &\qquad \land\ \mathrm{count\_distinct}(M_1.\textit{arg}) \ge 2 \\[4pt]
+\text{Fight}_B &\equiv \pi_{M_1.s_f,\; M_1.e_f,\; M_2.s_f,\; M_2.e_f}\,
+  \bigl(\sigma_{\textit{pred}=\text{`shout'}}(M_1)
+  \Join_{\textit{Bef}_{120}\,\lor\,\textit{Overlap}}
+  \sigma_{\textit{pred}=\text{`impact'}}(M_2)\bigr) \\[4pt]
+\text{Fight}_C &\equiv \text{Fight}_A \cup \text{Fight}_B
+\end{aligned}
+\]
+
+\paragraph{Handoff.}
+\[
+\small
+\begin{aligned}
+\text{Handoff}_A \equiv\;
+  &\pi_{\,M_1.\textit{arg}_1,\; M_1.\textit{arg}_2,\; M_1.s_f,\; M_1.e_f,} \\
+  &\qquad_{\,M_2.\textit{arg}_1,\; M_2.\textit{arg}_2,\; M_2.s_f,\; M_2.e_f}
+  \; \sigma_{\,M_1.\textit{arg}_1 \neq M_2.\textit{arg}_1 \;\land\; M_1.\textit{arg}_2 = M_2.\textit{arg}_2} \\
+  &\qquad \bigl( \sigma_{\textit{pred}=\text{`carrying'}}(M_1)
+     \Join_{\textit{Bef}_{240}}
+     \sigma_{\textit{pred}=\text{`carrying'}}(M_2) \bigr)
+\end{aligned}
+\]
+
+\paragraph{Loitering.}
+\[
+\small
+\begin{aligned}
+\text{Loitering}_A \equiv\; &\pi_{M_1.\textit{arg}_1,\; M_1.\textit{arg}_2,\; M_1.s_f,\; M_1.e_f}\,
+  \sigma_{\textit{pred}=\text{`suspicious\_near\_vehicle'}}(M_1) \\
+  &\quad \land\; (M_1.e_f - M_1.s_f) \ge 150
+\end{aligned}
+\]
+
+\paragraph{Vehicle Escape.}
+\[
+\small
+\begin{aligned}
+\text{Escape}_A \equiv\;
+  &\pi_{\,M_1.\textit{arg}_1,\; M_1.s_f,\; M_1.e_f,} \\
+  &\qquad_{\,M_2.\textit{arg}_1,\; M_2.\textit{arg}_2,\; M_2.s_f,\; M_2.e_f}
+  \; \sigma_{\,M_1.\textit{arg}_1 = M_2.\textit{arg}_1} \\
+  &\qquad \bigl( \sigma_{\textit{pred}=\text{`running'}}(M_1)
+     \Join_{\textit{Bef}_{50}\,\lor\,\textit{Overlap}}
+     \sigma_{\textit{pred}=\text{`enter\_or\_exit\_vehicle'}}(M_2) \bigr) \\[4pt]
+\text{Escape}_B \equiv\;
+  &\pi_{M_1.s_f,\; M_1.e_f,\; M_2.s_f,\; M_2.e_f} \\
+  &\qquad \bigl( \sigma_{\textit{pred}\in\{\text{`engine'},\,\text{`vehicle'}\}}(M_1)
+     \Join_{\textit{Bef}_{150}\,\lor\,\textit{Overlap}}
+     \sigma_{\textit{pred}=\text{`tire\_squeal'}}(M_2) \bigr) \\[4pt]
+\text{Escape}_C &\equiv \text{Escape}_A \cup \text{Escape}_B
+\end{aligned}
+\]
+
+\paragraph{Vehicle Collision.}
+\[
+\small
+\begin{aligned}
+\text{Collision}_A &\equiv \pi_{M_1.\textit{arg}_1,\; M_1.s_f,\; M_1.e_f}\,
+  \sigma_{\textit{pred}=\text{`vehicle\_collision'}}(M_1) \\[4pt]
+\text{Collision}_B &\equiv \pi_{M_1.s_f,\; M_1.e_f,\; M_2.s_f,\; M_2.e_f} \\
+  &\qquad \bigl( \sigma_{\textit{pred}\in\{\text{`horn'},\,\text{`skidding'}\}}(M_1)
+      \Join_{\textit{Bef}_{60}}
+      \sigma_{\textit{pred}\in\{\text{`impact'},\,\text{`glass\_breaking'}\}}(M_2) \bigr) \\[4pt]
+\text{Collision}_C &\equiv \text{Collision}_A \cup \text{Collision}_B
+\end{aligned}
+\]
+
+\paragraph{Gunshot / Explosion.}
+\[
+\small
+\begin{aligned}
+\text{Gunshot}_A &\equiv \pi_{M_1.\textit{arg}_1,\; M_1.s_f,\; M_1.e_f}\,
+  \sigma_{\textit{pred}\in\{\text{`gunshot\_visible'},\,\text{`explosion\_visible'}\}}(M_1) \\[4pt]
+\text{Gunshot}_B &\equiv \pi_{M_1.s_f,\; M_1.e_f}\,
+  \sigma_{\textit{pred}=\text{`gunshot\_or\_explosion'}}(M_1) \\[4pt]
+\text{Gunshot}_C &\equiv \text{Gunshot}_A \cup \text{Gunshot}_B
+\end{aligned}
+\]
+
+For all six event types, the multimodal condition is $E_C = E_A \cup E_B$. The two visual-only events (handoff, loitering) have no acoustic correlate; they are identical in conditions A and C.
+
+\section{Technical Foundations}
+\label{sec:tech}
+
+\subsection{Vision-Language Models}
+
+A vision-language model (VLM) is a multimodal neural network trained on image-text pairs that can generate natural language descriptions, answer questions about images, and reason about spatial relationships. Modern VLMs combine a Vision Transformer encoder with a large language model backbone via a projection layer. This architecture was pioneered by CLIP \citep{radford2021clip} and Flamingo \citep{alayrac2022flamingo}, refined by BLIP-2 \citep{li2023blip2} and LLaVA \citep{liu2024llava}, and extended to video via Video-LLaMA \citep{zhang2023videollama}. In this thesis, four VLMs are evaluated: Pixtral 12B, Ministral 3-14B, Gemini 2.5 Flash, and Gemini 3.6 Flash.
+
+\subsection{Environmental Sound Classification}
+
+Environmental sound classification labels non-speech sounds such as footsteps, engine noises, sirens, and breaking glass. The field has progressed from supervised CNNs to Transformer-based architectures such as AST \citep{gong2021ast} and BEATs \citep{chen2023beats}, and to self-supervised methods including wav2vec 2.0 \citep{baevski2020wav2vec2} and HuBERT \citep{hsu2021hubert}.
+
+PANNs \citep{kong2020panns} are a family of CNN architectures trained on the 527-class AudioSet \citep{gemmeke2017audioset} dataset. The CNN14 variant uses 14 convolutional layers with 80 million parameters and runs on CPU. More recently, large audio-language models (LALMs) have emerged \citep{luo2026lalmsurvey}, extending language models to process audio input directly. Representative models include SALMONN \citep{tang2024salmonn} and Qwen2-Audio \citep{chu2024qwen2audio}. In this thesis, Qwen2-Audio-7B-Instruct serves as the LALM backend, while PANNs CNN14 serves as the traditional classifier baseline. The audio track is extracted at 16 kHz, resampled to 32 kHz, and processed in 2.5-second sliding windows with a 1.25-second hop.
+
+\subsection{Interval-Based Video Representation}
+
+A central design decision is the use of temporal intervals as the unified representation for both modalities. An interval is defined by a start frame, an end frame, a type label, and optional participant metadata. The frame index serves as the shared time axis, enabling temporal joins between visual and audio intervals without modality-specific alignment. The visual pipeline produces intervals by sampling frames, extracting relation triples, and collapsing adjacent observations of the same relation. The audio pipeline produces intervals by classifying sliding windows and persisting the window boundaries. Both pipelines write to the same SQLite database, using the tables \texttt{VisualPerInterval}, \texttt{VisualParticipant}, and \texttt{SoundPerInterval}.
+
+Efficient evaluation of temporal operators over large interval sets uses plane-sweeping algorithms \citep{piatov2021cache} that achieve $O(N \log N + k)$ complexity, where $k$ is the number of result pairs. A sweep line advances through sorted endpoints, maintaining active intervals in a cache-efficient hash map, and supports all thirteen Allen relations as well as parametrised variants.

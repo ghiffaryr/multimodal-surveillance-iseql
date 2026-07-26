@@ -1,0 +1,114 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+# SvelteKit `frontend/src/lib/` is source code, not a Python venv `lib/`
+!frontend/src/lib/
+!frontend/src/lib/**
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# --- Pipenv ---
+.venv/
+Pipfile.lock.bak
+
+# --- Node / pnpm / SvelteKit ---
+node_modules/
+.svelte-kit/
+.turbo/
+.vercel/
+.netlify/
+.next/
+out/
+*.tsbuildinfo
+
+# --- Vite / build outputs ---
+.pnp.*
+.yarn/
+
+# --- C++ / CMake ---
+interval_engine/build/
+*.o
+*.a
+*.so
+*.dylib
+*.exe
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+# Only ignore Makefiles inside the C++ engine build dir, not the
+# project's root Makefile.
+interval_engine/**/Makefile
+compile_commands.json
+
+# --- Data and runtime artefacts (must NOT be committed) ---
+data/uploads/*
+!data/uploads/.gitkeep
+data/analysis.db
+data/analysis.db-journal
+data/analysis.db-wal
+data/analysis.db-shm
+data/handoff_R.csv
+data/handoff_S.csv
+# Runtime artefacts: never committed.
+data/experiments/
+data/audio/
+data/models/
+data/cache/
+data/esc50_cache/
+meld_extracted/
+experiments/predictions/
+experiments/_synth_audio/
+experiments/eval_videos/
+experiments/real_cctv/
+# CatBoost runtime directory
+catboost_info/
+# PANNs CNN14 checkpoint (downloaded by sound_classifier on first use)
+panns_data/
+
+# Audio Flamingo 2 inference code (cloned from NVIDIA GitHub)
+experiments/af2_inference/
+
+# --- Local environment / secrets ---
+.env
+.env.local
+.env.*.local
+*.pem
+credentials.json
+
+# --- Editor / OS ---
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# --- Logs ---
+*.log
+logs/
+
+# --- Test / coverage ---
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+coverage/
+*.cover

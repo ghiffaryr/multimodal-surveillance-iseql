@@ -1,0 +1,61 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "watchout-iseql"
+version = "0.1.0"
+description = "WATCHOUT ISEQL - Whole-scene Audio-visual Temporal Complex-event Handler using Ontological Understanding of Temporal ISEQL"
+readme = "../README.md"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+authors = [
+    { name = "WATCHOUT ISEQL Authors" },
+]
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "sse-starlette",
+    "pydantic",
+    "pydantic-settings",
+    "google-generativeai",
+    "requests",
+    "opencv-python",
+    "pillow",
+    "numpy",
+    "pandas",
+    "faster-whisper",
+    "silero-vad",
+    "torch",
+    "transformers",
+    "soundfile",
+    "librosa",
+    "scikit-learn",
+    "catboost",
+    "httpx",
+    "python-multipart",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "ruff",
+    "mypy",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E501"]  # line length handled by formatter
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true

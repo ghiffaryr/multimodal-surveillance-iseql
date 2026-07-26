@@ -1,0 +1,17 @@
+.DS_Store
+*.aux
+*.log
+*.out
+*.blg
+*.fdb_latexmk
+*.fls
+*.lot
+*.lof
+*.bbl
+*.bcf
+*.toc
+*.run.xml
+*.synctex.gz
+main-blx.bib
+*.bbl-SAVE-ERROR
+/main.pdf

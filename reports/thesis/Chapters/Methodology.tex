@@ -1,0 +1,140 @@
+\chapter{Methodology}
+\label{Methodology}
+
+This chapter describes the research design, system architecture, and implementation of the WATCHOUT ISEQL framework. Section~\ref{sec:design} defines the three-condition ablation experiment. Section~\ref{sec:arch} presents the four-layer architecture. Section~\ref{sec:perception} details the visual and audio perception pipelines. Section~\ref{sec:storage-reasoning} covers the storage and reasoning layers. Section~\ref{sec:dataset} describes the evaluation dataset. Section~\ref{sec:metrics} defines the evaluation metrics.
+
+\section{Research Design}
+\label{sec:design}
+
+The study is a three-condition ablation in which each condition isolates a different perception stack while sharing the same temporal database and high-level event detector:
+
+\begin{itemize}
+  \item \textbf{Condition A (visual-only).} A VLM with object re-identification extracts spatial relation triples from sampled frames, constructs temporal intervals, and the event detector runs six visual SQL queries.
+  \item \textbf{Condition B (audio-only).} PANNs CNN14 or Qwen2-Audio-7B-Instruct extracts environmental sound events, persists them as temporal intervals, and the event detector runs four sound-only SQL queries.
+  \item \textbf{Condition C (multimodal).} Both pipelines run. The event detector runs six multimodal SQL queries that take the union of visual and audio results. Events with no acoustic correlate (handoff, loitering) reuse the visual queries from condition A.
+\end{itemize}
+
+The design is summarised in Table~\ref{tab:three_conditions}.
+
+\begin{table}[h]
+  \centering
+  \caption{The three ablation conditions.}
+  \label{tab:three_conditions}
+  \begin{tabular}{l p{3cm} p{3.8cm}}
+    \toprule
+    Condition & Provider & Queries \\
+    \midrule
+    A (visual)  & Gemini 3.6 Flash (best of 4) & 6 visual SQL \\
+    B (audio)   & PANNs / Qwen2-Audio-7B & 4 sound-only SQL \\
+    C (union)   & Gemini 3.6 Flash + audio & 6 multimodal SQL \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+The multimodal design uses union ($\cup$) rather than temporal joins because joining on temporal proximity reduces recall: if the audio detects a shout at time $t$ but the VLM missed the corresponding altercation due to sparse sampling, a temporal join would suppress the audio detection. Union preserves all detections from both modalities.
+
+\section{System Architecture}
+\label{sec:arch}
+
+The WATCHOUT ISEQL system follows a four-layer architecture (Figure~\ref{fig:system_architecture}). The perception layer processes raw video and audio. The storage layer persists temporal intervals in SQLite. The reasoning layer executes high-level event queries. The presentation layer exposes results through a REST API and browser-based front end.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=\textwidth]{Figures/system_architecture.pdf}
+  \caption{Four-layer system architecture.}
+  \label{fig:system_architecture}
+\end{figure}
+
+\section{Perception Layer}
+\label{sec:perception}
+
+\subsection{Visual Pipeline with Object Re-Identification}
+
+The visual pipeline (Figure~\ref{fig:visual_pipeline}) samples video frames at a rate of one frame every 24 frames ($\approx$1.4 Hz at 24 fps). For each sampled frame, the VLM is applied in two phases.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.55\textwidth]{Figures/visual_pipeline.pdf}
+  \caption{Visual processing pipeline.}
+  \label{fig:visual_pipeline}
+\end{figure}
+
+\textbf{Phase 1: Object Detection.} On the first frame, the VLM identifies all objects (people, vehicles, items), assigns each a numeric identifier, and records grid-block coordinates. The closed vocabulary of relation types is:
+
+\begin{itemize}
+  \item \texttt{running(PersonID)} : person in running posture
+  \item \texttt{enter\_or\_exit\_vehicle(PersonID, VehicleID)} : entering or exiting
+  \item \texttt{carrying(PersonID, ObjectID)} : transporting an object
+  \item \texttt{suspicious\_near\_vehicle(PersonID, VehicleID)} : close proximity
+  \item \texttt{physical\_altercation(PersonID1, PersonID2)} : physical fighting
+  \item \texttt{vehicle\_collision(VehicleID)} : visible collision damage
+  \item \texttt{gunshot\_visible(PersonID)} : person holding a gun
+  \item \texttt{explosion\_visible(VehicleID?, ObjectID?)} : visible explosion
+\end{itemize}
+
+\textbf{Phase 2: Object Re-Identification.} On subsequent frames, the VLM receives a tracking prompt containing the previous frame's object list with identifiers, classes, and grid-block coordinates. The VLM is instructed to: (i) reuse an identifier if the object has the same class and overlapping grid blocks; (ii) reuse an identifier if the object has the same class and adjacent blocks (the object moved); (iii) never reuse an identifier for a different-class object; (iv) assign \texttt{"new"} if no match is found. A post-processing step resolves remaining unmatched objects by class and block proximity, assigning the previous frame's identifier when an object matches an unmatched predecessor within one grid block.
+
+Without this mechanism, the VLM assigns new identifiers on every frame, producing single-frame intervals that never satisfy duration thresholds. The re-identification mechanism, implemented entirely through prompt engineering, requires no additional training data or tracking model.
+
+Frame-level observations are written to the \texttt{VisualRelation} table. The interval builder collapses the frame-level stream by sorting each (relation, subject, object) group by frame number and merging adjacent frames separated by at most twice the sampling rate.
+
+\subsection{Audio Pipeline}
+
+The audio pipeline (Figure~\ref{fig:audio_pipeline}) extracts the video's audio track via FFmpeg into a 16 kHz mono PCM WAV file, resamples to 32 kHz, and processes it through a sliding window.
+
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.55\textwidth]{Figures/audio_pipeline.pdf}
+  \caption{Audio processing pipeline.}
+  \label{fig:audio_pipeline}
+\end{figure}
+
+Two alternative models are evaluated. \textbf{PANNs CNN14} \citep{kong2020panns}, an 80-million-parameter network pretrained on AudioSet, slides a 2.5 s window with a 1.25 s hop over the signal. \textbf{Qwen2-Audio-7B-Instruct} \citep{chu2024qwen2audio}, a 7-billion-parameter LALM, uses the same window configuration. Both models are evaluated across a full window/hop ablation (eight configurations per model).
+
+Unlike PANNs, which outputs logits over 527 AudioSet classes, Qwen2-Audio is a generative model that can produce arbitrary text. To constrain its output, the LALM is prompted with a closed vocabulary: \texttt{shout}, \texttt{impact}, \texttt{gunshot\_or\_explosion}, \texttt{engine}, \texttt{tire\_squeal}, \texttt{glass\_breaking}, \texttt{horn}, \texttt{skidding}, or \texttt{none()} if no class applies. This mirrors the closed-vocabulary approach used for VLM relation extraction. No automatic speech recognition or speech emotion recognition is used; prior evaluation confirmed that ASR finds zero utterances on surveillance audio.
+
+Model outputs are persisted as temporal intervals in the \texttt{SoundPerInterval} table with an applied confidence threshold of 0.0 (no filtering), allowing the multimodal union to manage false positives.
+
+\section{Storage and Reasoning Layers}
+\label{sec:storage-reasoning}
+
+Both perception pipelines write to a shared SQLite database with the schema shown in Table~\ref{tab:schema}.
+
+\begin{table}[h]
+  \centering
+  \caption{Database schema.}
+  \label{tab:schema}
+  \begin{tabular}{lp{8cm}}
+    \toprule
+    Table & Description \\
+    \midrule
+    \texttt{VisualPerFrame} & Per-frame VLM object detections (Frame, ClassID, Class, Block) \\
+    \texttt{VisualRelation} & Frame-level relation triples (Frame, RelationID, RelationType, ClassID) \\
+    \texttt{VisualPerInterval} & Collapsed temporal intervals (RelationID PK, StartFrame, EndFrame, RelationType) \\
+    \texttt{VisualParticipant} & Interval participants (RelationID, ClassID, Class) \\
+    \texttt{SoundPerInterval} & Audio-derived intervals (SoundIntervalID PK, StartFrame, EndFrame, SoundClass) \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+The reasoning layer executes high-level event detection through SQL queries. The formal ISEQL definitions were given in Chapter~\ref{Background}; the corresponding SQL implementations are provided in Appendix~\ref{AppendixA}. Each condition has its own query set: condition A runs six visual queries, condition B runs four sound-only queries, and condition C runs six multimodal union queries.
+
+\section{Dataset}
+\label{sec:dataset}
+
+A dataset of 30 surveillance scenes was generated using Dreamina Seedance\footnote{\url{https://dreamina.capcut.com/}}, a text-to-video platform (ByteDance). Each scene is 10 s at 1280$\times$720, 24 fps, with a fixed camera angle. The 30 scenes span 6 event types with 5 positive instances each: \texttt{fight}, \texttt{gunshot\_or\_explosion}, \texttt{vehicle\_escape}, \texttt{vehicle\_collision}, \texttt{loitering}, and \texttt{handoff}. Each scene is annotated with per-frame ground truth for visual relations and sound classes, and event-level binary verdicts (TP, TN, FP, FN).
+
+\section{Evaluation Metrics}
+\label{sec:metrics}
+
+The primary metric is the \textbf{F1 score}, the harmonic mean of precision ($\mathit{TP}/(\mathit{TP}+\mathit{FP})$) and recall ($\mathit{TP}/(\mathit{TP}+\mathit{FN})$):
+
+\[
+F1 = \frac{2 \cdot \mathrm{Precision} \cdot \mathrm{Recall}}{\mathrm{Precision} + \mathrm{Recall}}
+\]
+
+F1 is preferred over accuracy because each event type has 5 positive and 25 negative instances per condition; accuracy would be dominated by true negatives. In forensic surveillance, both precision (avoiding false alarms that waste operator attention) and recall (avoiding missed events) are critical. Per-event TP/FP/FN counts are also reported. Temporal intersection over union (tIoU) is not captured by binary verdicts and is identified as future work.
+
+\section{Implementation}
+
+The system is implemented in Python 3.11 with FastAPI (backend) and SvelteKit with TypeScript (front end). Four VLM models were evaluated: Pixtral 12B (Mistral API), Ministral 3-14B, Gemini 2.5 Flash, and Gemini 3.6 Flash. PANNs CNN14 runs on CPU; Qwen2-Audio-7B-Instruct runs via HuggingFace with 4-bit normal float quantization \citep{dettmers2024qlora}. The system was tested on a laptop with an Intel Core i9-13900H, NVIDIA RTX 4060 (8 GB VRAM), and 32 GB RAM. At default settings, a 30-second video processes in approximately 4.9 s (condition A), 4.7 s (condition B), and 9.0 s (condition C).

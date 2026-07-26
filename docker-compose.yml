@@ -1,0 +1,31 @@
+version: "3.9"
+
+services:
+  backend:
+    build: ./backend
+    container_name: watchout_iseql_backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./data:/app/data
+      - ./interval_engine/build:/app/interval_engine/build:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  frontend:
+    build: ./frontend
+    container_name: watchout_iseql_frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    environment:
+      PUBLIC_API_BASE_URL: "http://localhost:8000"
+    depends_on:
+      backend:
+        condition: service_healthy

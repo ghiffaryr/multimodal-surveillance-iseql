@@ -1,0 +1,37 @@
+app:
+  name: WATCHOUT ISEQL
+  version: 0.2.0
+  debug: true
+
+server:
+  host: 0.0.0.0
+  port: 8000
+  cors_origins: http://localhost:5173,http://127.0.0.1:5173
+  servlet:
+    context_path: /api
+
+data:
+  dir: ../data
+  db_path: ../data/analysis.db
+  upload_dir: ../data/uploads
+  handoff_r_csv: ../data/handoff_R.csv
+  handoff_s_csv: ../data/handoff_S.csv
+
+engine:
+  iseql_path: ../../interval_engine/build/release/iseql
+
+vlm:
+  ollama_base_url: http://localhost:11434
+  sampling_rate: 24
+  grid_rows: 2
+  grid_cols: 4
+
+sound:
+  enabled: true
+  checkpoint: ""
+  window_seconds: 5.0
+  hop_seconds: 2.0
+  top_k: 8
+
+log:
+  path: tmp/log

@@ -1,0 +1,470 @@
+\chapter{Supplementary Material}
+\label{AppendixA}
+
+This appendix provides supplementary material referenced in the main text, including the SQL query definitions for each high-level event, the ontology mapping, and the detailed per-scene evaluation data.
+
+\section{Event Query Definitions}
+
+The following SQL queries define the high-level event detectors. All visual queries operate on the \texttt{VisualPerInterval} and \texttt{VisualParticipant} tables, which store VLM-extracted temporal intervals and their typed participants. Audio queries operate on the \texttt{SoundPerInterval} table, which stores audio-derived temporal intervals with their sound class labels.
+
+\subsection{Visual Queries (Condition A)}
+
+\subsubsection{Fight (Visual)}
+
+Detects a physical altercation involving at least two distinct persons.
+
+\begin{lstlisting}[language=SQL, caption=Fight visual query.]
+SELECT VIP.RelationID, VIP.StartFrame, VIP.EndFrame,
+       MIN(IP.ClassID) AS PersonID, MAX(IP.ClassID) AS PersonID2
+FROM VisualPerInterval VIP
+JOIN VisualParticipant IP ON VIP.RelationID = IP.RelationID
+WHERE VIP.RelationType = 'physical_altercation' AND IP.Class = 'person'
+GROUP BY VIP.RelationID
+HAVING COUNT(DISTINCT IP.ClassID) >= 2
+\end{lstlisting}
+
+\subsubsection{Vehicle Escape (Visual)}
+
+Detects a person running to a vehicle, entering it, and the vehicle departing within a temporal chain.
+
+\begin{lstlisting}[language=SQL, caption=Vehicle escape visual query.]
+WITH
+EnterExitEvents AS (
+    SELECT VIP.RelationID,
+           IP_P.ClassID AS PersonID, IP_V.ClassID AS VehicleID,
+           VIP.StartFrame, VIP.EndFrame
+    FROM VisualPerInterval VIP
+    JOIN VisualParticipant IP_P ON VIP.RelationID = IP_P.RelationID AND IP_P.Class = 'person'
+    JOIN VisualParticipant IP_V ON VIP.RelationID = IP_V.RelationID AND IP_V.Class IN ('car', 'vehicle')
+    WHERE VIP.RelationType IN ('enter_or_exit_vehicle', 'enter_vehicle', 'exit_vehicle')
+),
+RunEvents AS (
+    SELECT VIP.RelationID,
+           IP.ClassID AS PersonID,
+           VIP.StartFrame, VIP.EndFrame
+    FROM VisualPerInterval VIP
+    JOIN VisualParticipant IP ON VIP.RelationID = IP.RelationID
+    WHERE VIP.RelationType = 'running' AND IP.Class = 'person'
+)
+SELECT EEE.RelationID,
+       MIN(EEE.StartFrame, RE.StartFrame) AS StartFrame,
+       MAX(EEE.EndFrame, RE.EndFrame) AS EndFrame,
+       EEE.PersonID, EEE.VehicleID
+FROM EnterExitEvents EEE
+JOIN RunEvents RE ON EEE.PersonID = RE.PersonID
+WHERE (iseql_before('RE', 'EEE', 50))
+   OR (iseql_overlap('RE', 'EEE'));
+\end{lstlisting}
+
+\subsubsection{Loitering (Visual)}
+
+Detects suspicious proximity to a vehicle exceeding a duration threshold.
+
+\begin{lstlisting}[language=SQL, caption=Loitering visual query.]
+SELECT VIP.RelationID, VIP.StartFrame, VIP.EndFrame,
+       IP_P.ClassID AS PersonID, IP_V.ClassID AS VehicleID
+FROM VisualPerInterval VIP
+JOIN VisualParticipant IP_P ON VIP.RelationID = IP_P.RelationID AND IP_P.Class = 'person'
+JOIN VisualParticipant IP_V ON VIP.RelationID = IP_V.RelationID AND IP_V.Class IN ('car', 'vehicle')
+WHERE VIP.RelationType = 'suspicious_near_vehicle'
+  AND IP_P.ClassID != IP_V.ClassID
+  AND (VIP.EndFrame - VIP.StartFrame) >= 150
+\end{lstlisting}
+
+\subsubsection{Handoff (Visual)}
+
+Detects one person carrying an object, then another person carrying the same object, with intervals that may overlap or be within 240 frames of each other.
+
+\begin{lstlisting}[language=SQL, caption=Handoff visual query.]
+WITH
+CarryAll AS (
+    SELECT VIP.RelationID, VIP.StartFrame, VIP.EndFrame, IP.ClassID AS PersonID
+    FROM VisualPerInterval VIP
+    JOIN VisualParticipant IP ON VIP.RelationID = IP.RelationID
+    WHERE VIP.RelationType = 'carrying' AND IP.Class = 'person'
+),
+CarryObject AS (
+    SELECT VIP.RelationID, IP.ClassID AS ObjectID
+    FROM VisualPerInterval VIP
+    JOIN VisualParticipant IP ON VIP.RelationID = IP.RelationID
+    WHERE VIP.RelationType = 'carrying' AND IP.Class = 'object'
+)
+SELECT CA.RelationID,
+       MIN(CA.StartFrame, CA2.StartFrame) AS StartFrame,
+       MAX(CA.EndFrame, CA2.EndFrame) AS EndFrame,
+       CA.PersonID AS GiverID, CA2.PersonID AS ReceiverID,
+       COALESCE(CO.ObjectID, CO2.ObjectID) AS ObjectID
+FROM CarryAll CA
+JOIN CarryAll CA2 ON CA.PersonID != CA2.PersonID AND CA.RelationID != CA2.RelationID
+INNER JOIN CarryObject CO ON CA.RelationID = CO.RelationID
+INNER JOIN CarryObject CO2 ON CA2.RelationID = CO2.RelationID
+  AND CO.ObjectID = CO2.ObjectID
+WHERE (iseql_before('CA', 'CA2', 240))
+   OR (iseql_before('CA2', 'CA', 240))
+   OR (iseql_overlap('CA', 'CA2'))
+\end{lstlisting}
+
+\subsubsection{Vehicle Collision (Visual)}
+
+Detects visible collision damage on a vehicle.
+
+\begin{lstlisting}[language=SQL, caption=Vehicle collision visual query.]
+SELECT VIP.RelationID, VIP.StartFrame, VIP.EndFrame,
+       IP.ClassID AS VehicleID
+FROM VisualPerInterval VIP
+JOIN VisualParticipant IP ON VIP.RelationID = IP.RelationID
+WHERE VIP.RelationType = 'vehicle_collision'
+  AND IP.Class IN ('car', 'vehicle')
+\end{lstlisting}
+
+\subsubsection{Gunshot / Explosion (Visual)}
+
+Detects a visible gunshot or explosion in the frame.
+
+\begin{lstlisting}[language=SQL, caption=Gunshot visual query.]
+SELECT VIP.RelationID, VIP.StartFrame, VIP.EndFrame, IP.ClassID AS ClassID
+FROM VisualPerInterval VIP
+JOIN VisualParticipant IP ON VIP.RelationID = IP.RelationID
+WHERE VIP.RelationType IN ('gunshot_visible', 'explosion_visible')
+\end{lstlisting}
+
+\subsection{Sound-Only Queries (Condition B)}
+
+The following queries operate on the \texttt{SoundPerInterval} table.
+
+\subsubsection{Fight Sound}
+
+Detects a shout immediately followed by an impact sound, indicating a physical altercation behind occlusion.
+
+\begin{lstlisting}[language=SQL, caption=Fight sound query (BEFORE temporal join).]
+WITH ShoutSounds AS (
+    SELECT SoundIntervalID, StartFrame, EndFrame
+    FROM SoundPerInterval SI
+    WHERE SoundClass = 'shout'
+), ImpactSounds AS (
+    SELECT SoundIntervalID, StartFrame, EndFrame
+    FROM SoundPerInterval SI
+    WHERE SoundClass IN ('impact', 'fight')
+)
+SELECT SS.SoundIntervalID,
+       MIN(SS.StartFrame, IMS.StartFrame) AS StartFrame,
+       MAX(SS.EndFrame, IMS.EndFrame) AS EndFrame
+FROM ShoutSounds SS
+JOIN ImpactSounds IMS ON iseql_before('SS', 'IMS', 120)
+\end{lstlisting}
+
+\subsubsection{Gunshot / Explosion Sound}
+
+Detects gunshot or explosion sounds.
+
+\begin{lstlisting}[language=SQL, caption=Gunshot sound query.]
+SELECT SoundIntervalID, StartFrame, EndFrame
+FROM SoundPerInterval SI
+WHERE SoundClass = 'gunshot_or_explosion'
+ORDER BY StartFrame
+\end{lstlisting}
+
+\subsubsection{Vehicle Escape Sound}
+
+Detects engine sounds followed by tire squeal, indicating a rapid vehicle departure.
+
+\begin{lstlisting}[language=SQL, caption=Vehicle escape sound query.]
+WITH EngineSounds AS (
+    SELECT SoundIntervalID, StartFrame, EndFrame
+    FROM SoundPerInterval SI
+    WHERE SoundClass IN ('engine', 'vehicle')
+), TireSounds AS (
+    SELECT SoundIntervalID, StartFrame, EndFrame
+    FROM SoundPerInterval SI
+    WHERE SoundClass IN ('tire_squeal')
+)
+SELECT ES.SoundIntervalID,
+       MIN(ES.StartFrame, TS.StartFrame) AS StartFrame,
+       MAX(ES.EndFrame, TS.EndFrame) AS EndFrame
+FROM EngineSounds ES
+JOIN TireSounds TS ON (iseql_before('ES', 'TS', 150))
+                   OR (iseql_overlap('ES', 'TS'))
+\end{lstlisting}
+
+\subsubsection{Vehicle Collision Sound}
+
+Detects horn or skidding sounds followed by impact or glass breaking, indicating a collision.
+
+\begin{lstlisting}[language=SQL, caption=Vehicle collision sound query.]
+WITH PreImpact AS (
+    SELECT SoundIntervalID, StartFrame, EndFrame
+    FROM SoundPerInterval SI
+    WHERE SoundClass IN ('horn', 'skidding')
+), GlassSounds AS (
+    SELECT SoundIntervalID, StartFrame, EndFrame
+    FROM SoundPerInterval SI
+    WHERE SoundClass IN ('impact', 'glass_breaking')
+)
+SELECT PI.SoundIntervalID,
+       MIN(PI.StartFrame, GS.StartFrame) AS StartFrame,
+       MAX(PI.EndFrame, GS.EndFrame) AS EndFrame
+FROM PreImpact PI
+JOIN GlassSounds GS ON (iseql_before('PI', 'GS', 60))
+                    OR (iseql_overlap('PI', 'GS'))
+\end{lstlisting}
+
+\subsection{Multimodal Queries (Condition C)}
+
+Multimodal queries combine visual and audio detection via UNION. The outer query collapses the UNION into a single combined interval per event using MIN/MAX aggregation.
+
+\subsubsection{Fight (Multimodal)}
+
+UNION of the audio fight detection with the visual altercation detection.
+
+\begin{lstlisting}[language=SQL, caption=Fight multimodal query (UNION).]
+WITH FightAudio AS (
+    WITH ShoutSounds AS (
+        SELECT SoundIntervalID, StartFrame, EndFrame
+        FROM SoundPerInterval SI
+        WHERE SoundClass = 'shout'
+    ),
+    ImpactSounds AS (
+        SELECT SoundIntervalID, StartFrame, EndFrame
+        FROM SoundPerInterval SI
+        WHERE SoundClass IN ('impact', 'fight')
+    )
+    SELECT SS.SoundIntervalID, NULL AS VisualRelationID,
+           SS.StartFrame, SS.EndFrame,
+           NULL AS PersonID, NULL AS PersonID2
+    FROM ShoutSounds SS
+    JOIN ImpactSounds IMS ON iseql_before('SS', 'IMS', 120)
+),
+Combined AS (
+    SELECT SoundIntervalID, VisualRelationID, StartFrame, EndFrame, PersonID, PersonID2 FROM FightAudio
+    UNION
+    SELECT NULL AS SoundIntervalID, VIP.RelationID AS VisualRelationID,
+           VIP.StartFrame, VIP.EndFrame,
+           MIN(IP.ClassID) AS PersonID, MAX(IP.ClassID) AS PersonID2
+    FROM VisualPerInterval VIP
+    JOIN VisualParticipant IP ON VIP.RelationID = IP.RelationID
+    WHERE VIP.RelationType = 'physical_altercation' AND IP.Class = 'person'
+    GROUP BY VIP.RelationID
+    HAVING COUNT(DISTINCT IP.ClassID) >= 2
+)
+SELECT MAX(VisualRelationID) AS VisualRelationID,
+       MAX(SoundIntervalID) AS SoundIntervalID,
+       MIN(StartFrame) AS StartFrame,
+       MAX(EndFrame) AS EndFrame,
+       MAX(PersonID) AS PersonID,
+       MAX(PersonID2) AS PersonID2
+FROM Combined
+HAVING StartFrame IS NOT NULL
+\end{lstlisting}
+
+\subsubsection{Gunshot / Explosion (Multimodal)}
+
+UNION of the audio gunshot detection with the visual gunshot or explosion detection.
+
+\begin{lstlisting}[language=SQL, caption=Gunshot multimodal query (UNION).]
+SELECT MAX(VisualRelationID) AS VisualRelationID,
+       MAX(SoundIntervalID) AS SoundIntervalID,
+       MIN(StartFrame) AS StartFrame,
+       MAX(EndFrame) AS EndFrame,
+       MAX(ClassID) AS ClassID
+FROM (
+    SELECT NULL AS VisualRelationID, SI.SoundIntervalID AS SoundIntervalID,
+           StartFrame, EndFrame,
+           NULL AS ClassID
+    FROM SoundPerInterval SI
+    WHERE SoundClass = 'gunshot_or_explosion'
+    UNION
+    SELECT VIP.RelationID AS VisualRelationID, NULL AS SoundIntervalID,
+           VIP.StartFrame, VIP.EndFrame,
+           IP.ClassID AS ClassID
+    FROM VisualPerInterval VIP
+    JOIN VisualParticipant IP ON VIP.RelationID = IP.RelationID
+    WHERE VIP.RelationType IN ('gunshot_visible', 'explosion_visible')
+) HAVING StartFrame IS NOT NULL
+\end{lstlisting}
+
+\subsubsection{Vehicle Escape (Multimodal)}
+
+UNION of the audio escape detection with the visual escape detection.
+
+\begin{lstlisting}[language=SQL, caption=Vehicle escape multimodal query (UNION).]
+WITH Combined AS (
+    SELECT SoundIntervalID, VisualRelationID, StartFrame, EndFrame, PersonID, VehicleID
+    FROM (
+        WITH EngineSounds AS (
+            SELECT SoundIntervalID, StartFrame, EndFrame
+            FROM SoundPerInterval SI
+            WHERE SoundClass IN ('engine', 'vehicle')
+        ),
+        TireSounds AS (
+            SELECT SoundIntervalID, StartFrame, EndFrame
+            FROM SoundPerInterval SI
+            WHERE SoundClass IN ('tire_squeal')
+        )
+        SELECT ES.SoundIntervalID, NULL AS VisualRelationID,
+               ES.StartFrame AS StartFrame, TS.EndFrame AS EndFrame,
+               NULL AS PersonID, NULL AS VehicleID
+        FROM EngineSounds ES
+        JOIN TireSounds TS ON (iseql_before('ES', 'TS', 150))
+                           OR (iseql_overlap('ES', 'TS'))
+    ) AudioSeq
+    UNION
+    SELECT SoundIntervalID, VisualRelationID, StartFrame, EndFrame, PersonID, VehicleID
+    FROM (
+        WITH EnterExitEvents AS (
+            SELECT VIP.RelationID,
+                   IP_P.ClassID AS PersonID, IP_V.ClassID AS VehicleID,
+                   VIP.StartFrame, VIP.EndFrame
+            FROM VisualPerInterval VIP
+            JOIN VisualParticipant IP_P ON VIP.RelationID = IP_P.RelationID AND IP_P.Class = 'person'
+            JOIN VisualParticipant IP_V ON VIP.RelationID = IP_V.RelationID AND IP_V.Class IN ('car', 'vehicle')
+            WHERE VIP.RelationType IN ('enter_or_exit_vehicle', 'enter_vehicle', 'exit_vehicle')
+        ),
+        RunEvents AS (
+            SELECT VIP.RelationID,
+                   IP.ClassID AS PersonID,
+                   VIP.StartFrame, VIP.EndFrame
+            FROM VisualPerInterval VIP
+            JOIN VisualParticipant IP ON VIP.RelationID = IP.RelationID
+            WHERE VIP.RelationType = 'running' AND IP.Class = 'person'
+        )
+        SELECT NULL AS SoundIntervalID, EEE.RelationID AS VisualRelationID,
+               MIN(EEE.StartFrame, RE.StartFrame) AS StartFrame,
+               MAX(EEE.EndFrame, RE.EndFrame) AS EndFrame,
+               EEE.PersonID, EEE.VehicleID
+        FROM EnterExitEvents EEE
+        JOIN RunEvents RE ON EEE.PersonID = RE.PersonID
+        WHERE (iseql_before('RE', 'EEE', 50))
+           OR (iseql_overlap('RE', 'EEE'))
+    ) VisualSeq
+)
+SELECT MAX(VisualRelationID) AS VisualRelationID,
+       MAX(SoundIntervalID) AS SoundIntervalID,
+       MIN(StartFrame) AS StartFrame,
+       MAX(EndFrame) AS EndFrame,
+       MAX(PersonID) AS PersonID,
+       MAX(VehicleID) AS VehicleID
+FROM Combined HAVING StartFrame IS NOT NULL
+\end{lstlisting}
+
+\subsubsection{Vehicle Collision (Multimodal)}
+
+UNION of the audio collision detection with the visual collision detection.
+
+\begin{lstlisting}[language=SQL, caption=Vehicle collision multimodal query (UNION).]
+SELECT MAX(VisualRelationID) AS VisualRelationID,
+       MAX(SoundIntervalID) AS SoundIntervalID,
+       MIN(StartFrame) AS StartFrame,
+       MAX(EndFrame) AS EndFrame,
+       MAX(VehicleID) AS VehicleID
+FROM (
+    SELECT NULL AS VisualRelationID, SoundIntervalID, StartFrame, EndFrame, NULL AS VehicleID
+    FROM (
+        WITH PreImpact AS (
+            SELECT SoundIntervalID, StartFrame, EndFrame
+            FROM SoundPerInterval SI
+            WHERE SoundClass IN ('horn', 'skidding')
+        ),
+        GlassSounds AS (
+            SELECT SoundIntervalID, StartFrame, EndFrame
+            FROM SoundPerInterval SI
+            WHERE SoundClass IN ('impact', 'glass_breaking')
+        )
+        SELECT PI.SoundIntervalID,
+               PI.StartFrame AS StartFrame, GS.EndFrame AS EndFrame
+        FROM PreImpact PI
+        JOIN GlassSounds GS ON (iseql_before('PI', 'GS', 60))
+                            OR (iseql_overlap('PI', 'GS'))
+    ) AudioCollision
+    UNION
+    SELECT VIP.RelationID AS VisualRelationID, NULL AS SoundIntervalID,
+           VIP.StartFrame, VIP.EndFrame,
+           IP.ClassID AS VehicleID
+    FROM VisualPerInterval VIP
+    JOIN VisualParticipant IP ON VIP.RelationID = IP.RelationID
+    WHERE VIP.RelationType = 'vehicle_collision'
+      AND IP.Class IN ('car', 'vehicle')
+) HAVING StartFrame IS NOT NULL
+\end{lstlisting}
+
+\subsection{Ontology Mapping}
+
+The hand-curated ontology maps AudioSet labels to the event query SoundClass values used in the condition B and C queries.
+
+\begin{table}[h]
+  \centering
+  \caption{Ontology mapping from AudioSet labels to event queries.}
+  \label{tab:ontology}
+  \begin{tabular}{p{4.2cm}p{2.5cm}p{4.5cm}}
+    \toprule
+    AudioSet Label(s) & Ontology Class & Event Query \\
+    \midrule
+    Shout, Yell, Screaming & shout & fight \\
+    Impact, Bang, Slam, Smash & impact & fight \\
+    Gunshot, Gunfire, Explosion, Burst & gunshot\_or\_explosion & gunshot\_or\_explosion \\
+    Engine, Idling, Car, Truck, Bus & engine & vehicle\_escape \\
+    Tire squeal, Skid, Screech & tire\_squeal & vehicle\_escape \\
+    Horn, Honk, Car horn & horn & vehicle\_collision \\
+    Glass breaking, Shatter & glass\_breaking & vehicle\_collision \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\section{Detailed Evaluation Data}
+
+\subsection{Database Schema}
+
+The shared SQLite database uses the following tables:
+
+\begin{itemize}
+  \item \texttt{VisualPerFrame}: Per-frame VLM output (Frame, ClassID, Class, Block, Description)
+  \item \texttt{VisualRelation}: Frame-level relation triples (Frame, RelationID, RelationType, ClassID)
+  \item \texttt{VisualPerInterval}: Collapsed temporal intervals (RelationID PK, StartFrame, EndFrame, RelationType)
+  \item \texttt{VisualParticipant}: Interval participants (RelationID, ClassID, Class)
+  \item \texttt{SoundPerInterval}: Audio-derived intervals (SoundIntervalID PK, StartFrame, EndFrame, SoundClass, Confidence)
+\end{itemize}
+
+\subsection{Per-Scene Evaluation Data}
+
+The evaluation dataset consists of 30 scenes, with 5 positive instances per event type. Table~\ref{tab:per_event_f1} shows the per-event F1 scores for the best performing models. Audio results use the 2.5 s window / 1.25 s hop configuration (20 audio-relevant scenes). The multimodal combination uses UNION of visual and audio results without temporal cross-modal joins.
+
+\begin{table}[h]
+  \centering
+  \caption{Per-event F1 for Gemini 3.6 Flash (best visual), Qwen2-Audio (best audio, 2.5 s / 1.25 s), and their UNION.}
+  \label{tab:per_event_f1}
+  \begin{tabular}{lccccc}
+    \toprule
+    Event & Scenes & A (Gemini 3.6 Flash) & B (Qwen2-Audio) & C (UNION) \\
+    \midrule
+    fight & 5 & 0.833 & 0.000 & 0.833 \\
+    gunshot\_or\_explosion & 5 & 0.889 & 1.000 & 1.000 \\
+    vehicle\_escape & 5 & 0.545 & 1.000 & 0.769 \\
+    vehicle\_collision & 5 & 1.000 & 0.750 & 1.000 \\
+    loitering & 5 & 0.800 & N/A & 0.800 \\
+    handoff & 5 & 1.000 & N/A & 1.000 \\
+    \midrule
+    Overall & 30 & 0.839 & 0.788 & 0.892 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{table}[h]
+  \centering
+  \caption{Complete multimodal (condition C) ablation results.}
+  \label{tab:full_ablation}
+  \begin{tabular}{lcccccc}
+    \toprule
+    VLM + Audio & F1 & Precision & Recall & TP & FP & FN \\
+    \midrule
+    \textbf{Gemini 3.6 Flash + Qwen2} & \textbf{0.892} & 0.829 & 0.967 & 29 & 6 & 1 \\
+    \textbf{Ministral 3-14B + Qwen2} & \textbf{0.892} & 0.829 & 0.967 & 29 & 6 & 1 \\
+    Gemini 3.6 Flash + PANNs & 0.857 & 0.818 & 0.900 & 27 & 6 & 3 \\
+    Ministral 3-14B + PANNs & 0.839 & 0.812 & 0.867 & 26 & 6 & 4 \\
+    Pixtral 12B + Qwen2 & 0.833 & 0.833 & 0.833 & 25 & 5 & 5 \\
+    Gemini 2.5 Flash + Qwen2 & 0.807 & 0.852 & 0.767 & 23 & 4 & 7 \\
+    Pixtral 12B + PANNs & 0.750 & 0.808 & 0.700 & 21 & 5 & 9 \\
+    Gemini 2.5 Flash + PANNs & 0.741 & 0.833 & 0.667 & 20 & 4 & 10 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+

@@ -1,0 +1,342 @@
+\documentclass[aspectratio=169,10pt]{beamer}
+\usetheme{Madrid}
+\usecolortheme{dolphin}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{tikz}
+\usetikzlibrary{shapes,arrows,arrows.meta,positioning}
+
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{itemize item}{\scriptsize\raisebox{0.3ex}{$\blacktriangleright$}}
+\setbeamertemplate{itemize subitem}{$\bullet$}
+\setbeamercolor{frametitle}{bg=blue!85!black,fg=white}
+\setbeamercolor{title}{fg=blue!85!black}
+\setbeamerfont{frametitle}{series=\bfseries}
+
+\title[WATCHOUT ISEQL]{WATCHOUT ISEQL}
+\subtitle{Large Audio-Language Models and Object Re-Identification\\for Forensic Multimodal Surveillance Event Detection}
+\author[G. Rifqialdi]{Ghiffary Rifqialdi}
+\institute[UnivAQ \& UHH]{%
+  Joint Degree M.Sc.\ Mathematical Modelling in Engineering\\
+  Universit\`a degli Studi dell'Aquila \hspace{1cm} Universit\"at Hamburg
+}
+\date{Master's Thesis Defense}
+
+\begin{document}
+
+\frame{\titlepage}
+
+% ── MOTIVATION ──
+\section{Motivation}
+\begin{frame}{The Surveillance Problem}
+\begin{columns}[T]
+\column{0.52\textwidth}
+\vspace{0.5em}
+\textbf{900 million} surveillance cameras worldwide.\\
+\vspace{0.4em}
+A human operator watching \textbf{multiple feeds} experiences \alert{vigilance decrement} after approximately 20 minutes.\\
+\vspace{0.4em}
+Critical events go unnoticed. A missed event could mean a missed crime.
+
+\column{0.48\textwidth}
+\begin{block}{Three challenges}
+\begin{enumerate}
+  \item Visual events need \textbf{cross-frame tracking} to form temporal intervals
+  \item Audio captures \textbf{off-camera} events invisible to cameras
+  \item Combining modalities naively (temporal joins) \textbf{reduces recall}
+\end{enumerate}
+\end{block}
+\end{columns}
+\end{frame}
+
+% ── PROBLEM & GAP ──
+\section{Problem and Gap}
+\begin{frame}{Prior Work: VIS MODE and Its Limitations}
+\begin{block}{VIS MODE (Crescitelli et al., CIKM '26)}
+First ISEQL-based event detector using VLM perception. Reported high precision/recall on surveillance footage.
+\end{block}
+\vspace{0.4em}
+\begin{alertblock}{Three problems identified}
+\begin{enumerate}
+  \item \textbf{Zero-event bug:} VLM assigned new IDs every frame, intervals never spanned multiple frames, \alert{zero events detected}.
+  \item \textbf{Unverifiable claims:} Evaluated on unlabeled ground truth.
+  \item \textbf{Non-deterministic:} Temperature $>0$, no fixed seed.
+\end{enumerate}
+\end{alertblock}
+\vspace{0.3em}
+\textbf{Our fix:} Object re-identification via two-phase VLM tracking prompt.\hspace{1em}\textbf{Our extension:} Audio modality via LALM.
+\end{frame}
+
+% ── SYSTEM OVERVIEW ──
+\section{System}
+\begin{frame}{What We Built}
+\centering
+\footnotesize
+\begin{tikzpicture}[
+  node distance=0.6cm,
+  box/.style={rectangle,draw=blue!60,fill=blue!5,rounded corners=3pt,align=center,minimum height=1.0cm,font=\footnotesize},
+  arrow/.style={-Stealth,thick,blue!60},
+]
+\node[box] (video) at (0,0) {\textbf{Input Video}\quad 30 scenes, 10s, 24fps};
+\node[box,fill=red!5,draw=red!60,text width=4.2cm] (A) at (-3.8,-2.2) {\textbf{Condition A (Visual)}\\VLM + re-ID\\6 SQL queries};
+\node[box,fill=green!5,draw=green!60,text width=4.2cm] (B) at (3.8,-2.2) {\textbf{Condition B (Audio)}\\Qwen2-Audio / PANNs\\4 SQL queries};
+\node[box,fill=blue!5,draw=blue!80,text width=4.8cm] (C) at (0,-4.4) {\textbf{Condition C (Multimodal)}\\$C = A \cup B$ (UNION), 6 SQL queries\\No temporal cross-modal joins};
+
+\draw[arrow] (video.south) -| (A.north);
+\draw[arrow] (video.south) -| (B.north);
+\draw[arrow] (A.south) -- (C.north);
+\draw[arrow] (B.south) -- (C.north);
+
+\node[font=\footnotesize,text=black!60] at (0,-5.5) {4 VLM models tested. 2 audio providers. Shared SQLite: VisualPerInterval + SoundPerInterval.};
+\end{tikzpicture}
+\end{frame}
+
+% ── ISEQL FORMAL EXPRESSIONS (1/2) ──
+\section{ISEQL}
+\begin{frame}{ISEQL: Formal Event Definitions (1/2)}
+\footnotesize
+\textbf{Notation:} $M_i.\texttt{arg}_j$: $j$-th argument of interval $i$. $M_i.s_f$, $M_i.e_f$: start/end frame. $\Join_{\mathrm{Bef}_{\delta}}$: before operator with gap $\le\delta$. $\cup$: set union. $\sigma_P$: select intervals satisfying $P$. $\pi_F$: project fields $F$.
+\vspace{0.3em}
+
+\noindent\textbf{Fight} \textit{(visual + audio)}
+\[
+\begin{aligned}
+\text{Fight}_A &\equiv \pi_{M_1.\texttt{arg}_1, M_1.\texttt{arg}_2, M_1.s_f, M_1.e_f}(
+  \sigma_{\texttt{pred}=\text{`physical\_altercation'}}(M_1) ) \\[2pt]
+\text{Fight}_B &\equiv \pi_{M_1.s_f, M_1.e_f, M_2.s_f, M_2.e_f}(
+  \sigma_{\texttt{pred}=\text{`shout'}}(M_1) \Join_{\mathrm{Bef}_{120}} \sigma_{\texttt{pred}=\text{`impact'}}(M_2) ) \\[2pt]
+\text{Fight}_C &\equiv \text{Fight}_A \cup \text{Fight}_B
+\end{aligned}
+\]
+
+\noindent\textbf{Handoff} \textit{(visual only, $\delta=240$)}
+\[
+\begin{aligned}
+\text{Handoff}_A &\equiv \pi_{M_1.\texttt{arg}_1, M_1.\texttt{arg}_2, M_1.s_f, M_1.e_f, M_2.\texttt{arg}_1, M_2.\texttt{arg}_2, M_2.s_f, M_2.e_f}( \\
+&\qquad \sigma_{M_1.\texttt{arg}_1 \neq M_2.\texttt{arg}_1 \land M_1.\texttt{arg}_2 = M_2.\texttt{arg}_2}(
+  \sigma_{\texttt{pred}=\text{`carrying'}}(M_1) \Join_{\mathrm{Bef}_{240}} \sigma_{\texttt{pred}=\text{`carrying'}}(M_2) ) )
+\end{aligned}
+\]
+
+\noindent\textbf{Loitering} \textit{(visual only, duration $\ge 150$ frames)}
+\[
+\begin{aligned}
+\text{Loitering}_A &\equiv \pi_{M_1.\texttt{arg}_1, M_1.\texttt{arg}_2, M_1.s_f, M_1.e_f}(
+  \sigma_{\texttt{pred}=\text{`suspicious\_near\_vehicle'}}(M_1) \land (M_1.e_f - M_1.s_f) \ge 150 )
+\end{aligned}
+\]
+\end{frame}
+
+% ── ISEQL FORMAL EXPRESSIONS (2/2) ──
+\begin{frame}{ISEQL: Formal Event Definitions (2/2)}
+\footnotesize
+\noindent\textbf{Vehicle Escape} \textit{(visual + audio)}
+\[
+\begin{aligned}
+\text{Escape}_A &\equiv \pi_{M_1.\texttt{arg}_1, M_1.s_f, M_1.e_f, M_2.\texttt{arg}_1, M_2.\texttt{arg}_2, M_2.s_f, M_2.e_f}( \\
+&\qquad \sigma_{M_1.\texttt{arg}_1 = M_2.\texttt{arg}_1}(
+  \sigma_{\texttt{pred}=\text{`running'}}(M_1) \Join_{\mathrm{Bef}_{50}\lor\mathrm{Overlap}} \sigma_{\texttt{pred}=\text{`enter\_or\_exit\_vehicle'}}(M_2) ) ) \\[2pt]
+\text{Escape}_B &\equiv \pi_{M_1.s_f, M_1.e_f, M_2.s_f, M_2.e_f}(
+  \sigma_{\texttt{pred}\in\{\text{`engine'},\text{`vehicle'}\}}(M_1) \Join_{\mathrm{Bef}_{150}\lor\mathrm{Overlap}} \sigma_{\texttt{pred}=\text{`tire\_squeal'}}(M_2) ) \\[2pt]
+\text{Escape}_C &\equiv \text{Escape}_A \cup \text{Escape}_B
+\end{aligned}
+\]
+
+\noindent\textbf{Vehicle Collision} \textit{(visual + audio, $\delta=60$)}
+\[
+\begin{aligned}
+\text{Collision}_A &\equiv \pi_{M_1.\texttt{arg}_1, M_1.s_f, M_1.e_f}(
+  \sigma_{\texttt{pred}=\text{`vehicle\_collision'}}(M_1) ) \\[2pt]
+\text{Collision}_B &\equiv \pi_{M_1.s_f, M_1.e_f, M_2.s_f, M_2.e_f}(
+  \sigma_{\texttt{pred}\in\{\text{`horn'},\text{`skidding'}\}}(M_1) \Join_{\mathrm{Bef}_{60}} \sigma_{\texttt{pred}\in\{\text{`impact'},\text{`glass\_breaking'}\}}(M_2) ) \\[2pt]
+\text{Collision}_C &\equiv \text{Collision}_A \cup \text{Collision}_B
+\end{aligned}
+\]
+
+\noindent\textbf{Gunshot / Explosion} \textit{(visual + audio)}
+\[
+\begin{aligned}
+\text{Gunshot}_A &\equiv \pi_{M_1.\texttt{arg}_1, M_1.s_f, M_1.e_f}(
+  \sigma_{\texttt{pred}\in\{\text{`gunshot\_visible'},\text{`explosion\_visible'}\}}(M_1) ) \\[2pt]
+\text{Gunshot}_B &\equiv \pi_{M_1.s_f, M_1.e_f}(
+  \sigma_{\texttt{pred}=\text{`gunshot\_or\_explosion'}}(M_1) ) \\[2pt]
+\text{Gunshot}_C &\equiv \text{Gunshot}_A \cup \text{Gunshot}_B
+\end{aligned}
+\]
+\end{frame}
+
+% ── RQ1: RE-ID ──
+\section{RQ1: Re-Identification}
+\begin{frame}{RQ1: Object Re-Identification Is Essential}
+\begin{columns}[T]
+\column{0.48\textwidth}
+\small
+\textbf{Without re-ID:} VLM assigns new IDs per frame.\\
+\textit{Carrying(person=1)} on frame 10,\\
+\textit{Carrying(person=7)} on frame 34.\\
+Single-frame intervals only.\\
+Duration thresholds never satisfied.\\
+\alert{Zero detected events.}
+
+\vspace{0.4em}
+\textbf{With re-ID:} Two-phase tracking.\\
+Frame 1: detect objects and assign IDs.\\
+Frame $k$: match by class + block overlap.
+
+\column{0.52\textwidth}
+\centering
+\footnotesize
+\begin{tabular}{lcc}
+\toprule
+VLM & With re-ID (TP) & Without (TP) \\
+\midrule
+\textbf{Gemini 3.6 Flash} & \textbf{24} & \textbf{0} \\
+Ministral 3-14B & 23 & 0 \\
+Gemini 2.5 Flash & 17 & 0 \\
+Pixtral 12B & 17 & 0 \\
+\bottomrule
+\end{tabular}
+\vspace{0.3em}
+
+30 scenes. All models: 0 TP without re-ID.
+\end{columns}
+\end{frame}
+
+% ── RQ2: AUDIO ──
+\section{RQ2: Audio}
+\begin{frame}{RQ2: Audio Model Ablation (Window/Hop)}
+\centering
+\footnotesize
+\textbf{20 audio-relevant scenes. F1 = harmonic mean of precision and recall.}
+\vspace{0.2em}
+
+\begin{tabular}{lccc}
+\toprule
+Provider (config) & F1 & Precision & Recall \\
+\midrule
+Qwen2-Audio (2.5s/1.25s) & \textbf{0.788} & \alert{1.000} & 0.650 \\
+Qwen2-Audio (5.0s/2.50s) & 0.788 & 1.000 & 0.650 \\
+Qwen2-Audio (2.5s/2.50s) & 0.667 & 1.000 & 0.500 \\
+Qwen2-Audio (1.0s/1.00s) & 0.514 & 0.600 & 0.450 \\
+\midrule
+PANNs CNN14 (2.5s/1.25s) & 0.429 & 0.750 & 0.300 \\
+PANNs CNN14 (1.0s/0.50s) & 0.385 & 0.833 & 0.250 \\
+PANNs CNN14 (5.0s/5.00s) & 0.333 & 1.000 & 0.200 \\
+PANNs CNN14 (10.0s/10.0s) & 0.261 & 1.000 & 0.150 \\
+\bottomrule
+\end{tabular}
+
+\vspace{0.3em}
+\textbf{Qwen2-Audio achieves perfect precision (1.000) for all windows $\ge$ 2.5 s.}\\
+Every detection is correct. Best config: 2.5s window, 1.25s hop.
+\end{frame}
+
+% ── RQ3: MULTIMODAL ──
+\section{RQ3: Multimodal}
+\begin{frame}{RQ3: Multimodal Union Outperforms Unimodal}
+\centering
+\textbf{Condition C:} $C = A \cup B$ (no temporal cross-modal joins).
+\vspace{0.2em}
+
+\begin{tabular}{lcccc}
+\toprule
+Configuration & F1 & Precision & Recall & TP/FP/FN \\
+\midrule
+\textbf{Gemini 3.6 Flash + Qwen2} & \textbf{0.892} & 0.829 & 0.967 & 29/6/1 \\
+Ministral 3-14B + Qwen2 & 0.892 & 0.829 & 0.967 & 29/6/1 \\
+Gemini 3.6 Flash + PANNs & 0.857 & 0.818 & 0.900 & 27/6/3 \\
+Pixtral 12B + Qwen2 & 0.833 & 0.833 & 0.833 & 25/5/5 \\
+\midrule
+Visual-only (best) & 0.839 & 0.812 & 0.867 & 26/6/4 \\
+Audio-only (best) & 0.788 & 1.000 & 0.650 & 13/0/7 \\
+\bottomrule
+\end{tabular}
+
+\vspace{0.3em}
+\textbf{Thesis claim: $C \ge \max(A, B)$ holds on all 30 scenes.}\\
+Top multimodal combinations all use Qwen2-Audio (perfect precision carries through).
+\end{frame}
+
+% ── PER-EVENT ──
+\begin{frame}{Per-Event Breakdown (Best Combo)}
+\centering
+\footnotesize
+\textbf{Gemini 3.6 Flash + Qwen2-Audio \hspace{0.5em} 29/30 (F1 = 0.892)}
+\vspace{0.2em}
+
+\begin{tabular}{lcccc}
+\toprule
+Event & Visual (A) & Audio (B) & Multimodal (C) & C benefit \\
+\midrule
+Fight & 5/5 & 0/5 & 5/5 & visual carries \\
+Gunshot/Explosion & 4/5 & \textbf{5/5} & \textbf{5/5} & audio adds 1 \\
+Vehicle Escape & 3/5 & \textbf{5/5} & \textbf{5/5} & audio adds 2 \\
+Vehicle Collision & 5/5 & 3/5 & 5/5 & both contribute \\
+Handoff & 5/5 & -- & 5/5 & visual only \\
+Loitering & 4/5 & -- & 4/5 & visual only \\
+\midrule
+Total & 26/30 & 13/20 & \textbf{29/30} & +3 over visual \\
+\bottomrule
+\end{tabular}
+
+\vspace{0.2em}
+Union is most valuable when modalities are complementary: audio catches what visual misses (vehicle escape, gunshot) and vice versa (fight).
+\end{frame}
+
+% ── CONTRIBUTIONS ──
+\section{Contributions}
+\begin{frame}{Contributions}
+\begin{enumerate}
+  \item \textbf{First LALM for surveillance forensics}\\
+  Qwen2-Audio-7B: perfect precision (1.000), micro F1 = 0.788 vs.\ PANNs 0.429
+  \vspace{0.3em}
+
+  \item \textbf{Object re-identification fixes zero-event bug}\\
+  All 4 VLM models: 0 TP without re-ID, up to 0.839 F1 with re-ID
+  \vspace{0.3em}
+
+  \item \textbf{First labeled multimodal forensic dataset}\\
+  30 scenes, 6 event types, per-frame visual + audio + verdict ground truth
+  \vspace{0.3em}
+
+  \item \textbf{Union-based multimodal design}\\
+  $C = A \cup B$ preserves all detections; temporal joins reduce recall
+  \vspace{0.3em}
+
+  \item \textbf{Fully auditable pipeline}\\
+  Every detection = output of a readable SQL query, no black-box reasoning
+\end{enumerate}
+\end{frame}
+
+% ── THANK YOU ──
+\begin{frame}{Future Work \& Thank You}
+\begin{columns}[T]
+\column{0.5\textwidth}
+\textbf{Future directions:}
+\begin{itemize}
+  \item Real CCTV evaluation (currently synthetic data)
+  \item Stronger LALMs
+  \item YOLO pre-filter + denser VLM sampling
+  \item Temporal IoU metrics
+  \item Multi-camera / PTZ support
+\end{itemize}
+
+\column{0.5\textwidth}
+\begin{block}{Acknowledgments}
+VIS MODE team (Crescitelli, Persia, Cipriani, Pea)\\[2pt]
+IEJoin authors (Piatov, Helmer, Dignoes, Persia)\\[2pt]
+PANNs (Kong et al.) and Qwen2-Audio authors
+\end{block}
+\vspace{0.5em}
+\centering
+\Large Thank you.\\[0.3em]
+\normalsize Questions?
+\end{columns}
+\end{frame}
+
+\end{document}

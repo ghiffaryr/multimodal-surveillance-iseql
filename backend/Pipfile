@@ -1,0 +1,54 @@
+[[source]]
+name = "pypi"
+verify_ssl = true
+url = "https://pypi.org/simple"
+
+[[source]]
+name = "pytorch-cu121"
+url = "https://download.pytorch.org/whl/cu121"
+verify_ssl = true
+
+[packages]
+# --- Web framework ---
+fastapi = "==0.128.0"
+uvicorn = {extras = ["standard"], version = "==0.40.0"}
+sse-starlette = "==3.4.4"
+python-multipart = "==0.0.21"
+httpx = "==0.28.1"
+
+# --- Data validation / settings ---
+pydantic = "==2.12.5"
+pydantic-settings = "==2.10.1"
+pyyaml = "==6.0.2"
+munch = "==4.0.0"
+
+# --- VLM providers ---
+openai = "==2.32.0"
+google-genai = "==1.73.1"
+anthropic = "==0.95.0"
+mistralai = "==2.3.2"
+zhipuai = "==2.1.5.20250825"
+
+# --- Image / video ---
+opencv-python = "==4.13.0.92"
+pillow = "==12.2.0"
+numpy = "==1.26.4"
+pandas = "==2.3.3"
+
+# --- Sound pipeline (PANNs CNN14 + Qwen2-Audio) ---
+soundfile = "==0.13.1"
+scipy = "==1.11.2"
+panns-inference = "==0.1.1"
+torch = {version = "==2.5.1", index = "pytorch-cu121"}
+torchaudio = {version = "==2.5.1", index = "pytorch-cu121"}
+
+# --- HuggingFace LALM (Qwen2-Audio) ---
+transformers = "==5.13.0"
+bitsandbytes = "==0.49.2"
+
+[dev-packages]
+pytest = "*"
+ruff = "*"
+
+[requires]
+python_version = "3.10"

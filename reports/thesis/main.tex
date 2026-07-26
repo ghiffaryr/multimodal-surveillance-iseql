@@ -1,0 +1,199 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Masters/Doctoral Thesis
+% LaTeX Template
+% Version 2.5 (27/8/17)
+%
+% This template was downloaded from:
+% http://www.LaTeXTemplates.com
+%
+% Version 2.x major modifications by:
+% Vel (vel@latextemplates.com)
+%
+% This template is based on a template by:
+% Steve Gunn (http://users.ecs.soton.ac.uk/srg/softwaretools/document/templates/)
+% Sunil Patel (http://www.sunilpatel.co.uk/thesis-template/)
+%
+% Template license:
+% CC BY-NC-SA 3.0 (http://creativecommons.org/licenses/by-nc-sa/3.0/)
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%----------------------------------------------------------------------------------------
+%  PACKAGES AND OTHER DOCUMENT CONFIGURATIONS
+%----------------------------------------------------------------------------------------
+\documentclass[11pt, oneside, english, singlespacing, headsepline]{MastersDoctoralThesis}
+
+% --- Load all packages and configurations from your preamble file ---
+\input{Pages/preamble.tex}
+
+% --- Document Body ---
+\begin{document}
+
+\frontmatter
+\pagestyle{plain}
+
+% --- TITLE PAGE ---
+\begin{titlepage}
+  % --- Paste all your title page content here ---
+  \begin{center}
+    \vspace*{.06\textheight}
+    \printtitlepagelogos
+
+    \vspace{1.5cm}
+    \textsc{\Large \thesistypename}\\[0.5cm]
+
+    \HRule \\[0.4cm]
+    {\huge \bfseries \ttitle\par}\vspace{0.4cm}
+    \HRule \\[1.5cm]
+
+    \begin{minipage}[t]{0.4\textwidth}
+      \begin{flushleft} \large
+        \emph{Author:}\\
+        \href{\authorurl}{\authorname}
+      \end{flushleft}
+    \end{minipage}
+    \begin{minipage}[t]{0.4\textwidth}
+      \begin{flushright} \large
+        \emph{Supervisor:} \\
+        \href{\supervisorurl}{\supname}
+        \ifdefempty{\cosupname}{}{\\
+        \emph{Co-Supervisor:} \\
+        \href{\cosupervisorurl}{\cosupname}}
+      \end{flushright}
+    \end{minipage}\\[3cm]
+
+    \vfill
+    \large \textit{\href{\programmeurl}{\programmename}}\\[0.3cm]
+    \textit{}\\[0.4cm]
+    \deptname\\[0.5cm]
+    \vfill
+    {\large Academic Year \academicyear}\\[2cm]
+    \vfill
+  \end{center}
+\end{titlepage}
+
+%----------------------------------------------------------------------------------------
+%   PROGRAMME PAGE
+%----------------------------------------------------------------------------------------
+\begin{programmepage}
+\end{programmepage}
+
+%----------------------------------------------------------------------------------------
+%  ABSTRACT
+%----------------------------------------------------------------------------------------
+
+\begin{abstract}
+  \addchaptertocentry{\abstractname}
+
+  This thesis presents WATCHOUT ISEQL, a forensic multimodal surveillance framework that combines visual perception from a vision-language model (VLM) with object re-identification and environmental sound analysis from a large audio-language model (LALM) through a shared interval-based temporal representation. The study is organised as a three-condition ablation experiment: a visual-only condition (A) using a VLM with re-ID to extract frame-level relation triples, an audio-only condition (B) using either Qwen2-Audio-7B-Instruct (LALM) or PANNs CNN14, and a multimodal condition (C) that takes the UNION of A and B without temporal cross-modal joins.
+
+  The evaluation on a novel 30-scene dataset generated with Dreamina Seedance across four VLM models and two audio providers demonstrates that condition C achieves at least the accuracy of the better unimodal condition on every scene. With the best combination (Gemini 3.6 Flash + Qwen2-Audio-7B), the system achieves 29/30 TP (F1 = 0.892, 6 FP, 1 FN). Object re-identification is shown to be essential: without it, all four VLM models produce zero true positives. The LALM (Qwen2-Audio-7B) achieves perfect precision (1.000) and outperforms PANNs CNN14 on audio-only detection (micro F1 = 0.788 vs 0.429). The UNION-based multimodal design preserves all detections from both modalities without the recall loss inherent in temporal cross-modal joins. Every event is the output of a SQL query, providing a fully auditable forensic pipeline.
+\end{abstract}
+
+%----------------------------------------------------------------------------------------
+%  ACKNOWLEDGEMENTS
+%----------------------------------------------------------------------------------------
+\begin{acknowledgements}
+  \addchaptertocentry{\acknowledgementname}
+
+  I would like to express my deepest gratitude to my supervisor, Prof. Fabio Persia, for his invaluable guidance, support, and encouragement throughout this thesis work. His insights into interval-based event detection and the ISEQL framework laid the foundation for this research.
+
+  I am grateful to the Department of Information Engineering, Information Sciences and Mathematics at the Universit\`a degli Studi dell'Aquila and the Universit\"at Hamburg for providing the academic environment that made this work possible.
+
+  I extend my sincere thanks to the MathMods programme for fostering an international research experience that broadened my perspective on computational science and engineering.
+
+  Finally, I would like to thank my family for their unwavering support and encouragement throughout my studies.
+\end{acknowledgements}
+
+%----------------------------------------------------------------------------------------
+%  LIST OF CONTENTS/FIGURES/TABLES PAGES
+%----------------------------------------------------------------------------------------
+
+\tableofcontents % Prints the main table of contents
+
+\listoffigures % Prints the list of figures
+
+\listoftables % Prints the list of tables
+
+%----------------------------------------------------------------------------------------
+%  ABBREVIATIONS
+%----------------------------------------------------------------------------------------
+
+\input{Pages/abbreviations}
+
+% %----------------------------------------------------------------------------------------
+% %  PHYSICAL CONSTANTS/OTHER DEFINITIONS
+% %----------------------------------------------------------------------------------------
+
+% \begin{constants}{lr@{${}={}$}l} % The list of physical constants is a three column table
+
+% % The \SI{}{} command is provided by the siunitx package, see its documentation for instructions on how to use it
+
+% Speed of Light & $c_{0}$ & \SI{2.99792458e8}{\meter\per\second} (exact)\\
+% %Constant Name & $Symbol$ & $Constant Value$ with units\\
+
+% \end{constants}
+
+% %----------------------------------------------------------------------------------------
+% %  SYMBOLS
+% %----------------------------------------------------------------------------------------
+
+% \begin{symbols}{lll} % Include a list of Symbols (a three column table)
+
+% $a$ & distance & \si{\meter} \\
+% $P$ & power & \si{\watt} (\si{\joule\per\second}) \\
+% %Symbol & Name & Unit \\
+
+% \addlinespace % Gap to separate the Roman symbols from the Greek
+
+% $\omega$ & angular frequency & \si{\radian} \\
+
+% \end{symbols}
+
+%----------------------------------------------------------------------------------------
+%  DEDICATION
+%----------------------------------------------------------------------------------------
+
+\dedicatory{To my family, for their endless support and encouragement.}
+
+%----------------------------------------------------------------------------------------
+%  THESIS CONTENT - CHAPTERS
+%----------------------------------------------------------------------------------------
+
+\mainmatter % Begin numeric (1,2,3...) page numbering
+
+\pagestyle{thesis} % Return the page headers back to the "thesis" style
+
+% Include the chapters of the thesis as separate files from the Chapters folder
+% Uncomment the lines as you write the chapters
+
+\include{Chapters/Introduction}
+\include{Chapters/Background}
+\include{Chapters/RelatedWork}
+\include{Chapters/Methodology}
+\include{Chapters/Evaluation}
+\include{Chapters/Discussion}
+\include{Chapters/Conclusion}
+
+%----------------------------------------------------------------------------------------
+%  THESIS CONTENT - APPENDICES
+%----------------------------------------------------------------------------------------
+
+\appendix % Cue to tell LaTeX that the following "chapters" are Appendices
+
+% Include the appendices of the thesis as separate files from the Appendices folder
+% Uncomment the lines as you write the Appendices
+
+\include{Appendices/AppendixA}
+%\include{Appendices/AppendixB}
+%\include{Appendices/AppendixC}
+
+%----------------------------------------------------------------------------------------
+%  BIBLIOGRAPHY
+%----------------------------------------------------------------------------------------
+
+\printbibliography[heading=bibintoc]
+
+%----------------------------------------------------------------------------------------
+
+\end{document}
