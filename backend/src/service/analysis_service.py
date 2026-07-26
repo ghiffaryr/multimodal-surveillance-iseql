@@ -54,3 +54,7 @@ class AnalysisService(ABC):
     @abstractmethod
     def load_from_db(self) -> int:
         pass
+
+    @abstractmethod
+    def stop_analysis(self, analysis_id: str) -> None:
+        pass

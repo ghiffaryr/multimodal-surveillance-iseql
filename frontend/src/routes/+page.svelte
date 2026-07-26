@@ -31,7 +31,7 @@
   import CardContent from '$lib/components/ui/card-content.svelte';
   import Button from '$lib/components/ui/button.svelte';
   import Separator from '$lib/components/ui/separator.svelte';
-  import { Play, RotateCcw, AlertTriangle, CheckCircle2 } from 'lucide-svelte';
+  import { Play, RotateCcw, AlertTriangle, CheckCircle2, Square } from 'lucide-svelte';
 
   type AnalysisRecord = {
     id: string;
@@ -246,6 +246,18 @@
   const canStart = $derived(video !== null && !busy);
   const canDetect = $derived(analysisId !== null && stage === 'done' && !detecting);
   const canReset = $derived(!busy || stage === 'done' || stage === 'failed');
+  const canStop = $derived(busy);
+
+  async function stopAnalysis() {
+    if (!analysisId) return;
+    try {
+      await api.post(`/api/analysis/${analysisId}/stop`);
+      busy = false;
+      appendLog('info', '>>> Analysis stopped by user');
+    } catch (e) {
+      appendLog('failed', `Stop request failed: ${(e as Error).message}`);
+    }
+  }
   const audioLabel = $derived('Audio Model');
   const conditionLabel = $derived(
     condition === 'A'
@@ -335,16 +347,23 @@
         </Card>
 
         <div class="flex gap-2">
-          <Button class="flex-1" onclick={startAnalysis} disabled={!canStart}>
-            <Play class="size-4" /> Start analysis
-          </Button>
+          {#if canStop}
+            <Button class="flex-1" variant="destructive" onclick={stopAnalysis}>
+              <Square class="size-4" /> Stop analysis
+            </Button>
+          {:else}
+            <Button class="flex-1" onclick={startAnalysis} disabled={!canStart}>
+              <Play class="size-4" /> Start analysis
+            </Button>
+          {/if}
           <Button variant="outline" onclick={runDetection} disabled={!canDetect}>
             Run detection
           </Button>
-          <Button variant="ghost" onclick={reset} disabled={!canReset}>
-            <RotateCcw class="size-4" /> Reset
-          </Button>
         </div>
+
+        <Button variant="ghost" class="text-xs text-muted-foreground" onclick={reset} disabled={!canReset}>
+          <RotateCcw class="size-3" /> Reset
+        </Button>
 
         {#if error}
           <div class="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">

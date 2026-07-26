@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import threading
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -22,6 +23,7 @@ class AnalysisStage(str, Enum):
     DETECTION = "detection"
     DONE = "done"
     FAILED = "failed"
+    STOPPED = "stopped"
 
 @dataclass
 class RunState:
@@ -44,6 +46,7 @@ class RunState:
     counters: Dict[str, int] = field(default_factory=dict)
     log_queue: "asyncio.Queue" = field(default_factory=asyncio.Queue)
     error: Optional[str] = None
+    stop_event: threading.Event = field(default_factory=threading.Event)
 
 
 class LogEvent(BaseModel):

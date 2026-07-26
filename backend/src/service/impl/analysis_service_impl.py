@@ -90,6 +90,12 @@ class AnalysisServiceImpl(AnalysisService):
             "error": getattr(run, "error", None),
         }
 
+    def stop_analysis(self, analysis_id: str) -> None:
+        run = self.get_run(analysis_id)
+        if run.stage not in (AnalysisStage.DONE, AnalysisStage.FAILED, AnalysisStage.STOPPED):
+            run.stop_event.set()
+            run.stage = AnalysisStage.STOPPED
+
     def start_analysis(
         self,
         *,
@@ -348,6 +354,8 @@ class AnalysisServiceImpl(AnalysisService):
                 raise
 
     def _run_pipeline(self, run: RunState, cfg: Config) -> None:
+        if run.stop_event.is_set():
+            return
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
@@ -380,11 +388,19 @@ class AnalysisServiceImpl(AnalysisService):
             conn, _cursor = setup_database(Path(cfg.data.db_path))
 
             if run.condition in ("A", "C"):
+                if run.stop_event.is_set():
+                    _log(">>> STOPPED before VLM")
+                    run.stage = AnalysisStage.STOPPED
+                    return
                 self._run_vlm(run, conn, cfg, _log, persist_stage)
             else:
                 _log(">>> CONDITION B: skipping VLM (sound-only condition)")
 
             if run.condition in ("B", "C"):
+                if run.stop_event.is_set():
+                    _log(">>> STOPPED before audio")
+                    run.stage = AnalysisStage.STOPPED
+                    return
                 self._run_audio(run, conn, cfg, _log, persist_stage)
             else:
                 _log(">>> CONDITION A: skipping sound pipeline (visual-only condition)")
@@ -411,6 +427,15 @@ class AnalysisServiceImpl(AnalysisService):
             run.error = f"{e}\n{tb}"
         finally:
             if stage_conn is not None:
+                if run.stage in (AnalysisStage.DONE, AnalysisStage.STOPPED, AnalysisStage.FAILED):
+                    try:
+                        stage_conn.execute(
+                            "UPDATE Analyses SET Stage = ? WHERE ID = ?",
+                            (run.stage.value, run.id),
+                        )
+                        stage_conn.commit()
+                    except Exception:
+                        pass
                 stage_conn.close()
             if conn is not None:
                 try:

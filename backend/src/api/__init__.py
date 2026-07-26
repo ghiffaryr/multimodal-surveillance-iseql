@@ -4,6 +4,7 @@ from api.analysis_controller import (
     AnalysisStatusController,
     AnalysisListController,
     AnalysisDetectController,
+    AnalysisStopController,
     VLMModelsController,
 )
 from api.database_controller import (
@@ -25,6 +26,7 @@ ROUTES = {
     '/analysis/{analysis_id}/logs': AnalysisLogsController(_analysis_service),
     '/analysis/{analysis_id}/status': AnalysisStatusController(_analysis_service),
     '/analysis/{analysis_id}/detect': AnalysisDetectController(_analysis_service),
+    '/analysis/{analysis_id}/stop': AnalysisStopController(_analysis_service),
     '/vlm/models': VLMModelsController(),
     '/db/upload': DatabaseUploadController(),
     '/db/download': DatabaseDownloadController(),
