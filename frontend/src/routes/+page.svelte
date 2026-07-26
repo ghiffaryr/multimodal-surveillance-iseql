@@ -81,8 +81,31 @@
 
   let previousAnalyses = $state<AnalysisRecord[]>([]);
   let detectedFps = $state(0);
+  let analysisDone = $state(false);
+  let lastConfigSnapshot = $state('');
 
   let closeSse: (() => void) | null = null;
+
+  function takeConfigSnapshot(): string {
+    return JSON.stringify({
+      condition, vlm_provider: vlmConfig.provider, vlm_model: vlmConfig.model,
+      grid_rows: vlmConfig.grid_rows, grid_cols: vlmConfig.grid_cols,
+      audio_provider: audioConfig.provider, audio_model: audioConfig.model,
+    });
+  }
+
+  function onlyDeltasChanged(): boolean {
+    return takeConfigSnapshot() === lastConfigSnapshot && analysisDone && !!analysisId;
+  }
+
+  // Reset restart shortcut when non-delta config changes
+  $effect(() => {
+    if (!analysisDone) return;
+    const snap = takeConfigSnapshot();
+    if (snap && lastConfigSnapshot && snap !== lastConfigSnapshot) {
+      analysisDone = false;
+    }
+  });
 
   async function refreshAnalysisList() {
     try {
@@ -123,6 +146,7 @@
     result = null;
     error = null;
     logs = [];
+    analysisDone = false;
   }
 
   function getAllEventIds(): string[] {
@@ -174,6 +198,8 @@
       analysisId = resp.analysis_id;
       stage = resp.stage;
       detectedFps = resp.sampling_rate;
+      lastConfigSnapshot = takeConfigSnapshot();
+      analysisDone = false;
       appendLog('queued', `analysis_id = ${analysisId} (condition ${resp.condition})`);
       await refreshAnalysisList();
 
@@ -188,6 +214,7 @@
         async () => {
           stage = 'done';
           busy = false;
+          analysisDone = true;
           appendLog('done', '>>> Run finished, running detection on all events...');
           try {
             const s = await api.get<AnalysisStatusResponse>(`/api/analysis/${analysisId}/status`);
@@ -244,6 +271,14 @@
 
   const canStart = $derived(video !== null && !busy);
   const canStop = $derived(busy);
+
+  function triggerAnalysis() {
+    if (onlyDeltasChanged()) {
+      runAllDetections();
+    } else {
+      startAnalysis();
+    }
+  }
 
   async function stopAnalysis() {
     if (!analysisId) return;
@@ -334,8 +369,16 @@
             <Button class="flex-1" variant="destructive" onclick={stopAnalysis}>
               <Square class="size-4" /> Stop analysis
             </Button>
+          {:else if onlyDeltasChanged()}
+            <Button class="flex-1" variant="secondary" onclick={triggerAnalysis}>
+              <Play class="size-4" /> Re-run detection (deltas only)
+            </Button>
+          {:else if analysisDone && canStart}
+            <Button class="flex-1" onclick={triggerAnalysis}>
+              <Play class="size-4" /> Restart analysis
+            </Button>
           {:else}
-            <Button class="flex-1" onclick={startAnalysis} disabled={!canStart}>
+            <Button class="flex-1" onclick={triggerAnalysis} disabled={!canStart}>
               <Play class="size-4" /> Start analysis
             </Button>
           {/if}
