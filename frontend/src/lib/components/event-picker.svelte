@@ -60,6 +60,7 @@
   const currentList = $derived(eventsByCondition[condition]);
   const currentEvent = $derived(currentList.find((e) => e.id === selected));
   const currentDeltaKey = $derived(currentEvent?.delta_param);
+  const currentDeltaKey2 = $derived(currentEvent?.delta_param2);
   const visibleDeltaFields = $derived(
     condition === 'A' ? DELTA_FIELDS.filter(f => f.key.startsWith('delta_visual_')) :
     condition === 'B' ? DELTA_FIELDS.filter(f => f.key.startsWith('delta_sound_')) :
@@ -123,6 +124,9 @@
     {#if currentDeltaKey}
       <p class="mt-1 text-muted-foreground">
         Tunable delta: <code class="rounded bg-muted px-1 text-foreground">{currentDeltaKey}</code>
+        {#if currentDeltaKey2}
+          , <code class="rounded bg-muted px-1 text-foreground">{currentDeltaKey2}</code>
+        {/if}
       </p>
     {/if}
   </div>

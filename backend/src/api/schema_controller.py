@@ -9,7 +9,7 @@ from service.impl.events_service_impl import events_for_condition
 
 def _event_specs(condition: str) -> list[tuple]:
     return [
-        (e.id, e.label, e.delta_param, e.condition, e.requires_cpp)
+        (e.id, e.label, e.delta_param, e.condition, e.requires_cpp, e.delta_param2)
         for e in events_for_condition(condition)
     ]
 
@@ -40,15 +40,15 @@ class EventTypesController:
     async def on_get(self) -> dict:
         return {
             "A_visual": [
-                {"id": e[0], "label": e[1], "delta_param": e[2], "condition": e[3], "requires_cpp": e[4]}
+                {"id": e[0], "label": e[1], "delta_param": e[2], "condition": e[3], "requires_cpp": e[4], "delta_param2": e[5]}
                 for e in _event_specs("A")
             ],
             "B_sound_only": [
-                {"id": e[0], "label": e[1], "delta_param": e[2], "condition": e[3], "requires_cpp": e[4]}
+                {"id": e[0], "label": e[1], "delta_param": e[2], "condition": e[3], "requires_cpp": e[4], "delta_param2": e[5]}
                 for e in _event_specs("B")
             ],
             "C_sound_visual": [
-                {"id": e[0], "label": e[1], "delta_param": e[2], "condition": e[3], "requires_cpp": e[4]}
+                {"id": e[0], "label": e[1], "delta_param": e[2], "condition": e[3], "requires_cpp": e[4], "delta_param2": e[5]}
                 for e in _event_specs("C")
             ],
         }

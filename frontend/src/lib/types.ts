@@ -43,6 +43,7 @@ export interface EventTypeInfo {
   label: string;
   delta_param: string | null;
   requires_cpp: boolean;
+  delta_param2?: string | null;
 }
 
 export interface EventTypesResponse {

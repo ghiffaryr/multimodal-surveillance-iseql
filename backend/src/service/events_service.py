@@ -10,6 +10,7 @@ class EventSpec:
     delta_param: str | None
     condition: str = "A"
     requires_cpp: bool = False
+    delta_param2: str | None = None
 
 class EventsService(ABC):
     @abstractmethod
