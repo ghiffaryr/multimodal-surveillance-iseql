@@ -159,6 +159,15 @@ class AnalysisStopController:
         return {"status": "stopped"}
 
 
+class AnalysisDeleteController:
+    def __init__(self, analysis_service) -> None:
+        self._service = analysis_service
+
+    async def on_post(self, analysis_id: str) -> dict:
+        self._service.delete_analysis(analysis_id)
+        return {"status": "deleted"}
+
+
 class VLMModelsController:
     async def on_get(self, provider: str = "ollama") -> dict:
         available = Config.get_available_providers()

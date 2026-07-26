@@ -96,6 +96,22 @@ class AnalysisServiceImpl(AnalysisService):
             run.stop_event.set()
             run.stage = AnalysisStage.STOPPED
 
+    def delete_analysis(self, analysis_id: str) -> None:
+        run = self.get_run(analysis_id)
+        cfg = Config.get()
+        try:
+            conn = _get_db_conn(cfg)
+            conn.execute("DELETE FROM Analyses WHERE ID = ?", (analysis_id,))
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            log.warning("Failed to delete analysis from DB: %s", e)
+        self._runs.pop(analysis_id, None)
+        try:
+            run.video_path.unlink(missing_ok=True)
+        except Exception:
+            pass
+
     def start_analysis(
         self,
         *,

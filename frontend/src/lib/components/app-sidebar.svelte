@@ -2,9 +2,10 @@
   import { APP_NAME, APP_VERSION, APP_TAGLINE } from '$lib/app';
   import Separator from '$lib/components/ui/separator.svelte';
   import Badge from '$lib/components/ui/badge.svelte';
+  import Button from '$lib/components/ui/button.svelte';
   import type { BadgeVariant } from '$lib/components/ui/badge';
   import { cn } from '$lib/utils';
-  import { Clock, FileVideo } from 'lucide-svelte';
+  import { Clock, FileVideo, Trash2, Database } from 'lucide-svelte';
 
   type AnalysisRecord = {
     id: string;
@@ -31,6 +32,8 @@
     previousAnalyses?: AnalysisRecord[];
     analysisId?: string | null;
     loadAnalysis?: (item: AnalysisRecord) => void;
+    onDeleteAnalysis?: (id: string) => void;
+    onResetDb?: () => void;
   };
   let {
     class: className = '',
@@ -39,6 +42,8 @@
     previousAnalyses = [],
     analysisId = null,
     loadAnalysis,
+    onDeleteAnalysis,
+    onResetDb,
   }: Props = $props();
 
   function formatDate(iso: string): string {
@@ -60,45 +65,69 @@
         <p class="text-xs font-medium text-muted-foreground">PREVIOUS ANALYSES</p>
         <div class="space-y-1">
           {#each previousAnalyses as item (item.id)}
-            <button
+            <div
               class={cn(
-                'flex w-full flex-col gap-0.5 rounded-md px-2.5 py-2 text-left text-xs transition-colors hover:bg-muted',
-                item.id === analysisId && 'bg-primary/10 border border-primary/30',
-                item.id !== analysisId && 'border border-transparent',
+                'group flex w-full items-start rounded-md border text-left text-xs transition-colors',
+                item.id === analysisId && 'bg-primary/10 border-primary/30',
+                item.id !== analysisId && 'border-transparent',
               )}
-              onclick={() => loadAnalysis?.(item)}
-              title={item.id}
             >
-              <div class="flex items-center gap-1.5">
-                <FileVideo class="size-3 shrink-0 text-muted-foreground" />
-                <span class="truncate font-medium text-foreground">{item.video_filename}</span>
-              </div>
-              <div class="flex items-center gap-1.5 mt-0.5">
-                <span class={cn('rounded border px-1 py-px text-[10px] font-medium', CONDITION_COLORS[item.condition] || 'bg-muted text-muted-foreground')}>
-                  {item.condition}
-                </span>
-                <span class={cn(
-                  'rounded px-1 py-px text-[10px]',
-                  item.stage === 'done' && 'bg-emerald-500/15 text-emerald-300',
-                  item.stage === 'failed' && 'bg-red-500/15 text-red-300',
-                  item.stage !== 'done' && item.stage !== 'failed' && 'bg-muted text-muted-foreground',
-                )}>
-                  {item.stage}
-                </span>
-                {#if item.created_at}
-                  <span class="ml-auto flex items-center gap-0.5 text-[10px] text-muted-foreground">
-                    <Clock class="size-2.5" />{formatDate(item.created_at)}
+              <button
+                class="flex-1 flex-col gap-0.5 px-2.5 py-2 min-w-0"
+                onclick={() => loadAnalysis?.(item)}
+                title={item.id}
+              >
+                <div class="flex items-center gap-1.5">
+                  <FileVideo class="size-3 shrink-0 text-muted-foreground" />
+                  <span class="truncate font-medium text-foreground">{item.video_filename}</span>
+                </div>
+                <div class="flex items-center gap-1.5 mt-0.5">
+                  <span class={cn('rounded border px-1 py-px text-[10px] font-medium', CONDITION_COLORS[item.condition] || 'bg-muted text-muted-foreground')}>
+                    {item.condition}
                   </span>
-                {:else}
-                  <span class="ml-auto text-[10px] text-muted-foreground">--</span>
-                {/if}
-              </div>
-            </button>
+                  <span class={cn(
+                    'rounded px-1 py-px text-[10px]',
+                    item.stage === 'done' && 'bg-emerald-500/15 text-emerald-300',
+                    item.stage === 'failed' && 'bg-red-500/15 text-red-300',
+                    item.stage !== 'done' && item.stage !== 'failed' && 'bg-muted text-muted-foreground',
+                  )}>
+                    {item.stage}
+                  </span>
+                  {#if item.created_at}
+                    <span class="ml-auto flex items-center gap-0.5 text-[10px] text-muted-foreground">
+                      <Clock class="size-2.5" />{formatDate(item.created_at)}
+                    </span>
+                  {:else}
+                    <span class="ml-auto text-[10px] text-muted-foreground">--</span>
+                  {/if}
+                </div>
+              </button>
+              <button
+                class="shrink-0 p-1.5 text-muted-foreground/50 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                onclick={(e: MouseEvent) => { e.stopPropagation(); onDeleteAnalysis?.(item.id); }}
+                title="Delete analysis"
+              >
+                <Trash2 class="size-3" />
+              </button>
+            </div>
           {/each}
         </div>
       </div>
     {:else}
       <p class="text-xs text-muted-foreground">No previous analyses.</p>
+    {/if}
+
+    {#if onResetDb}
+      <div class="mt-3">
+        <Button
+          variant="ghost"
+          size="sm"
+          class="w-full justify-start text-xs text-muted-foreground hover:text-destructive"
+          onclick={onResetDb}
+        >
+          <Database class="size-3 mr-1.5" /> Reset database
+        </Button>
+      </div>
     {/if}
   </div>
   <Separator />

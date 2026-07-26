@@ -31,7 +31,7 @@
   import CardContent from '$lib/components/ui/card-content.svelte';
   import Button from '$lib/components/ui/button.svelte';
   import Separator from '$lib/components/ui/separator.svelte';
-  import { Play, RotateCcw, AlertTriangle, CheckCircle2, Square } from 'lucide-svelte';
+  import { Play, AlertTriangle, CheckCircle2, Square } from 'lucide-svelte';
 
   type AnalysisRecord = {
     id: string;
@@ -89,6 +89,14 @@
   async function refreshAnalysisList() {
     try {
       previousAnalyses = await api.get<AnalysisRecord[]>('/api/analysis/list');
+    } catch { /* non-fatal */ }
+  }
+
+  async function deleteAnalysis(id: string) {
+    try {
+      await api.post(`/api/analysis/${id}/delete`);
+      if (analysisId === id) reset();
+      await refreshAnalysisList();
     } catch { /* non-fatal */ }
   }
 
@@ -245,7 +253,6 @@
 
   const canStart = $derived(video !== null && !busy);
   const canDetect = $derived(analysisId !== null && stage === 'done' && !detecting);
-  const canReset = $derived(!busy || stage === 'done' || stage === 'failed');
   const canStop = $derived(busy);
 
   async function stopAnalysis() {
@@ -269,7 +276,8 @@
 </script>
 
 <div class="flex h-screen w-screen overflow-hidden bg-background text-foreground">
-  <AppSidebar currentStage={stage} currentEvent={selectedEvent} {previousAnalyses} {analysisId} {loadAnalysis} />
+  <AppSidebar currentStage={stage} currentEvent={selectedEvent} {previousAnalyses} {analysisId} {loadAnalysis}
+    onDeleteAnalysis={deleteAnalysis} onResetDb={reset} />
 
   <main class="flex flex-1 flex-col gap-4 overflow-hidden p-4">
     <div class="grid flex-1 grid-cols-12 gap-4 overflow-hidden">
@@ -360,10 +368,6 @@
             Run detection
           </Button>
         </div>
-
-        <Button variant="ghost" class="text-xs text-muted-foreground" onclick={reset} disabled={!canReset}>
-          <RotateCcw class="size-3" /> Reset
-        </Button>
 
         {#if error}
           <div class="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
