@@ -116,20 +116,20 @@
     {:else}
       <p class="text-xs text-muted-foreground">No previous analyses.</p>
     {/if}
-
-    {#if onResetDb}
-      <div class="mt-3">
-        <Button
-          variant="ghost"
-          size="sm"
-          class="w-full justify-start text-xs text-muted-foreground hover:text-destructive"
-          onclick={onResetDb}
-        >
-          <Database class="size-3 mr-1.5" /> Reset database
-        </Button>
-      </div>
-    {/if}
   </div>
+
+  {#if onResetDb}
+    <div class="px-3 pb-2">
+      <Button
+        variant="ghost"
+        size="sm"
+        class="w-full justify-start text-xs text-muted-foreground hover:text-destructive"
+        onclick={onResetDb}
+      >
+        <Database class="size-3 mr-1.5" /> Reset database
+      </Button>
+    </div>
+  {/if}
   <Separator />
   <div class="flex flex-col gap-2 px-5 py-3 text-xs text-muted-foreground">
     <div class="flex items-center justify-between">
