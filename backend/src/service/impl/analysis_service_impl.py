@@ -102,8 +102,12 @@ class AnalysisServiceImpl(AnalysisService):
         try:
             conn = _get_db_conn(cfg)
             for table in ("VisualPerFrame", "VisualRelation", "VisualPerInterval",
-                          "VisualParticipant", "SoundPerInterval"):
+                          "SoundPerInterval"):
                 conn.execute(f"DELETE FROM {table} WHERE AnalysisID = ?", (analysis_id,))
+            conn.execute(
+                "DELETE FROM VisualParticipant WHERE RelationID IN "
+                "(SELECT RelationID FROM VisualPerInterval WHERE AnalysisID = ?)",
+                (analysis_id,))
             conn.execute("DELETE FROM Analyses WHERE ID = ?", (analysis_id,))
             conn.commit()
             conn.close()
