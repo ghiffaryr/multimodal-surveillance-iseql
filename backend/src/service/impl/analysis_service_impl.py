@@ -5,16 +5,29 @@ import datetime
 import json
 import sqlite3
 import traceback
+import uuid
 from pathlib import Path
+from typing import Callable
+
+from fastapi import HTTPException
 
 from models.analysis import AnalysisStage, RunState
 from service.analysis_service import AnalysisService
 from utils.api_logger import get_logger
 from utils.config import Config
 from utils.database import setup_database
-from utils.sse import make_log_entry
+from utils.sse import make_log_entry, SENTINEL_RUN_DONE, SENTINEL_RUN_FAILED
 
 log = get_logger(__name__)
+
+DB_TIMEOUT_SEC = 60.0
+ANALYSIS_ID_HEX_LENGTH = 12
+
+
+def _get_db_conn(cfg: Config) -> sqlite3.Connection:
+    conn = sqlite3.connect(str(cfg.data.db_path), timeout=DB_TIMEOUT_SEC)
+    conn.row_factory = sqlite3.Row
+    return conn
 
 
 def _row_to_runstate(row: sqlite3.Row | dict) -> RunState:
@@ -86,7 +99,7 @@ class AnalysisServiceImpl(AnalysisService):
         audio_model: str,
         audio_quantization: str,
     ) -> RunState:
-        analysis_id = uuid.uuid4().hex[:12]
+        analysis_id = uuid.uuid4().hex[:ANALYSIS_ID_HEX_LENGTH]
         cfg = Config.get()
 
         run = RunState(
@@ -118,7 +131,7 @@ class AnalysisServiceImpl(AnalysisService):
     def list_analyses(self) -> list[dict]:
         cfg = Config.get()
         try:
-            conn = sqlite3.connect(str(cfg.data.db_path), timeout=60.0)
+            conn = _get_db_conn(cfg)
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
                 "SELECT ID, VideoFilename, Condition, VLMProvider, Model, Stage, CreatedAt, CompletedAt "
@@ -159,7 +172,7 @@ class AnalysisServiceImpl(AnalysisService):
 
         rows: list[dict] = []
         try:
-            conn = sqlite3.connect(str(cfg.data.db_path), timeout=60.0)
+            conn = _get_db_conn(cfg)
             try:
                 for line in run_sql_detection(conn, event_type, {}, analysis_id=run.id, condition=condition):
                     if line.startswith("__RESULT__:"):
@@ -187,7 +200,7 @@ class AnalysisServiceImpl(AnalysisService):
         if not db_path.exists():
             return 0
         try:
-            conn = sqlite3.connect(str(db_path), timeout=60.0)
+            conn = sqlite3.connect(str(db_path), timeout=DB_TIMEOUT_SEC)
             conn.row_factory = sqlite3.Row
             row = conn.execute(
                 "SELECT ID, VideoPath, VideoFilename, Condition, VLMProvider, Model, "
@@ -213,7 +226,7 @@ class AnalysisServiceImpl(AnalysisService):
     def _load_run_from_db(self, analysis_id: str) -> RunState | None:
         cfg = Config.get()
         try:
-            conn = sqlite3.connect(str(cfg.data.db_path), timeout=60.0)
+            conn = _get_db_conn(cfg)
             conn.row_factory = sqlite3.Row
             row = conn.execute(
                 "SELECT ID, VideoPath, VideoFilename, Condition, VLMProvider, Model, "
@@ -232,7 +245,7 @@ class AnalysisServiceImpl(AnalysisService):
     def _persist_analysis_to_db(self, run: RunState, cfg: Config) -> None:
         try:
             setup_database(Path(cfg.data.db_path))
-            conn = sqlite3.connect(str(cfg.data.db_path), timeout=60.0)
+            conn = _get_db_conn(cfg)
             conn.execute(
                 "INSERT INTO Analyses (ID, VideoPath, VideoFilename, Condition, VLMProvider, Model, "
                 "GridRows, GridCols, SamplingRate, VLMDelay, VLMQuantization, MaxRetries, "
@@ -249,6 +262,75 @@ class AnalysisServiceImpl(AnalysisService):
         except Exception as e:
             log.warning("Failed to persist analysis metadata: %s", e)
 
+    def _run_vlm(self, run: RunState, conn: sqlite3.Connection, cfg: Config,
+                 _log: Callable[[str], None], persist_stage: Callable[[str], None]) -> None:
+        from service.impl.visual_service_impl import VisualServiceImpl
+        from service.impl.interval_service_impl import IntervalServiceImpl
+        from utils.vlm_client import VLMClient
+
+        run.stage = AnalysisStage.VLM
+        persist_stage("vlm")
+        _log(f">>> CONDITION {run.condition}: visual perception (VLM)")
+        _log(f"     Provider: {run.vlm_provider}, Model: {run.model or '(default)'}, "
+             f"Grid: {run.grid_rows}x{run.grid_cols}, Sampling: every {run.sampling_rate} frames"
+             f", Delay: {run.vlm_delay}s")
+
+        try:
+            client = VLMClient(
+                provider=run.vlm_provider,
+                model=run.model or None,
+                base_url=cfg.vlm.ollama_base_url if run.vlm_provider == "ollama" else None,
+            )
+            visual = VisualServiceImpl(max_retries=run.max_retries)
+            visual.run_pipeline(
+                video_path=str(run.video_path),
+                conn=conn,
+                client=client,
+                grid_rows=run.grid_rows,
+                grid_cols=run.grid_cols,
+                sampling_rate=run.sampling_rate,
+                min_interval=run.vlm_delay,
+                analysis_id=run.id,
+                log=_log,
+            )
+        except Exception as e:
+            _log(f"VLM pipeline error: {e}")
+            log.info("VLM pipeline error [%s]: %s\n%s", run.id, e, traceback.format_exc())
+            raise
+
+        run.stage = AnalysisStage.INTERVAL
+        persist_stage("interval")
+        _log(">>> PHASE 2 START: interval construction (inside VLM pipeline)")
+
+    def _run_audio(self, run: RunState, conn: sqlite3.Connection, cfg: Config,
+                   _log: Callable[[str], None], persist_stage: Callable[[str], None]) -> None:
+        from service.impl.audio_service_impl import AudioServiceImpl
+
+        run.stage = AnalysisStage.SOUND
+        persist_stage("sound")
+        _log(f">>> CONDITION {run.condition}: sound perception ({run.audio_provider})")
+        try:
+            out_dir = Path(cfg.data.dir) / "audio"
+            out_dir.mkdir(parents=True, exist_ok=True)
+            audio = AudioServiceImpl(
+                audio_provider=run.audio_provider,
+                audio_model=run.audio_model or None,
+                quantization=run.audio_quantization,
+            )
+            result = audio.run_pipeline(
+                video_path=run.video_path,
+                conn=conn,
+                out_dir=out_dir,
+                fps=run.sampling_rate,
+                analysis_id=run.id,
+                log_fn=_log,
+            )
+            _log(f"     {result['n_sound_events']} per-frame rows persisted")
+        except Exception as e:
+            _log(f"sound pipeline error: {e}")
+            if run.condition == "B":
+                raise
+
     def _run_pipeline(self, run: RunState, cfg: Config) -> None:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -259,7 +341,7 @@ class AnalysisServiceImpl(AnalysisService):
             nonlocal stage_conn
             try:
                 if stage_conn is None:
-                    stage_conn = sqlite3.connect(str(cfg.data.db_path), timeout=60.0)
+                    stage_conn = _get_db_conn(cfg)
                 stage_conn.execute(
                     "UPDATE Analyses SET Stage = ? WHERE ID = ?",
                     (stage, run.id),
@@ -282,73 +364,12 @@ class AnalysisServiceImpl(AnalysisService):
             conn, _cursor = setup_database(Path(cfg.data.db_path))
 
             if run.condition in ("A", "C"):
-                from service.impl.visual_service_impl import VisualServiceImpl
-                from service.impl.interval_service_impl import IntervalServiceImpl
-                from utils.vlm_client import VLMClient
-
-                run.stage = AnalysisStage.VLM
-                persist_stage("vlm")
-                _log(f">>> CONDITION {run.condition}: visual perception (VLM)")
-                _log(f"     Provider: {run.vlm_provider}, Model: {run.model or '(default)'}, "
-                     f"Grid: {run.grid_rows}x{run.grid_cols}, Sampling: every {run.sampling_rate} frames"
-                     f", Delay: {run.vlm_delay}s")
-
-                try:
-                    client = VLMClient(
-                        provider=run.vlm_provider,
-                        model=run.model or None,
-                        base_url=cfg.vlm.ollama_base_url if run.vlm_provider == "ollama" else None,
-                    )
-                    visual = VisualServiceImpl(max_retries=run.max_retries)
-                    visual.run_pipeline(
-                        video_path=str(run.video_path),
-                        conn=conn,
-                        client=client,
-                        grid_rows=run.grid_rows,
-                        grid_cols=run.grid_cols,
-                        sampling_rate=run.sampling_rate,
-                        min_interval=run.vlm_delay,
-                        analysis_id=run.id,
-                        log=_log,
-                    )
-                except Exception as e:
-                    _log(f"VLM pipeline error: {e}")
-                    log.info("VLM pipeline error [%s]: %s\n%s", run.id, e, traceback.format_exc())
-                    raise
-
-                run.stage = AnalysisStage.INTERVAL
-                persist_stage("interval")
-                _log(">>> PHASE 2 START: interval construction (inside VLM pipeline)")
+                self._run_vlm(run, conn, cfg, _log, persist_stage)
             else:
                 _log(">>> CONDITION B: skipping VLM (sound-only condition)")
 
             if run.condition in ("B", "C"):
-                from service.impl.audio_service_impl import AudioServiceImpl
-
-                run.stage = AnalysisStage.SOUND
-                persist_stage("sound")
-                _log(f">>> CONDITION {run.condition}: sound perception ({run.audio_provider})")
-                try:
-                    out_dir = Path(cfg.data.dir) / "audio"
-                    out_dir.mkdir(parents=True, exist_ok=True)
-                    audio = AudioServiceImpl(
-                        audio_provider=run.audio_provider,
-                        audio_model=run.audio_model or None,
-                        quantization=run.audio_quantization,
-                    )
-                    result = audio.run_pipeline(
-                        video_path=run.video_path,
-                        conn=conn,
-                        out_dir=out_dir,
-                        fps=run.sampling_rate,
-                        analysis_id=run.id,
-                        log_fn=_log,
-                    )
-                    _log(f"     {result['n_sound_events']} per-frame rows persisted")
-                except Exception as e:
-                    _log(f"sound pipeline error: {e}")
-                    if run.condition == "B":
-                        raise
+                self._run_audio(run, conn, cfg, _log, persist_stage)
             else:
                 _log(">>> CONDITION A: skipping sound pipeline (visual-only condition)")
 
@@ -380,5 +401,6 @@ class AnalysisServiceImpl(AnalysisService):
                     conn.close()
                 except Exception:
                     pass
-            loop.run_until_complete(run.log_queue.put(make_log_entry(run.stage.value, "<<RUN_DONE>>")))
+            sentinel = SENTINEL_RUN_FAILED if run.stage == AnalysisStage.FAILED else SENTINEL_RUN_DONE
+            loop.run_until_complete(run.log_queue.put(make_log_entry(run.stage.value, sentinel)))
             loop.close()

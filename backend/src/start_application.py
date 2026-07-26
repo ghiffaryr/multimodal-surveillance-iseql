@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -9,8 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 
 from __init__ import __app_name__, __version__
-from api import ROUTES
-from service.impl.analysis_service_impl import AnalysisServiceImpl
+from api import ROUTES, _analysis_service
 from utils.config import Config
 from utils.api_logger import get_logger, setup_logging
 
@@ -31,8 +29,7 @@ async def lifespan(app: FastAPI):
     log.info("Available VLM providers: %s", Config.get_available_providers())
     
     # Load previous runs from database
-    analysis_svc = AnalysisServiceImpl()
-    restored = analysis_svc.load_from_db()
+    restored = _analysis_service.load_from_db()
     if restored > 0:
         log.info("Restored %d previous analysis run(s)", restored)
     

@@ -43,7 +43,6 @@ class RunState:
     stage: AnalysisStage = AnalysisStage.QUEUED
     counters: Dict[str, int] = field(default_factory=dict)
     log_queue: "asyncio.Queue" = field(default_factory=asyncio.Queue)
-    done: bool = False
     error: Optional[str] = None
 
 

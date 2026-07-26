@@ -3,7 +3,6 @@ from __future__ import annotations
 import shutil
 import uuid
 from pathlib import Path
-from typing import Optional
 
 from fastapi import File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
@@ -18,6 +17,7 @@ log = get_logger(__name__)
 
 
 class AnalysisStartController:
+    """Start a new analysis by uploading a video."""
     def __init__(self, analysis_service) -> None:
         self._service = analysis_service
 
