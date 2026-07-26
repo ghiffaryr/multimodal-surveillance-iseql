@@ -61,16 +61,23 @@ class AnalysisStartController:
         try:
             probe = subprocess.check_output(
                 ["ffprobe", "-v", "error", "-select_streams", "v:0",
-                 "-show_entries", "stream=r_frame_rate",
+                 "-show_entries", "stream=avg_frame_rate,r_frame_rate",
                  "-of", "json", str(target_path)],
                 timeout=10, stderr=subprocess.PIPE,
             )
             info = json.loads(probe)
-            fps_str = info["streams"][0].get("r_frame_rate", "24/1")
-            num, den = fps_str.split("/")
-            fps = int(num) // int(den) if int(den) else 24
-            sampling_rate = fps or 24
-            log.info("Detected video FPS: %d (from %s)", sampling_rate, fps_str)
+            stream = info["streams"][0]
+            for key in ("avg_frame_rate", "r_frame_rate"):
+                fps_str = stream.get(key, "")
+                if fps_str and "/" in fps_str:
+                    num, den = fps_str.split("/")
+                    fps = int(num) // int(den) if int(den) else 0
+                    if fps > 0:
+                        sampling_rate = fps
+                        log.info("Detected video FPS: %d (from %s=%s)", sampling_rate, key, fps_str)
+                        break
+            else:
+                log.info("Could not parse FPS, using default 24")
         except Exception:
             log.info("Could not detect FPS, using default 24")
 
