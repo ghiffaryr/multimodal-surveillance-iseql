@@ -169,7 +169,6 @@
       appendLog('warning', `Analysis is not complete (stage: ${item.stage}). Detection may not be available.`);
     }
   }
-  }
 
   async function startAnalysis() {
     if (!video) {
