@@ -28,8 +28,9 @@
     onChange: (v: VlmConfig) => void;
     disabled?: boolean;
     availableProviders?: string[];
+    detectedFps?: number;
   };
-  let { value = $bindable(), onChange, disabled = false, availableProviders = [] }: Props = $props();
+  let { value = $bindable(), onChange, disabled = false, availableProviders = [], detectedFps = 0 }: Props = $props();
 
   let ollamaModels = $state<{ value: string; label: string }[]>([]);
   let ollamaModelsLoading = $state(false);
@@ -157,7 +158,7 @@
   <Field class="col-span-2">
     <Label for="sampling-rate">Sampling Rate</Label>
     <div class="flex h-9 items-center rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground">
-      Auto-detected from video (1 frame/second)
+      {detectedFps > 0 ? `Auto-detected: ${detectedFps} fps (1 frame/second)` : 'Auto-detected from video'}
     </div>
   </Field>
 

@@ -29,6 +29,7 @@ export interface AnalysisStartResponse {
   analysis_id: string;
   condition: Condition;
   stage: AnalysisStage;
+  sampling_rate: number;
 }
 
 export interface AnalysisStatusResponse {

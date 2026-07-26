@@ -70,6 +70,7 @@ class AnalysisStartResponse(BaseModel):
     analysis_id: str
     condition: Condition
     stage: AnalysisStage
+    sampling_rate: int = 24
 
 class AnalysisStatusResponse(BaseModel):
     id: str

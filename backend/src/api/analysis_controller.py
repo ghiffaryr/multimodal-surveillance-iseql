@@ -94,6 +94,7 @@ class AnalysisStartController:
             analysis_id=run.id,
             condition=Condition(condition),
             stage=AnalysisStage.QUEUED,
+            sampling_rate=sampling_rate,
         )
 
 

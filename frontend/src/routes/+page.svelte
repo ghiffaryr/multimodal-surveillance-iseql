@@ -82,6 +82,7 @@
   let detecting = $state(false);
 
   let previousAnalyses = $state<AnalysisRecord[]>([]);
+  let detectedFps = $state(0);
 
   let closeSse: (() => void) | null = null;
 
@@ -170,6 +171,7 @@
       const resp = await api.postForm<AnalysisStartResponse>('/api/analysis/start', form);
       analysisId = resp.analysis_id;
       stage = resp.stage;
+      detectedFps = resp.sampling_rate;
       appendLog('queued', `analysis_id = ${analysisId} (condition ${resp.condition})`);
       await refreshAnalysisList();
 
@@ -288,6 +290,7 @@
               onChange={(v) => (vlmConfig = v)}
               disabled={busy || condition === 'B'}
               availableProviders={availableProviders}
+              {detectedFps}
             />
             {#if condition === 'B'}
               <p class="mt-2 text-xs text-muted-foreground">
