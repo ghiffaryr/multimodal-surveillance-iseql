@@ -61,7 +61,6 @@
     delta_sound_fight: 120,
     delta_sound_gunshot_or_explosion: 60,
     delta_sound_vehicle_escape: 150,
-    delta_sound_loitering: 30,
     delta_sound_vehicle_collision: 60,
     delta_audio_visual_proximity: 60,
   });

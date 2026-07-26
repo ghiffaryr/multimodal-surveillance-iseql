@@ -97,7 +97,6 @@ export interface Deltas {
   delta_sound_fight: number;
   delta_sound_gunshot_or_explosion: number;
   delta_sound_vehicle_escape: number;
-  delta_sound_loitering: number;
   delta_sound_vehicle_collision: number;
   delta_audio_visual_proximity: number;
 }

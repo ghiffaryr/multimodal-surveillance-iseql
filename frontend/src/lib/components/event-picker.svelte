@@ -19,7 +19,6 @@
     { key: 'delta_sound_fight', label: 'delta_sound_fight', id: 'd-s-fight', fallback: 120 },
     { key: 'delta_sound_gunshot_or_explosion', label: 'delta_sound_gunshot_or_explosion', id: 'd-s-ge', fallback: 60 },
     { key: 'delta_sound_vehicle_escape', label: 'delta_sound_vehicle_escape', id: 'd-s-ve', fallback: 150 },
-    { key: 'delta_sound_loitering', label: 'delta_sound_loitering', id: 'd-s-loit', fallback: 30 },
     { key: 'delta_sound_vehicle_collision', label: 'delta_sound_vehicle_collision', id: 'd-s-vc', fallback: 60 },
     { key: 'delta_audio_visual_proximity', label: 'delta_audio_visual_proximity', id: 'd-av-prox', fallback: 60 },
   ];
