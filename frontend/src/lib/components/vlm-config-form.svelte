@@ -34,6 +34,7 @@
   let ollamaModels = $state<{ value: string; label: string }[]>([]);
   let ollamaModelsLoading = $state(false);
   let ollamaModelsFailed = $state(false);
+  let _ollamaFetched = false;
 
   let isOllama = $derived(value.provider === 'ollama');
   let providerOptions = $derived(
@@ -45,15 +46,18 @@
   }
 
   async function fetchOllamaModels() {
-    if (ollamaModelsLoading) return;
+    if (_ollamaFetched || ollamaModelsLoading) return;
+    _ollamaFetched = true;
     ollamaModelsLoading = true;
     ollamaModelsFailed = false;
     try {
       const resp = await api.get<{ models: { name: string; label: string }[]; error?: string }>(
         '/api/vlm/models?provider=ollama'
       );
-      if (!resp.error) {
+      if (!resp.error && resp.models?.length) {
         ollamaModels = resp.models.map((m) => ({ value: m.name, label: m.label }));
+      } else {
+        ollamaModelsFailed = true;
       }
     } catch {
       ollamaModelsFailed = true;
@@ -63,14 +67,11 @@
   }
 
   $effect(() => {
-    if (availableProviders.includes('ollama')) {
-      fetchOllamaModels();
-    }
-  });
-
-  $effect(() => {
     if (availableProviders.length > 0 && !value.provider) {
-      patch({ provider: availableProviders[0], model: '' });
+      const p = availableProviders[0];
+      const d = PROVIDER_DEFAULTS[p] || { delay: 3, max_retries: 10 };
+      patch({ provider: p, model: '', vlm_delay: d.delay, max_retries: d.max_retries });
+      if (p === 'ollama') fetchOllamaModels();
     }
   });
 
@@ -78,6 +79,7 @@
     const p = selectValue(e);
     const d = PROVIDER_DEFAULTS[p] || { delay: 3, max_retries: 10 };
     patch({ provider: p, model: '', vlm_delay: d.delay, max_retries: d.max_retries });
+    if (p === 'ollama') fetchOllamaModels();
   }
 </script>
 
