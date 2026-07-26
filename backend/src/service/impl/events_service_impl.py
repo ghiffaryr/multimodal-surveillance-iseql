@@ -32,12 +32,12 @@ SOUND_EVENTS: list[EventSpec] = [
 ]
 
 MULTIMODAL_EVENTS: list[EventSpec] = [
-    EventSpec("fight", "Fight: (shout BEFORE impact) UNION physical_altercation", None, "C"),
+    EventSpec("fight", "Fight: (shout BEFORE impact) UNION physical_altercation", "delta_sound_fight", "C"),
     EventSpec("gunshot_or_explosion", "Gunshot or explosion: gunshot_or_explosion UNION (gunshot_visible OR explosion_visible)", None, "C"),
-    EventSpec("vehicle_escape", "Vehicle Escape: (engine BEFORE/OVERLAP tire_squeal) UNION (running BEFORE/OVERLAP enter_or_exit_vehicle)", None, "C"),
+    EventSpec("vehicle_escape", "Vehicle Escape: (engine BEFORE/OVERLAP tire_squeal) UNION (running BEFORE/OVERLAP enter_or_exit_vehicle)", "delta_visual_vehicle_escape", "C"),
     EventSpec("loitering", "Loitering: suspicious_near_vehicle WITH duration >= delta [visual only]", "delta_visual_loitering", "C"),
     EventSpec("handoff", "Handoff: carry(A) BEFORE/OVERLAP carry(B) [visual only]", "delta_visual_handoff", "C"),
-    EventSpec("vehicle_collision", "Vehicle Collision: (horn/skid BEFORE/OVERLAP impact/glass_breaking) UNION vehicle_collision_visible", None, "C"),
+    EventSpec("vehicle_collision", "Vehicle Collision: (horn/skid BEFORE/OVERLAP impact/glass_breaking) UNION vehicle_collision_visible", "delta_sound_vehicle_collision", "C"),
 ]
 
 
