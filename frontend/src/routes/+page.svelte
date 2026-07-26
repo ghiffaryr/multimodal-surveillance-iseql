@@ -246,14 +246,12 @@
   const canStart = $derived(video !== null && !busy);
   const canDetect = $derived(analysisId !== null && stage === 'done' && !detecting);
   const canReset = $derived(!busy || stage === 'done' || stage === 'failed');
-  const audioLabel = $derived(
-    audioConfig.provider === 'huggingface' ? 'HuggingFace LALM' : 'PANNs CNN14',
-  );
+  const audioLabel = $derived('Audio Model');
   const conditionLabel = $derived(
     condition === 'A'
       ? 'A · Visual only (VLM + ISEQL)'
       : condition === 'B'
-        ? 'B · Sound only (Audio + ISEQL)'
+        ? `B · Sound only (${audioLabel} + ISEQL)`
         : `C · Full multimodal (VLM + ${audioLabel} + ISEQL)`,
   );
 </script>
