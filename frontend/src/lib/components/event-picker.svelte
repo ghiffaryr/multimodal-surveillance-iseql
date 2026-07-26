@@ -62,15 +62,12 @@
   const currentDeltaKey = $derived(currentEvent?.delta_param);
   const currentDeltaKey2 = $derived(currentEvent?.delta_param2);
 
-  const visibleDeltaFields = $derived(
-    condition === 'A' ? DELTA_FIELDS.filter(f => f.key.startsWith('delta_visual_')) :
-    condition === 'B' ? DELTA_FIELDS.filter(f => f.key.startsWith('delta_sound_')) :
-    DELTA_FIELDS
-  );
-
   function handleSelect(e: Event) {
     onChangeSelected((e.currentTarget as HTMLSelectElement).value);
   }
+
+  const visualFields = DELTA_FIELDS.filter(f => f.key.startsWith('delta_visual_'));
+  const soundFields = DELTA_FIELDS.filter(f => f.key.startsWith('delta_sound_'));
 </script>
 
 <Tabs value={condition} class="w-full">
@@ -101,17 +98,36 @@
   {/each}
 </Tabs>
 
-{#if visibleDeltaFields.length > 0}
+{#if condition === 'A'}
   <div class="mt-4 grid grid-cols-2 gap-3">
-    {#each visibleDeltaFields as f}
+    {#each visualFields as f}
       <Field>
         <Label for={f.id}>{f.label}</Label>
-        <Input
-          id={f.id} type="number" min="0"
-          value={deltas[f.key]}
+        <Input id={f.id} type="number" min="0" value={deltas[f.key]}
           onchange={(e) => patch({ [f.key]: inputInt(e, f.fallback) } as Partial<Deltas>)}
-          {disabled}
-        />
+          {disabled} />
+      </Field>
+    {/each}
+  </div>
+{:else if condition === 'B'}
+  <div class="mt-4 grid grid-cols-2 gap-3">
+    {#each soundFields as f}
+      <Field>
+        <Label for={f.id}>{f.label}</Label>
+        <Input id={f.id} type="number" min="0" value={deltas[f.key]}
+          onchange={(e) => patch({ [f.key]: inputInt(e, f.fallback) } as Partial<Deltas>)}
+          {disabled} />
+      </Field>
+    {/each}
+  </div>
+{:else}
+  <div class="mt-4 grid grid-cols-2 gap-3">
+    {#each DELTA_FIELDS as f}
+      <Field>
+        <Label for={f.id}>{f.label}</Label>
+        <Input id={f.id} type="number" min="0" value={deltas[f.key]}
+          onchange={(e) => patch({ [f.key]: inputInt(e, f.fallback) } as Partial<Deltas>)}
+          {disabled} />
       </Field>
     {/each}
   </div>
