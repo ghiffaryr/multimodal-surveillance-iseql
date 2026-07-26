@@ -55,6 +55,9 @@
   function handleSelect(e: Event) {
     onChangeSelected((e.currentTarget as HTMLSelectElement).value);
   }
+
+  const visualFields = DELTA_FIELDS.filter(f => f.key.startsWith('delta_visual_'));
+  const soundFields = DELTA_FIELDS.filter(f => f.key.startsWith('delta_sound_'));
 </script>
 
 {#if condition === 'A'}
@@ -86,19 +89,6 @@
   </p>
 {/if}
 
-{#if currentDeltaKey}
-  <div class="mt-4 grid grid-cols-2 gap-3">
-    {#each DELTA_FIELDS.filter(f => f.key === currentDeltaKey || (currentDeltaKey2 && f.key === currentDeltaKey2)) as f}
-      <Field>
-        <Label for={f.id}>{f.label}</Label>
-        <Input id={f.id} type="number" min="0" value={deltas[f.key]}
-          onchange={(e) => patch({ [f.key]: inputInt(e, f.fallback) } as Partial<Deltas>)}
-          {disabled} />
-      </Field>
-    {/each}
-  </div>
-{/if}
-
 {#if currentEvent}
   <div class="mt-3 rounded-md border border-border bg-muted/30 p-3 text-xs">
     <p class="flex items-center gap-1 font-medium text-foreground">
@@ -112,5 +102,40 @@
         {/if}
       </p>
     {/if}
+  </div>
+{/if}
+
+{#if condition === 'A'}
+  <div class="mt-4 grid grid-cols-2 gap-3">
+    {#each visualFields as f}
+      <Field>
+        <Label for={f.id}>{f.label}</Label>
+        <Input id={f.id} type="number" min="0" value={deltas[f.key]}
+          onchange={(e) => patch({ [f.key]: inputInt(e, f.fallback) } as Partial<Deltas>)}
+          {disabled} />
+      </Field>
+    {/each}
+  </div>
+{:else if condition === 'B'}
+  <div class="mt-4 grid grid-cols-2 gap-3">
+    {#each soundFields as f}
+      <Field>
+        <Label for={f.id}>{f.label}</Label>
+        <Input id={f.id} type="number" min="0" value={deltas[f.key]}
+          onchange={(e) => patch({ [f.key]: inputInt(e, f.fallback) } as Partial<Deltas>)}
+          {disabled} />
+      </Field>
+    {/each}
+  </div>
+{:else}
+  <div class="mt-4 grid grid-cols-2 gap-3">
+    {#each DELTA_FIELDS as f}
+      <Field>
+        <Label for={f.id}>{f.label}</Label>
+        <Input id={f.id} type="number" min="0" value={deltas[f.key]}
+          onchange={(e) => patch({ [f.key]: inputInt(e, f.fallback) } as Partial<Deltas>)}
+          {disabled} />
+      </Field>
+    {/each}
   </div>
 {/if}

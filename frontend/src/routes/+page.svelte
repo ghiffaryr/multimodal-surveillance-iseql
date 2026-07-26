@@ -145,7 +145,9 @@
     condition = item.condition as Condition;
     stage = item.stage;
     appendLog('info', `>>> Loaded previous analysis ${item.id} (condition ${item.condition}, stage ${item.stage})`);
-    if (item.stage !== 'done') {
+    if (item.stage === 'done') {
+      setTimeout(() => runDetection(), 200);
+    } else if (item.stage !== 'done') {
       appendLog('warning', `Analysis is not complete (stage: ${item.stage}). Detection may not be available.`);
     }
   }
@@ -200,6 +202,7 @@
             stage = s.stage;
           } catch { /* ignore */ }
           await refreshAnalysisList();
+          if (selectedEvent) runDetection();
         },
         (err) => {
           stage = 'failed';
@@ -237,7 +240,10 @@
       const r = await api.post<DetectionResult>(
         `/api/analysis/${analysisId}/detect?event_type=${encodeURIComponent(selectedEvent)}`
       );
-      result = r;
+      result = {
+        ...r,
+        rows: r.rows.map(row => ({ Event: selectedEvent, ...row })),
+      };
       appendLog('detection', `<<< ${r.rows.length} row(s) for '${selectedEvent}'.`);
       detecting = false;
     } catch (e) {
