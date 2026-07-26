@@ -36,10 +36,10 @@ def _stem(word: str) -> str:
     return w
 
 _GT_KEYWORDS = {
-    "shout":                 {"shout", "yell"},
+    "shout":                 {"shout", "yell", "scream"},
     "impact":                {"impact", "thump", "thud", "bang", "slam", "smash", "crash", "punch", "hit"},
-    "gunshot_or_explosion":  {"gunshot", "gunfire", "artillery_fire", "artillery", "explosion", "explosive", "firework", "boom"},
-    "engine":                {"engine", "vehicle", "car"},
+    "gunshot_or_explosion":  {"gunshot", "gunfire", "artillery_fire", "artillery", "explosion", "explosive", "firework", "boom", "burst", "pop"},
+    "engine":                {"engine", "vehicle", "car", "vroom"},
     "tire_squeal":           {"tire", "tyre", "tire_squeal", "screech", "squeal"},
     "skidding":              {"skidding", "skid"},
     "glass_breaking":        {"glass", "glass_breaking", "shatter", "shattering"},
@@ -87,8 +87,7 @@ def normalize(text: str) -> str | None:
         s = _stem(token)
         if s in _SYNONYM_LOOKUP:
             return _SYNONYM_LOOKUP[s]
-    # No synonym match — return the cleaned underscore string as-is
-    return under
+    return None
 
 DEFAULT_QUERY_DELTA = {"fight": 120, "gunshot_or_explosion": 60, "vehicle_escape": 150, "loitering": 30, "vehicle_collision": 60}
 DEFAULT_QUERY_THRESHOLD = {"fight": 0.05, "gunshot_or_explosion": 0.05, "vehicle_escape": 0.05, "loitering": 0.05, "vehicle_collision": 0.05}
