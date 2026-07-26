@@ -253,7 +253,7 @@
     condition === 'A'
       ? 'A · Visual only (VLM + ISEQL)'
       : condition === 'B'
-        ? `B · Sound only (${audioLabel} + ISEQL)`
+        ? 'B · Sound only (Audio + ISEQL)'
         : `C · Full multimodal (VLM + ${audioLabel} + ISEQL)`,
   );
 </script>
