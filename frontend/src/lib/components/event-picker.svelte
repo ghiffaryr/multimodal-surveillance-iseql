@@ -98,8 +98,13 @@
   {/each}
 </Tabs>
 
+<div class="mt-4 text-xs text-muted-foreground">
+  Condition: <span class="font-mono font-bold text-foreground">{condition}</span> — showing {' '}
+  {condition === 'A' ? 'visual deltas' : condition === 'B' ? 'sound deltas' : 'all deltas'}
+</div>
+
 {#if condition === 'A'}
-  <div class="mt-4 grid grid-cols-2 gap-3">
+  <div class="mt-2 grid grid-cols-2 gap-3">
     {#each visualFields as f}
       <Field>
         <Label for={f.id}>{f.label}</Label>
