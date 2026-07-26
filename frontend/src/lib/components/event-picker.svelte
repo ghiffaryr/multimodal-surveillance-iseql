@@ -41,7 +41,7 @@
     disabled?: boolean;
   };
   let {
-    condition,
+    condition = $bindable('A' as Condition),
     aEvents,
     bEvents,
     cEvents,
@@ -61,10 +61,12 @@
   const currentEvent = $derived(currentList.find((e) => e.id === selected));
   const currentDeltaKey = $derived(currentEvent?.delta_param);
   const currentDeltaKey2 = $derived(currentEvent?.delta_param2);
+
+  const _cond = condition as string;
   const visibleDeltaFields = $derived(
-    currentDeltaKey
-      ? DELTA_FIELDS.filter(f => f.key === currentDeltaKey || (currentDeltaKey2 && f.key === currentDeltaKey2))
-      : []
+    _cond === 'A' ? DELTA_FIELDS.filter(f => f.key.startsWith('delta_visual_')) :
+    _cond === 'B' ? DELTA_FIELDS.filter(f => f.key.startsWith('delta_sound_')) :
+    DELTA_FIELDS
   );
 
   function handleSelect(e: Event) {
