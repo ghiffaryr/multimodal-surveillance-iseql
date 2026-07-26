@@ -370,7 +370,7 @@
             </Button>
           {:else if onlyDeltasChanged()}
             <Button class="flex-1" variant="secondary" onclick={triggerAnalysis}>
-              <Play class="size-4" /> Re-run detection (deltas only)
+              <Play class="size-4" /> Restart analysis (query only)
             </Button>
           {:else if analysisDone && canStart}
             <Button class="flex-1" onclick={triggerAnalysis}>
