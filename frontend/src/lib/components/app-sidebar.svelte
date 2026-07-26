@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { APP_NAME, APP_TAGLINE } from '$lib/app';
+  import { APP_NAME, APP_VERSION, APP_TAGLINE } from '$lib/app';
   import Separator from '$lib/components/ui/separator.svelte';
   import Badge from '$lib/components/ui/badge.svelte';
   import type { BadgeVariant } from '$lib/components/ui/badge';
@@ -116,7 +116,7 @@
       </div>
     {/if}
     <p class="text-[10px]">
-      {APP_NAME} v0.2.0 · © 2026
+      {APP_NAME} v{APP_VERSION} · © 2026
     </p>
   </div>
 </aside>
