@@ -62,9 +62,9 @@
   const currentDeltaKey = $derived(currentEvent?.delta_param);
   const currentDeltaKey2 = $derived(currentEvent?.delta_param2);
   const visibleDeltaFields = $derived(
-    condition === 'A' ? DELTA_FIELDS.filter(f => f.key.startsWith('delta_visual_')) :
-    condition === 'B' ? DELTA_FIELDS.filter(f => f.key.startsWith('delta_sound_')) :
-    DELTA_FIELDS
+    currentDeltaKey
+      ? DELTA_FIELDS.filter(f => f.key === currentDeltaKey || (currentDeltaKey2 && f.key === currentDeltaKey2))
+      : []
   );
 
   function handleSelect(e: Event) {
