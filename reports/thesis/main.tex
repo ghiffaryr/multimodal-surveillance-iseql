@@ -25,6 +25,7 @@
 
 % --- Load all packages and configurations from your preamble file ---
 \input{Pages/preamble.tex}
+\usepackage{pdfpages}
 
 % --- Document Body ---
 \begin{document}
@@ -33,44 +34,7 @@
 \pagestyle{plain}
 
 % --- TITLE PAGE ---
-\begin{titlepage}
-  % --- Paste all your title page content here ---
-  \begin{center}
-    \vspace*{.06\textheight}
-    \printtitlepagelogos
-
-    \vspace{1.5cm}
-    \textsc{\Large \thesistypename}\\[0.5cm]
-
-    \HRule \\[0.4cm]
-    {\huge \bfseries \ttitle\par}\vspace{0.4cm}
-    \HRule \\[1.5cm]
-
-    \begin{minipage}[t]{0.4\textwidth}
-      \begin{flushleft} \large
-        \emph{Author:}\\
-        \href{\authorurl}{\authorname}
-      \end{flushleft}
-    \end{minipage}
-    \begin{minipage}[t]{0.4\textwidth}
-      \begin{flushright} \large
-        \emph{Supervisor:} \\
-        \href{\supervisorurl}{\supname}
-        \ifdefempty{\cosupname}{}{\\
-        \emph{Co-Supervisor:} \\
-        \href{\cosupervisorurl}{\cosupname}}
-      \end{flushright}
-    \end{minipage}\\[3cm]
-
-    \vfill
-    \large \textit{\href{\programmeurl}{\programmename}}\\[0.3cm]
-    \textit{}\\[0.4cm]
-    \deptname\\[0.5cm]
-    \vfill
-    {\large Academic Year \academicyear}\\[2cm]
-    \vfill
-  \end{center}
-\end{titlepage}
+\includepdf{Chapters/CoverPage.pdf}
 
 %----------------------------------------------------------------------------------------
 %   PROGRAMME PAGE
