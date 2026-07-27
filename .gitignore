@@ -112,3 +112,5 @@ htmlcov/
 .ruff_cache/
 coverage/
 *.cover
+:Zone.Identifier
+*Zone.Identifier
