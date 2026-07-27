@@ -283,7 +283,7 @@ class AudioServiceImpl(AudioService):
         import soundfile as sf
 
         log_fn(f"HuggingFace LALM: loading model...")
-        model_id = "Qwen/Qwen2-Audio-7B-Instruct"
+        model_id = self.audio_model or DEFAULT_AUDIO_MODELS.get("huggingface", "Qwen/Qwen2-Audio-7B-Instruct")
         load_kwargs = {"pretrained_model_name_or_path": model_id, "device_map": "auto", "max_memory": {0: "8GiB", "cpu": "32GiB"}}
         if self.quantization == "4bit":
             load_kwargs["quantization_config"] = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16, llm_int8_enable_fp32_cpu_offload=True)
