@@ -29,14 +29,14 @@
     }, {
       id: 'B' as Condition,
       label: 'Sound only',
-      description: `${audioLabel} + ISEQL, no VLM. Off-camera events.`,
+      description: `${audioLabel} + ISEQL, no VLM.`,
       icon: Ear,
       badge: 'B',
       badgeClass: 'bg-amber-500/15 text-amber-300 border-amber-500/40',
     }, {
       id: 'C' as Condition,
       label: 'Full multimodal',
-      description: `VLM + ${audioLabel} + ISEQL. Visual guards against acoustic FP.`,
+      description: `VLM + ${audioLabel} + ISEQL.`,
       icon: Layers,
       badge: 'C',
       badgeClass: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40',
