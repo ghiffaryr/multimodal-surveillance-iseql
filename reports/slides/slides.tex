@@ -127,11 +127,11 @@ First ISEQL-based event detector using VLM perception. Reported high precision/r
 \end{aligned}
 \]
 
-\noindent\textbf{Loitering} \textit{(visual only, duration $\ge 150$ frames)}
+\noindent\textbf{Loitering} \textit{(visual only, duration $\ge 120$ frames)}
 \[
 \begin{aligned}
 \text{Loitering}_A &\equiv \pi_{M_1.\texttt{arg}_1, M_1.\texttt{arg}_2, M_1.s_f, M_1.e_f}(
-  \sigma_{\texttt{pred}=\text{`suspicious\_near\_vehicle'}}(M_1) \land (M_1.e_f - M_1.s_f) \ge 150 )
+  \sigma_{\texttt{pred}=\text{`suspicious\_near\_vehicle'}}(M_1) \land (M_1.e_f - M_1.s_f) \ge 120 )
 \end{aligned}
 \]
 \end{frame}
@@ -194,29 +194,28 @@ Frame 1: detect objects and assign IDs.\\
 Frame $k$: match by class + block overlap.
 \end{columns}
 
-\vspace{0.5em}
+\vspace{0.9em}
 \footnotesize
 \resizebox{\textwidth}{!}{%
-\begin{tabular}{l ccc cc cc ccc cc cc}
-\toprule
-VLM & \multicolumn{3}{c}{F1} & \multicolumn{2}{c}{Precision} & \multicolumn{2}{c}{Recall} & \multicolumn{3}{c}{TP} & \multicolumn{2}{c}{FP} & \multicolumn{2}{c}{FN} \\
-\cmidrule(lr){2-4} \cmidrule(lr){5-6} \cmidrule(lr){7-8} \cmidrule(lr){9-11} \cmidrule(lr){12-13} \cmidrule(lr){14-15}
-     & no-ID & re-ID & $\Delta$ & no-ID & re-ID & no-ID & re-ID & no-ID & re-ID & $\Delta$ & no-ID & re-ID & no-ID & re-ID \\
-\midrule
-\textbf{Gemini 3.6 Flash} & \textbf{0.720} & \textbf{0.842} & \textbf{+0.122} & \textbf{0.900} & \textbf{0.889} & \textbf{0.600} & \textbf{0.800} & \textbf{18} & \textbf{24} & \textbf{+6} & \textbf{2} & \textbf{3} & \textbf{12} & \textbf{6} \\
-\midrule
-Ministral 3-14B & 0.691 & 0.750 & +0.059 & 0.760 & 0.808 & 0.633 & 0.700 & 19 & 21 & +2 & 6 & 5 & 11 & 9 \\
-\midrule
-Gemini 2.5 Flash & 0.571 & 0.653 & +0.082 & 0.737 & 0.842 & 0.467 & 0.533 & 14 & 16 & +2 & 5 & 3 & 16 & 14 \\
-\midrule
-Pixtral 12B & 0.712 & 0.679 & $-$0.033 & 0.724 & 0.783 & 0.700 & 0.600 & 21 & 18 & $-$3 & 8 & 5 & 9 & 12 \\
-\bottomrule
-\end{tabular}}
+\begin{tabular}{l ccc ccc ccc ccc cc cc}
+    \toprule
+    VLM & \multicolumn{3}{c}{F1} & \multicolumn{3}{c}{Precision} & \multicolumn{3}{c}{Recall} & \multicolumn{3}{c}{TP} & \multicolumn{2}{c}{FP} & \multicolumn{2}{c}{FN} \\
+    \cmidrule(lr){2-4} \cmidrule(lr){5-7} \cmidrule(lr){8-10} \cmidrule(lr){11-13} \cmidrule(lr){14-15} \cmidrule(lr){16-17}
+         & no-ID & re-ID & $\Delta$ & no-ID & re-ID & $\Delta$ & no-ID & re-ID & $\Delta$ & no-ID & re-ID & $\Delta$ & no-ID & re-ID & no-ID & re-ID \\
+    \midrule
+     \textbf{Gemini 3.6 Flash} & \textbf{0.706} & \textbf{0.847} & \textbf{+0.141} & \textbf{0.857} & \textbf{0.862} & \textbf{+0.005} & \textbf{0.600} & \textbf{0.833} & \textbf{+0.233} & \textbf{18} & \textbf{25} & \textbf{+7} & \textbf{3} & \textbf{4} & \textbf{12} & \textbf{5} \\
+     \midrule
+     Ministral 3-14B & 0.655 & 0.750 & +0.095 & 0.679 & 0.808 & +0.129 & 0.633 & 0.700 & +0.067 & 19 & 21 & +2 & 9 & 5 & 11 & 9 \\
+     \midrule
+     Gemini 2.5 Flash & 0.560 & 0.692 & +0.132 & 0.700 & 0.818 & +0.118 & 0.467 & 0.600 & +0.133 & 14 & 18 & +4 & 6 & 4 & 16 & 12 \\
+     \midrule
+     Pixtral 12B & 0.689 & 0.691 & +0.002 & 0.677 & 0.760 & +0.083 & 0.700 & 0.633 & $-$0.067 & 21 & 19 & $-$2 & 10 & 6 & 9 & 11 \\
+    \bottomrule\end{tabular}}
 
-\vspace{0.4em}
+\vspace{0.9em}
 \footnotesize
 Re-ID mainly adds \alert{loitering, vehicle escape, handoff}:\\
-Gemini 3.6 Flash loitering 0/5$\to$4/5, escape 0/5$\to$1/5, handoff 4/5$\to$5/5.
+Gemini 3.6 Flash loitering 0/5$\to$5/5, escape 0/5$\to$1/5, handoff 4/5$\to$5/5.
 \end{frame}
 
 % ── RQ2: AUDIO ──
@@ -225,9 +224,10 @@ Gemini 3.6 Flash loitering 0/5$\to$4/5, escape 0/5$\to$1/5, handoff 4/5$\to$5/5.
 \centering
 \footnotesize
 \textbf{20 audio-relevant scenes. F1 = harmonic mean of precision and recall. Best config per model bolded.}
-\vspace{0.2em}
+\vspace{0.6em}
 
 \begin{tabular}{lcccccccc}
+\toprule
 Model & Window (s) & Hop (s) & F1 & Precision & Recall & TP & FP & FN \\
 \midrule
 \textbf{Qwen2-Audio} & \textbf{5.0} & \textbf{2.50} & \textbf{0.788} & \textbf{1.000} & \textbf{0.650} & \textbf{13} & \textbf{0} & \textbf{7} \\
@@ -250,65 +250,48 @@ PANNs CNN14 & 10.0 & 5.00 & 0.261 & 1.000 & 0.150 & 3 & 0 & 17 \\
 \bottomrule
 \end{tabular}
 
-\vspace{0.2em}
+\vspace{0.7em}
 \footnotesize
 \textbf{Qwen2-Audio: perfect precision (1.000) for all windows $\ge$ 2.5 s; best 5.0s/2.5s (F1=0.788).}
 \end{frame}
 
 % ── RQ3: MULTIMODAL ──
 \section{RQ3: Multimodal}
-\begin{frame}{RQ3: Visual-Only Results (Condition A)}
-\centering
-\footnotesize
-All models use object re-identification. Best model bolded.
-\vspace{0.2em}
-
-\begin{tabular}{lccccccc}
-VLM & F1 & Precision & Recall & TP & FP & FN \\
-\midrule
-\textbf{Gemini 3.6 Flash} & \textbf{0.842} & \textbf{0.889} & \textbf{0.800} & \textbf{24} & \textbf{3} & \textbf{6} \\
-Ministral 3-14B & 0.750 & 0.808 & 0.700 & 21 & 5 & 9 \\
-Pixtral 12B & 0.679 & 0.783 & 0.600 & 18 & 5 & 12 \\
-Gemini 2.5 Flash & 0.653 & 0.842 & 0.533 & 16 & 3 & 14 \\
-\bottomrule
-\end{tabular}
-\end{frame}
-
 \begin{frame}{RQ3: Multimodal Union Outperforms Unimodal}
 \centering
 \footnotesize
 \textbf{Condition C:} $C = A \cup B$ (no temporal cross-modal joins).\\
 Best audio window/hop per pair (all tied configs shown; complete 64-combo ranking in appendix).
-\vspace{0.2em}
+\vspace{0.6em}
 
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lccccccc}
+\toprule
 VLM + Audio Model & Window/Hop (s) & F1 & Precision & Recall & TP & FP & FN \\
 \midrule
-\textbf{Gemini 3.6 Flash + Qwen2-Audio} & \textbf{2.5/1.25, 5.0/2.5, 5.0/5.0} & \textbf{0.935} & \textbf{0.906} & \textbf{0.967} & \textbf{29} & \textbf{3} & \textbf{1} \\
-Gemini 3.6 Flash + PANNs & 5.0/5.0, 10/5, 10/10 & 0.862 & 0.893 & 0.833 & 25 & 3 & 5 \\
-Gemini 2.5 Flash + Qwen2-Audio & 5.0/2.5 & 0.821 & 0.885 & 0.767 & 23 & 3 & 7 \\
-Gemini 2.5 Flash + PANNs & 5.0/5.0 & 0.706 & 0.857 & 0.600 & 18 & 3 & 12 \\
-Ministral 3-14B + Qwen2-Audio & 5.0/2.5, 5.0/5.0 & 0.889 & 0.848 & 0.933 & 28 & 5 & 2 \\
-Ministral 3-14B + PANNs & 5.0/5.0, 10/5, 10/10 & 0.772 & 0.815 & 0.733 & 22 & 5 & 8 \\
-Pixtral 12B + Qwen2-Audio & 5.0/2.5, 5.0/5.0 & 0.833 & 0.833 & 0.833 & 25 & 5 & 5 \\
-Pixtral 12B + PANNs & 5.0/5.0, 10/5, 10/10 & 0.704 & 0.792 & 0.633 & 19 & 5 & 11 \\
+     \textbf{Gemini 3.6 Flash + Qwen2-Audio} & \textbf{2.5/1.25, 5.0/2.5, 5.0/5.0} & \textbf{0.938} & \textbf{0.882} & \textbf{1.000} & \textbf{30} & \textbf{4} & \textbf{0} \\
+     Gemini 3.6 Flash + PANNs & 5.0/5.0, 10/5, 10/10 & 0.867 & 0.867 & 0.867 & 26 & 4 & 4 \\
+     Gemini 2.5 Flash + Qwen2-Audio & 5.0/2.5 & 0.847 & 0.862 & 0.833 & 25 & 4 & 5 \\
+     Gemini 2.5 Flash + PANNs & 5.0/5.0 & 0.741 & 0.833 & 0.667 & 20 & 4 & 10 \\
+     Ministral 3-14B + Qwen2-Audio & 5.0/2.5, 5.0/5.0 & 0.889 & 0.848 & 0.933 & 28 & 5 & 2 \\
+     Ministral 3-14B + PANNs & 5.0/5.0, 10/5, 10/10 & 0.772 & 0.815 & 0.733 & 22 & 5 & 8 \\
+     Pixtral 12B + Qwen2-Audio & 5.0/2.5, 5.0/5.0 & 0.839 & 0.812 & 0.867 & 26 & 6 & 4 \\
+     Pixtral 12B + PANNs & 5.0/5.0, 10/5, 10/10 & 0.714 & 0.769 & 0.667 & 20 & 6 & 10 \\
 \bottomrule
 \end{tabular}}
 
-\vspace{0.3em}
+\vspace{0.7em}
 \footnotesize
-Visual-only best \textbf{0.842} (Gemini 3.6 Flash); Audio-only best \textbf{0.788} (Qwen2, 5.0s/2.5s).\\
-\textbf{Thesis claim: $C \ge \max(A, B)$ holds on all 30 scenes.}\\
-Best multimodal result is robust: Gemini 3.6 Flash + Qwen2-Audio reaches F1 = 0.935 at the audio-optimal 5.0s/2.5s (and at 2.5s/1.25s, 5.0s/5.0s).
+Visual-only best \textbf{0.847} (Gemini 3.6 Flash); Audio-only best \textbf{0.788} (Qwen2, 5.0s/2.5s).\\
+\textbf{Thesis claim: $C \ge \max(A, B)$ holds on all 30 scenes.}
 \end{frame}
 
 % ── PER-EVENT ──
 \begin{frame}{Per-Event Breakdown (Best Combo)}
 \centering
 \footnotesize
-\textbf{Gemini 3.6 Flash + Qwen2-Audio \hspace{0.5em} 29/30 (F1 = 0.935)}
-\vspace{0.2em}
+\textbf{Gemini 3.6 Flash + Qwen2-Audio \hspace{0.5em} 30/30 (F1 = 0.938)}
+\vspace{0.6em}
 
 \begin{tabular}{lcccc}
 \toprule
@@ -319,13 +302,13 @@ Gunshot/Explosion & 4/5 & \textbf{5/5} & \textbf{5/5} & audio adds 1 \\
 Vehicle Escape & 1/5 & 4/5 & \textbf{5/5} & audio adds 4 \\
 Vehicle Collision & 5/5 & 3/5 & 5/5 & both contribute \\
 Handoff & 5/5 & -- & 5/5 & visual only \\
-Loitering & 4/5 & -- & 4/5 & visual only \\
-\midrule
-Total & 24/30 & 12/20 & \textbf{29/30} & +5 over visual \\
+     Loitering & 5/5 & -- & 5/5 & visual only \\
+     \midrule
+     Total & 25/30 & 12/20 & \textbf{30/30} & +5 over visual \\
 \bottomrule
 \end{tabular}
 
-\vspace{0.2em}
+\vspace{0.7em}
 Union is most valuable when modalities are complementary: audio catches what visual misses (vehicle escape, gunshot) and vice versa (fight).
 \end{frame}
 
@@ -338,7 +321,7 @@ Union is most valuable when modalities are complementary: audio catches what vis
   \vspace{0.3em}
 
   \item \textbf{Object re-identification unlocks tracking-dependent events}\\
-  Re-ID adds loitering, vehicle escape, handoff; best VLM: 0.72 (no re-ID) to 0.842 F1
+  Re-ID adds loitering, vehicle escape, handoff; best VLM: 0.706 (no re-ID) to 0.847 F1
   \vspace{0.3em}
 
   \item \textbf{First labeled multimodal forensic dataset}\\
@@ -391,22 +374,22 @@ PANNs (Kong et al.) and Qwen2-Audio authors
 \toprule
 VLM + Audio Model & Window (s) & Hop (s) & F1 & Precision & Recall & TP & FP & FN \\
 \midrule
-    \textbf{Gemini 3.6 Flash + Qwen2-Audio} & \textbf{2.5} & \textbf{1.25} & \textbf{0.935} & \textbf{0.906} & \textbf{0.967} & \textbf{29} & \textbf{3} & \textbf{1} \\
-    \textbf{Gemini 3.6 Flash + Qwen2-Audio} & \textbf{5.0} & \textbf{5.00} & \textbf{0.935} & \textbf{0.906} & \textbf{0.967} & \textbf{29} & \textbf{3} & \textbf{1} \\
-    \textbf{Gemini 3.6 Flash + Qwen2-Audio} & \textbf{5.0} & \textbf{2.50} & \textbf{0.935} & \textbf{0.906} & \textbf{0.967} & \textbf{29} & \textbf{3} & \textbf{1} \\
-    Gemini 3.6 Flash + Qwen2-Audio & 2.5 & 2.50 & 0.900 & 0.900 & 0.900 & 27 & 3 & 3 \\
-    Ministral 3-14B + Qwen2-Audio & 5.0 & 5.00 & 0.889 & 0.848 & 0.933 & 28 & 5 & 2 \\
-    Ministral 3-14B + Qwen2-Audio & 5.0 & 2.50 & 0.889 & 0.848 & 0.933 & 28 & 5 & 2 \\
-    Ministral 3-14B + Qwen2-Audio & 2.5 & 1.25 & 0.871 & 0.844 & 0.900 & 27 & 5 & 3 \\
-    Gemini 3.6 Flash + PANNs CNN14 & 5.0 & 5.00 & 0.862 & 0.893 & 0.833 & 25 & 3 & 5 \\
-    Gemini 3.6 Flash + PANNs CNN14 & 10.0 & 10.00 & 0.862 & 0.893 & 0.833 & 25 & 3 & 5 \\
-    Gemini 3.6 Flash + PANNs CNN14 & 10.0 & 5.00 & 0.862 & 0.893 & 0.833 & 25 & 3 & 5 \\
-    Gemini 3.6 Flash + PANNs CNN14 & 1.0 & 1.00 & 0.847 & 0.862 & 0.833 & 25 & 4 & 5 \\
-    Gemini 3.6 Flash + PANNs CNN14 & 1.0 & 0.50 & 0.847 & 0.862 & 0.833 & 25 & 4 & 5 \\
-    Gemini 3.6 Flash + Qwen2-Audio & 10.0 & 10.00 & 0.847 & 0.862 & 0.833 & 25 & 4 & 5 \\
-    Gemini 3.6 Flash + Qwen2-Audio & 10.0 & 5.00 & 0.847 & 0.862 & 0.833 & 25 & 4 & 5 \\
-    Gemini 3.6 Flash + PANNs CNN14 & 2.5 & 2.50 & 0.833 & 0.833 & 0.833 & 25 & 5 & 5 \\
-    Gemini 3.6 Flash + PANNs CNN14 & 2.5 & 1.25 & 0.833 & 0.833 & 0.833 & 25 & 5 & 5 \\
+     \textbf{Gemini 3.6 Flash + Qwen2-Audio} & \textbf{2.5} & \textbf{1.25} & \textbf{0.938} & \textbf{0.882} & \textbf{1.000} & \textbf{30} & \textbf{4} & \textbf{0} \\
+     \textbf{Gemini 3.6 Flash + Qwen2-Audio} & \textbf{5.0} & \textbf{5.00} & \textbf{0.938} & \textbf{0.882} & \textbf{1.000} & \textbf{30} & \textbf{4} & \textbf{0} \\
+     \textbf{Gemini 3.6 Flash + Qwen2-Audio} & \textbf{5.0} & \textbf{2.50} & \textbf{0.938} & \textbf{0.882} & \textbf{1.000} & \textbf{30} & \textbf{4} & \textbf{0} \\
+     Gemini 3.6 Flash + Qwen2-Audio & 2.5 & 2.50 & 0.903 & 0.875 & 0.933 & 28 & 4 & 2 \\
+     Ministral 3-14B + Qwen2-Audio & 5.0 & 5.00 & 0.889 & 0.848 & 0.933 & 28 & 5 & 2 \\
+     Ministral 3-14B + Qwen2-Audio & 5.0 & 2.50 & 0.889 & 0.848 & 0.933 & 28 & 5 & 2 \\
+     Ministral 3-14B + Qwen2-Audio & 2.5 & 1.25 & 0.871 & 0.844 & 0.900 & 27 & 5 & 3 \\
+     Gemini 3.6 Flash + PANNs CNN14 & 5.0 & 5.00 & 0.867 & 0.867 & 0.867 & 26 & 4 & 4 \\
+     Gemini 3.6 Flash + PANNs CNN14 & 10.0 & 10.00 & 0.867 & 0.867 & 0.867 & 26 & 4 & 4 \\
+     Gemini 3.6 Flash + PANNs CNN14 & 10.0 & 5.00 & 0.867 & 0.867 & 0.867 & 26 & 4 & 4 \\
+     Gemini 3.6 Flash + PANNs CNN14 & 1.0 & 1.00 & 0.852 & 0.839 & 0.867 & 26 & 5 & 4 \\
+     Gemini 3.6 Flash + PANNs CNN14 & 1.0 & 0.50 & 0.852 & 0.839 & 0.867 & 26 & 5 & 4 \\
+     Gemini 3.6 Flash + Qwen2-Audio & 10.0 & 10.00 & 0.852 & 0.839 & 0.867 & 26 & 5 & 4 \\
+     Gemini 3.6 Flash + Qwen2-Audio & 10.0 & 5.00 & 0.852 & 0.839 & 0.867 & 26 & 5 & 4 \\
+     Gemini 2.5 Flash + Qwen2-Audio & 5.0 & 2.50 & 0.847 & 0.862 & 0.833 & 25 & 4 & 5 \\
+     Gemini 3.6 Flash + PANNs CNN14 & 2.5 & 2.50 & 0.839 & 0.812 & 0.867 & 26 & 6 & 4 \\
 \bottomrule
 \end{tabular}}
 \end{frame}
@@ -419,22 +402,22 @@ VLM + Audio Model & Window (s) & Hop (s) & F1 & Precision & Recall & TP & FP & F
 \toprule
 VLM + Audio Model & Window (s) & Hop (s) & F1 & Precision & Recall & TP & FP & FN \\
 \midrule
-    Gemini 3.6 Flash + PANNs CNN14 & 5.0 & 2.50 & 0.833 & 0.833 & 0.833 & 25 & 5 & 5 \\
-    Ministral 3-14B + Qwen2-Audio & 2.5 & 2.50 & 0.833 & 0.833 & 0.833 & 25 & 5 & 5 \\
-    Pixtral 12B + Qwen2-Audio & 5.0 & 5.00 & 0.833 & 0.833 & 0.833 & 25 & 5 & 5 \\
-    Pixtral 12B + Qwen2-Audio & 5.0 & 2.50 & 0.833 & 0.833 & 0.833 & 25 & 5 & 5 \\
-    Gemini 2.5 Flash + Qwen2-Audio & 5.0 & 2.50 & 0.821 & 0.885 & 0.767 & 23 & 3 & 7 \\
-    Pixtral 12B + Qwen2-Audio & 2.5 & 1.25 & 0.814 & 0.828 & 0.800 & 24 & 5 & 6 \\
-    Gemini 2.5 Flash + Qwen2-Audio & 2.5 & 1.25 & 0.800 & 0.880 & 0.733 & 22 & 3 & 8 \\
-    Gemini 2.5 Flash + Qwen2-Audio & 5.0 & 5.00 & 0.800 & 0.880 & 0.733 & 22 & 3 & 8 \\
-    Ministral 3-14B + PANNs CNN14 & 5.0 & 5.00 & 0.772 & 0.815 & 0.733 & 22 & 5 & 8 \\
-    Ministral 3-14B + PANNs CNN14 & 10.0 & 10.00 & 0.772 & 0.815 & 0.733 & 22 & 5 & 8 \\
-    Ministral 3-14B + PANNs CNN14 & 10.0 & 5.00 & 0.772 & 0.815 & 0.733 & 22 & 5 & 8 \\
-    Pixtral 12B + Qwen2-Audio & 2.5 & 2.50 & 0.772 & 0.815 & 0.733 & 22 & 5 & 8 \\
-    Gemini 3.6 Flash + Qwen2-Audio & 1.0 & 1.00 & 0.765 & 0.684 & 0.867 & 26 & 12 & 4 \\
-    Ministral 3-14B + PANNs CNN14 & 1.0 & 1.00 & 0.759 & 0.786 & 0.733 & 22 & 6 & 8 \\
-    Ministral 3-14B + PANNs CNN14 & 1.0 & 0.50 & 0.759 & 0.786 & 0.733 & 22 & 6 & 8 \\
-    Ministral 3-14B + Qwen2-Audio & 10.0 & 10.00 & 0.759 & 0.786 & 0.733 & 22 & 6 & 8 \\
+     Gemini 3.6 Flash + PANNs CNN14 & 2.5 & 1.25 & 0.839 & 0.812 & 0.867 & 26 & 6 & 4 \\
+     Gemini 3.6 Flash + PANNs CNN14 & 5.0 & 2.50 & 0.839 & 0.812 & 0.867 & 26 & 6 & 4 \\
+     Pixtral 12B + Qwen2-Audio & 5.0 & 5.00 & 0.839 & 0.812 & 0.867 & 26 & 6 & 4 \\
+     Pixtral 12B + Qwen2-Audio & 5.0 & 2.50 & 0.839 & 0.812 & 0.867 & 26 & 6 & 4 \\
+     Ministral 3-14B + Qwen2-Audio & 2.5 & 2.50 & 0.833 & 0.833 & 0.833 & 25 & 5 & 5 \\
+     Gemini 2.5 Flash + Qwen2-Audio & 2.5 & 1.25 & 0.828 & 0.857 & 0.800 & 24 & 4 & 6 \\
+     Gemini 2.5 Flash + Qwen2-Audio & 5.0 & 5.00 & 0.828 & 0.857 & 0.800 & 24 & 4 & 6 \\
+     Pixtral 12B + Qwen2-Audio & 2.5 & 1.25 & 0.820 & 0.806 & 0.833 & 25 & 6 & 5 \\
+     Pixtral 12B + Qwen2-Audio & 2.5 & 2.50 & 0.780 & 0.793 & 0.767 & 23 & 6 & 7 \\
+     Ministral 3-14B + PANNs CNN14 & 5.0 & 5.00 & 0.772 & 0.815 & 0.733 & 22 & 5 & 8 \\
+     Ministral 3-14B + PANNs CNN14 & 10.0 & 10.00 & 0.772 & 0.815 & 0.733 & 22 & 5 & 8 \\
+     Ministral 3-14B + PANNs CNN14 & 10.0 & 5.00 & 0.772 & 0.815 & 0.733 & 22 & 5 & 8 \\
+     Gemini 3.6 Flash + Qwen2-Audio & 1.0 & 1.00 & 0.771 & 0.675 & 0.900 & 27 & 13 & 3 \\
+     Gemini 2.5 Flash + Qwen2-Audio & 2.5 & 2.50 & 0.764 & 0.840 & 0.700 & 21 & 4 & 9 \\
+     Ministral 3-14B + PANNs CNN14 & 1.0 & 1.00 & 0.759 & 0.786 & 0.733 & 22 & 6 & 8 \\
+     Ministral 3-14B + PANNs CNN14 & 1.0 & 0.50 & 0.759 & 0.786 & 0.733 & 22 & 6 & 8 \\
 \bottomrule
 \end{tabular}}
 \end{frame}
@@ -447,22 +430,22 @@ VLM + Audio Model & Window (s) & Hop (s) & F1 & Precision & Recall & TP & FP & F
 \toprule
 VLM + Audio Model & Window (s) & Hop (s) & F1 & Precision & Recall & TP & FP & FN \\
 \midrule
-    Ministral 3-14B + Qwen2-Audio & 10.0 & 5.00 & 0.759 & 0.786 & 0.733 & 22 & 6 & 8 \\
-    Ministral 3-14B + PANNs CNN14 & 2.5 & 2.50 & 0.746 & 0.759 & 0.733 & 22 & 7 & 8 \\
-    Ministral 3-14B + PANNs CNN14 & 2.5 & 1.25 & 0.746 & 0.759 & 0.733 & 22 & 7 & 8 \\
-    Ministral 3-14B + PANNs CNN14 & 5.0 & 2.50 & 0.746 & 0.759 & 0.733 & 22 & 7 & 8 \\
-    Gemini 3.6 Flash + Qwen2-Audio & 1.0 & 0.50 & 0.732 & 0.634 & 0.867 & 26 & 15 & 4 \\
-    Gemini 2.5 Flash + Qwen2-Audio & 2.5 & 2.50 & 0.731 & 0.864 & 0.633 & 19 & 3 & 11 \\
-    Gemini 2.5 Flash + PANNs CNN14 & 5.0 & 5.00 & 0.706 & 0.857 & 0.600 & 18 & 3 & 12 \\
-    Gemini 2.5 Flash + PANNs CNN14 & 2.5 & 1.25 & 0.704 & 0.792 & 0.633 & 19 & 5 & 11 \\
-    Pixtral 12B + PANNs CNN14 & 5.0 & 5.00 & 0.704 & 0.792 & 0.633 & 19 & 5 & 11 \\
-    Pixtral 12B + PANNs CNN14 & 10.0 & 10.00 & 0.704 & 0.792 & 0.633 & 19 & 5 & 11 \\
-    Pixtral 12B + PANNs CNN14 & 10.0 & 5.00 & 0.704 & 0.792 & 0.633 & 19 & 5 & 11 \\
-    Gemini 2.5 Flash + PANNs CNN14 & 1.0 & 1.00 & 0.692 & 0.818 & 0.600 & 18 & 4 & 12 \\
-    Gemini 2.5 Flash + PANNs CNN14 & 1.0 & 0.50 & 0.692 & 0.818 & 0.600 & 18 & 4 & 12 \\
-    Gemini 2.5 Flash + Qwen2-Audio & 10.0 & 10.00 & 0.692 & 0.818 & 0.600 & 18 & 4 & 12 \\
-    Gemini 2.5 Flash + Qwen2-Audio & 10.0 & 5.00 & 0.692 & 0.818 & 0.600 & 18 & 4 & 12 \\
-    Pixtral 12B + PANNs CNN14 & 1.0 & 1.00 & 0.691 & 0.760 & 0.633 & 19 & 6 & 11 \\
+     Ministral 3-14B + Qwen2-Audio & 10.0 & 10.00 & 0.759 & 0.786 & 0.733 & 22 & 6 & 8 \\
+     Ministral 3-14B + Qwen2-Audio & 10.0 & 5.00 & 0.759 & 0.786 & 0.733 & 22 & 6 & 8 \\
+     Gemini 3.6 Flash + Qwen2-Audio & 1.0 & 0.50 & 0.750 & 0.643 & 0.900 & 27 & 15 & 3 \\
+     Ministral 3-14B + PANNs CNN14 & 2.5 & 2.50 & 0.746 & 0.759 & 0.733 & 22 & 7 & 8 \\
+     Ministral 3-14B + PANNs CNN14 & 2.5 & 1.25 & 0.746 & 0.759 & 0.733 & 22 & 7 & 8 \\
+     Ministral 3-14B + PANNs CNN14 & 5.0 & 2.50 & 0.746 & 0.759 & 0.733 & 22 & 7 & 8 \\
+     Gemini 2.5 Flash + PANNs CNN14 & 5.0 & 5.00 & 0.741 & 0.833 & 0.667 & 20 & 4 & 10 \\
+     Gemini 2.5 Flash + PANNs CNN14 & 2.5 & 1.25 & 0.737 & 0.778 & 0.700 & 21 & 6 & 9 \\
+     Gemini 2.5 Flash + PANNs CNN14 & 1.0 & 1.00 & 0.727 & 0.800 & 0.667 & 20 & 5 & 10 \\
+     Gemini 2.5 Flash + PANNs CNN14 & 1.0 & 0.50 & 0.727 & 0.800 & 0.667 & 20 & 5 & 10 \\
+     Gemini 2.5 Flash + Qwen2-Audio & 10.0 & 10.00 & 0.727 & 0.800 & 0.667 & 20 & 5 & 10 \\
+     Gemini 2.5 Flash + Qwen2-Audio & 10.0 & 5.00 & 0.727 & 0.800 & 0.667 & 20 & 5 & 10 \\
+     Gemini 2.5 Flash + PANNs CNN14 & 10.0 & 10.00 & 0.717 & 0.826 & 0.633 & 19 & 4 & 11 \\
+     Gemini 2.5 Flash + PANNs CNN14 & 10.0 & 5.00 & 0.717 & 0.826 & 0.633 & 19 & 4 & 11 \\
+     Gemini 2.5 Flash + PANNs CNN14 & 2.5 & 2.50 & 0.714 & 0.769 & 0.667 & 20 & 6 & 10 \\
+     Gemini 2.5 Flash + PANNs CNN14 & 5.0 & 2.50 & 0.714 & 0.769 & 0.667 & 20 & 6 & 10 \\
 \bottomrule
 \end{tabular}}
 \end{frame}
@@ -475,22 +458,22 @@ VLM + Audio Model & Window (s) & Hop (s) & F1 & Precision & Recall & TP & FP & F
 \toprule
 VLM + Audio Model & Window (s) & Hop (s) & F1 & Precision & Recall & TP & FP & FN \\
 \midrule
-    Pixtral 12B + PANNs CNN14 & 1.0 & 0.50 & 0.691 & 0.760 & 0.633 & 19 & 6 & 11 \\
-    Pixtral 12B + Qwen2-Audio & 10.0 & 10.00 & 0.691 & 0.760 & 0.633 & 19 & 6 & 11 \\
-    Pixtral 12B + Qwen2-Audio & 10.0 & 5.00 & 0.691 & 0.760 & 0.633 & 19 & 6 & 11 \\
-    Ministral 3-14B + Qwen2-Audio & 1.0 & 1.00 & 0.687 & 0.622 & 0.767 & 23 & 14 & 7 \\
-    Gemini 2.5 Flash + PANNs CNN14 & 10.0 & 10.00 & 0.680 & 0.850 & 0.567 & 17 & 3 & 13 \\
-    Gemini 2.5 Flash + PANNs CNN14 & 10.0 & 5.00 & 0.680 & 0.850 & 0.567 & 17 & 3 & 13 \\
-    Gemini 2.5 Flash + PANNs CNN14 & 2.5 & 2.50 & 0.679 & 0.783 & 0.600 & 18 & 5 & 12 \\
-    Gemini 2.5 Flash + PANNs CNN14 & 5.0 & 2.50 & 0.679 & 0.783 & 0.600 & 18 & 5 & 12 \\
-    Pixtral 12B + PANNs CNN14 & 2.5 & 2.50 & 0.679 & 0.731 & 0.633 & 19 & 7 & 11 \\
-    Pixtral 12B + PANNs CNN14 & 2.5 & 1.25 & 0.679 & 0.731 & 0.633 & 19 & 7 & 11 \\
-    Pixtral 12B + PANNs CNN14 & 5.0 & 2.50 & 0.679 & 0.731 & 0.633 & 19 & 7 & 11 \\
-    Ministral 3-14B + Qwen2-Audio & 1.0 & 0.50 & 0.648 & 0.561 & 0.767 & 23 & 18 & 7 \\
-    Pixtral 12B + Qwen2-Audio & 1.0 & 1.00 & 0.625 & 0.588 & 0.667 & 20 & 14 & 10 \\
-    Gemini 2.5 Flash + Qwen2-Audio & 1.0 & 1.00 & 0.623 & 0.613 & 0.633 & 19 & 12 & 11 \\
-    Gemini 2.5 Flash + Qwen2-Audio & 1.0 & 0.50 & 0.594 & 0.559 & 0.633 & 19 & 15 & 11 \\
-    Pixtral 12B + Qwen2-Audio & 1.0 & 0.50 & 0.588 & 0.526 & 0.667 & 20 & 18 & 10 \\
+     Pixtral 12B + PANNs CNN14 & 5.0 & 5.00 & 0.714 & 0.769 & 0.667 & 20 & 6 & 10 \\
+     Pixtral 12B + PANNs CNN14 & 10.0 & 10.00 & 0.714 & 0.769 & 0.667 & 20 & 6 & 10 \\
+     Pixtral 12B + PANNs CNN14 & 10.0 & 5.00 & 0.714 & 0.769 & 0.667 & 20 & 6 & 10 \\
+     Pixtral 12B + PANNs CNN14 & 1.0 & 1.00 & 0.702 & 0.741 & 0.667 & 20 & 7 & 10 \\
+     Pixtral 12B + PANNs CNN14 & 1.0 & 0.50 & 0.702 & 0.741 & 0.667 & 20 & 7 & 10 \\
+     Pixtral 12B + Qwen2-Audio & 10.0 & 10.00 & 0.702 & 0.741 & 0.667 & 20 & 7 & 10 \\
+     Pixtral 12B + Qwen2-Audio & 10.0 & 5.00 & 0.702 & 0.741 & 0.667 & 20 & 7 & 10 \\
+     Pixtral 12B + PANNs CNN14 & 2.5 & 2.50 & 0.690 & 0.714 & 0.667 & 20 & 8 & 10 \\
+     Pixtral 12B + PANNs CNN14 & 2.5 & 1.25 & 0.690 & 0.714 & 0.667 & 20 & 8 & 10 \\
+     Pixtral 12B + PANNs CNN14 & 5.0 & 2.50 & 0.690 & 0.714 & 0.667 & 20 & 8 & 10 \\
+     Ministral 3-14B + Qwen2-Audio & 1.0 & 1.00 & 0.687 & 0.622 & 0.767 & 23 & 14 & 7 \\
+     Ministral 3-14B + Qwen2-Audio & 1.0 & 0.50 & 0.667 & 0.590 & 0.767 & 23 & 16 & 7 \\
+     Gemini 2.5 Flash + Qwen2-Audio & 1.0 & 1.00 & 0.656 & 0.618 & 0.700 & 21 & 13 & 9 \\
+     Gemini 2.5 Flash + Qwen2-Audio & 1.0 & 0.50 & 0.636 & 0.583 & 0.700 & 21 & 15 & 9 \\
+     Pixtral 12B + Qwen2-Audio & 1.0 & 1.00 & 0.636 & 0.583 & 0.700 & 21 & 15 & 9 \\
+     Pixtral 12B + Qwen2-Audio & 1.0 & 0.50 & 0.618 & 0.553 & 0.700 & 21 & 17 & 9 \\
 \bottomrule
 \end{tabular}}
 \end{frame}

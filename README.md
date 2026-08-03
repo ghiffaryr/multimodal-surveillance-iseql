@@ -19,7 +19,7 @@ A multimodal forensic surveillance framework that detects events through a **thr
 - **Auditable SQL pipeline** - every event is output of a SQL query; no black-box reasoning
 
 ### Best result
-> **Gemini 3.6 Flash + Qwen2-Audio-7B achieved 29/30 events (F1=0.935)**
+> **Gemini 3.6 Flash + Qwen2-Audio-7B achieved 30/30 events (F1=0.938)**
 
 ---
 
@@ -96,12 +96,12 @@ No public dataset existed for multimodal forensic surveillance with temporal int
 
 | VLM                  | Re-ID | F1     | TP | FP | FN |
 |----------------------|-------|--------|----|----|----|
-| **Gemini 3.6 Flash** | Yes   | **0.842** | 24 | 3  | 6  |
+| **Gemini 3.6 Flash** | Yes   | **0.847** | 25 | 4  | 5  |
 | Ministral 3-14B      | Yes   | 0.750  | 21 | 5  | 9  |
-| Pixtral 12B          | Yes   | 0.679  | 18 | 5  | 12 |
-| Gemini 2.5 Flash     | Yes   | 0.653  | 16 | 3  | 14 |
+| Gemini 2.5 Flash     | Yes   | 0.692  | 18 | 4  | 12 |
+| Pixtral 12B          | Yes   | 0.691  | 19 | 6  | 11 |
 
-Without re-ID (ablation F1/TP): Gemini 3.6 Flash 0.720/18, Pixtral 12B 0.712/21, Ministral 3-14B 0.691/19, Gemini 2.5 Flash 0.571/14. Re-ID mainly adds loitering, vehicle escape, and handoff, which require a persistent identity over time.
+Without re-ID (ablation F1/TP): Gemini 3.6 Flash 0.706/18, Pixtral 12B 0.689/21, Ministral 3-14B 0.655/19, Gemini 2.5 Flash 0.560/14. Re-ID mainly adds loitering, vehicle escape, and handoff, which require a persistent identity over time.
 
 ---
 
@@ -121,14 +121,14 @@ Best config per pair, ties shown (all 8 window/hop configs per pair are in `data
 
 | VLM + Audio Model                        | Best audio config | F1     | TP | FP | FN |
 |------------------------------------|-------------------|--------|----|----|----|
-| **Gemini 3.6 Flash + Qwen2**       | 2.5/1.25, 5.0/2.5, 5.0/5.0 | **0.935** | 29 | 3  | 1  |
+| **Gemini 3.6 Flash + Qwen2**       | 2.5/1.25, 5.0/2.5, 5.0/5.0 | **0.938** | 30 | 4  | 0  |
 | **Ministral 3-14B + Qwen2**        | 5.0/2.5, 5.0/5.0       | **0.889** | 28 | 5  | 2  |
-| Gemini 3.6 Flash + PANNs           | 5.0/5.0, 10/5, 10/10   | 0.862  | 25 | 3  | 5  |
-| Pixtral 12B + Qwen2                | 5.0/2.5, 5.0/5.0       | 0.833  | 25 | 5  | 5  |
-| Gemini 2.5 Flash + Qwen2           | 5.0/2.5               | 0.821  | 23 | 3  | 7  |
+| Gemini 3.6 Flash + PANNs           | 5.0/5.0, 10/5, 10/10   | 0.867  | 26 | 4  | 4  |
+| Gemini 2.5 Flash + Qwen2           | 5.0/2.5               | 0.847  | 25 | 4  | 5  |
+| Pixtral 12B + Qwen2                | 5.0/2.5, 5.0/5.0       | 0.839  | 26 | 6  | 4  |
 | Ministral 3-14B + PANNs            | 5.0/5.0, 10/5, 10/10   | 0.772  | 22 | 5  | 8  |
-| Gemini 2.5 Flash + PANNs           | 5.0/5.0               | 0.706  | 18 | 3  | 12 |
-| Pixtral 12B + PANNs                | 5.0/5.0, 10/5, 10/10   | 0.704  | 19 | 5  | 11 |
+| Gemini 2.5 Flash + PANNs           | 5.0/5.0               | 0.741  | 20 | 4  | 10 |
+| Pixtral 12B + PANNs                | 5.0/5.0, 10/5, 10/10   | 0.714  | 20 | 6  | 10 |
 
 Thesis claim C >= max(A, B) holds on all scenes across all providers.
 

@@ -125,7 +125,7 @@ Same as visual. Handoff is visual-only.
 ## Loitering
 
 **Description:** A person standing suspiciously near a vehicle for a
-prolonged duration (≥ 150 frames).
+prolonged duration (≥ 120 frames).
 
 ### Visual
 
@@ -136,7 +136,7 @@ prolonged duration (≥ 150 frames).
 )
 ```
 
-The duration constraint (EndFrame − StartFrame ≥ 150) is applied as a
+The duration constraint (EndFrame − StartFrame ≥ 120) is applied as a
 cross-condition on the interval itself.
 
 ### Audio

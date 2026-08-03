@@ -3,42 +3,39 @@
 \usepackage{xcolor}
 \usetikzlibrary{arrows.meta}
 
-\definecolor{cRed}{HTML}{FADBD8}
-\definecolor{cOrange}{HTML}{FFF3E0}
-\definecolor{cGreen}{HTML}{D5F5E3}
 
 \begin{document}
 \begin{tikzpicture}[
   every node/.style={font=\sffamily},
-  box/.style={draw=black!50, rounded corners=3pt, align=center, inner sep=5pt, minimum width=5cm, minimum height=1.2cm},
+  box/.style={draw=black, align=center, inner sep=5pt, minimum width=5cm, minimum height=1.2cm},
   arrow/.style={-Stealth, thick},
 ]
 
 \draw[white] (-0.3,-0.5) rectangle (5.6,8.3);
 
-\node[font=\Large\bfseries] at (2.5,7.9) {Visual Pipeline -- Condition A};
+\node[font=\Large\bfseries] at (2.5,7.9) {Visual Pipeline};
 
-\node[box,fill=cOrange] (s1) at (2.5,5.8) {
+\node[box,fill=white] (s1) at (2.5,5.8) {
     \textbf{Frame Sampling}\\[2pt]
     24-frame interval, ${\sim}$1.4 Hz
 };
 
-\node[box,fill=cRed] (s2) at (2.5,3.8) {
+\node[box,fill=white] (s2) at (2.5,3.8) {
     \textbf{VLM Object Detection}\\[2pt]
     Grid image + re-ID tracking
 };
 
-\node[box,fill=cOrange] (s3) at (2.5,1.8) {
+\node[box,fill=white] (s3) at (2.5,1.8) {
     \textbf{VLM Relation Extraction}\\[2pt]
     Full image, 8 relation types
 };
 
-\node[box,fill=cRed] (s4) at (2.5,-0.2) {
+\node[box,fill=white] (s4) at (2.5,-0.2) {
     \textbf{Interval Builder}\\[2pt]
     Merge adjacent same-type frames
 };
 
-\node[draw=black!40, fill=cGreen, rounded corners=3pt, font=\normalsize\bfseries, align=center, minimum width=5cm, minimum height=0.8cm] (out) at (2.5,-2.0) {VisualPerInterval (SQLite)};
+\node[draw=black, fill=white, font=\normalsize\bfseries, align=center, minimum width=5cm, minimum height=0.8cm] (out) at (2.5,-2.0) {VisualPerInterval (SQLite)};
 
 \draw[arrow] (s1.south) -- (s2.north);
 \draw[arrow] (s2.south) -- (s3.north);

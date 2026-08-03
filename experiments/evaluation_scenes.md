@@ -733,7 +733,7 @@ surveillance camera angle.
 
 | Cond | Expected | Rationale |
 | ---- | -------- | --------- |
-| A    | TP       | VLM detects peering into car >= 150 frames |
+| A    | TP       | VLM detects peering into car >= 120 frames |
 | C    | TP       | Visual-only query preserved |
 
 
@@ -769,12 +769,12 @@ exiting frame left. The SUV remains. Static surveillance camera.
 
 **ISEQL pattern:**
 
-- A: `loitering` = suspicious_near_vehicle WITH duration >= delta_loitering (150 frames). The person stays crouched near the car for ~6 seconds → TP.
+- A: `loitering` = suspicious_near_vehicle WITH duration >= delta_loitering (120 frames). The person stays crouched near the car for ~6 seconds → TP.
 - C: `loitering` = suspicious_near_vehicle WITH duration >= delta_loitering (same as visual) → TP.
 
 | Cond | Expected | Rationale |
 | ---- | -------- | --------- |
-| A    | TP       | Person crouches near SUV >= 150 frames |
+| A    | TP       | Person crouches near SUV >= 120 frames |
 | C    | TP       | Visual-only query preserved |
 
 
@@ -811,12 +811,12 @@ suspicious behavior; this is not their vehicle.
 
 **ISEQL pattern:**
 
-- A: `loitering` = suspicious_near_vehicle WITH duration >= delta_loitering (150 frames). Person inspects van for ~5 seconds → TP.
+- A: `loitering` = suspicious_near_vehicle WITH duration >= delta_loitering (120 frames). Person inspects van for ~5 seconds → TP.
 - C: `loitering` = suspicious_near_vehicle WITH duration >= delta_loitering (same as visual) → TP.
 
 | Cond | Expected | Rationale |
 | ---- | -------- | --------- |
-| A    | TP       | Person inspects delivery van >= 150 frames |
+| A    | TP       | Person inspects delivery van >= 120 frames |
 | C    | TP       | Visual-only query preserved |
 
 

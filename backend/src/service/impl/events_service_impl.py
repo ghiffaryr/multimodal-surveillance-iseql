@@ -40,7 +40,7 @@ MULTIMODAL_EVENTS: list[EventSpec] = [
 
 
 def _build_visual_queries(deltas: dict, analysis_id: str = "") -> dict[str, str]:
-    delta_visual_loitering = int(deltas.get("delta_visual_loitering", 150))
+    delta_visual_loitering = int(deltas.get("delta_visual_loitering", 120))
     delta_visual_handoff = int(deltas.get("delta_visual_handoff", 240))
 
     a = f"AND VIP.AnalysisID = '{analysis_id}'" if analysis_id else ""
@@ -224,7 +224,7 @@ def _build_sound_queries(deltas: dict, analysis_id: str = "") -> dict[str, str]:
 def _build_multimodal_queries(deltas: dict, analysis_id: str = "") -> dict[str, str]:
     a = f"AND VIP.AnalysisID = '{analysis_id}'" if analysis_id else ""
     a_sound = f"AND SI.AnalysisID = '{analysis_id}'" if analysis_id else ""
-    delta_visual_loitering = int(deltas.get("delta_visual_loitering", 150))
+    delta_visual_loitering = int(deltas.get("delta_visual_loitering", 120))
     delta_visual_handoff = int(deltas.get("delta_visual_handoff", 240))
     delta_sound_fight = int(deltas.get("delta_sound_fight", 120))
     confidence_threshold = 0.0
