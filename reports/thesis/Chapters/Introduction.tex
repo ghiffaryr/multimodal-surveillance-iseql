@@ -34,9 +34,9 @@ Three research questions guide the evaluation:
 \section{Thesis Contributions}
 
 \begin{enumerate}
-  \item \textbf{First Large Audio-Language Model for surveillance forensics.} Qwen2-Audio-7B-Instruct is applied to surveillance event detection, achieving perfect precision (1.000) and a micro F1 of 0.788 ,  substantially outperforming PANNs CNN14 (F1 = 0.429).
+  \item \textbf{First Large Audio-Language Model for surveillance forensics.} Qwen2-Audio-7B-Instruct is applied to surveillance event detection, achieving perfect precision (1.000) and a micro F1 of 0.788 at the optimal 5.0 s / 2.5 s configuration, substantially outperforming PANNs CNN14 (F1 = 0.429).
 
-  \item \textbf{Object re-identification that enables tracking-dependent events.} A two-phase tracking prompt with class and block-overlap matching is shown to be essential for the duration-gated events (loitering, vehicle escape, handoff): for Gemini 3.6 Flash these rise from 0/5 to 4/5, 1/5, and 5/5, lifting visual F1 from 0.720 to 0.842.
+  \item \textbf{Object re-identification that enables tracking-dependent events.} A two-phase tracking prompt with class and block-overlap matching is shown to enable the duration-gated events that per-frame ID assignment misses: for the best model (Gemini 3.6 Flash), loitering rises from 0/5 to 4/5, vehicle escape from 0/5 to 1/5, and handoff from 4/5 to 5/5, lifting visual F1 from 0.720 to 0.842.
 
   \item \textbf{First labeled multimodal forensic surveillance dataset.} A dataset of 30 curated scenes generated with Dreamina Seedance, annotated with per-frame ground truth for visual relations, audio events, and event-level binary verdicts.
 

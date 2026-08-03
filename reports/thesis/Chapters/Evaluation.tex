@@ -15,25 +15,32 @@ The primary metric is the F1 score (\S\ref{sec:metrics}), reported alongside pre
 \section{RQ1: Object Re-Identification}
 \label{sec:rq1}
 
-The first research question asks whether object re-identification is necessary for visual event detection. Table~\ref{tab:reid_ablation} reports the true positive count for each VLM on all 30 scenes, with and without re-ID.
+The first research question asks whether object re-identification is necessary for visual event detection. Table~\ref{tab:reid_ablation} reports the F1, precision, recall, and per-event counts for each VLM on all 30 scenes, with and without re-ID, and the per-metric deltas ($\Delta$) when re-ID is applied.
 
 \begin{table}[h]
   \centering
-  \caption{Re-identification ablation: all four VLM models on 30 scenes.}
+  \caption{Re-identification ablation: all four VLM models on 30 scenes, with and without re-ID. Deltas ($\Delta$) show the change when re-ID is applied.}
   \label{tab:reid_ablation}
-  \begin{tabular}{lccc}
+  \resizebox{\textwidth}{!}{%
+  \begin{tabular}{l ccc cc cc ccc cc cc}
     \toprule
-    VLM & With re-ID (TP) & Without re-ID (TP) & Gain \\
+    VLM & \multicolumn{3}{c}{F1} & \multicolumn{2}{c}{Precision} & \multicolumn{2}{c}{Recall} & \multicolumn{3}{c}{TP} & \multicolumn{2}{c}{FP} & \multicolumn{2}{c}{FN} \\
+    \cmidrule(lr){2-4} \cmidrule(lr){5-6} \cmidrule(lr){7-8} \cmidrule(lr){9-11} \cmidrule(lr){12-13} \cmidrule(lr){14-15}
+         & no-ID & re-ID & $\Delta$ & no-ID & re-ID & no-ID & re-ID & no-ID & re-ID & $\Delta$ & no-ID & re-ID & no-ID & re-ID \\
     \midrule
-    Gemini 3.6 Flash & 24 & 18 & +6 \\
-    Ministral 3-14B & 21 & 19 & +2 \\
-    Gemini 2.5 Flash & 16 & 14 & +2 \\
-    Pixtral 12B & 18 & 21 & -3 \\
+    \textbf{Gemini 3.6 Flash} & \textbf{0.720} & \textbf{0.842} & \textbf{+0.122} & \textbf{0.900} & \textbf{0.889} & \textbf{0.600} & \textbf{0.800} & \textbf{18} & \textbf{24} & \textbf{+6} & \textbf{2} & \textbf{3} & \textbf{12} & \textbf{6} \\
+    \midrule
+    Ministral 3-14B & 0.691 & 0.750 & +0.059 & 0.760 & 0.808 & 0.633 & 0.700 & 19 & 21 & +2 & 6 & 5 & 11 & 9 \\
+    \midrule
+    Gemini 2.5 Flash & 0.571 & 0.653 & +0.082 & 0.737 & 0.842 & 0.467 & 0.533 & 14 & 16 & +2 & 5 & 3 & 16 & 14 \\
+    \midrule
+    Pixtral 12B & 0.712 & 0.679 & $-$0.033 & 0.724 & 0.783 & 0.700 & 0.600 & 21 & 18 & $-$3 & 8 & 5 & 9 & 12 \\
     \bottomrule
-  \end{tabular}
+  \end{tabular}%
+  }
 \end{table}
 
-Re-identification mainly benefits the events that require a persistent object identity over time: loitering, vehicle escape, and handoff. Without re-ID, per-frame ID assignment fragments intervals into single frames, so these duration-gated queries rarely fire. For Gemini 3.6 Flash, re-ID raises loitering from 0/5 to 4/5, vehicle escape from 0/5 to 1/5, and handoff from 4/5 to 5/5, while the short-duration events (fight, gunshot, vehicle collision) are largely unaffected. The effect is consistent across models for the tracking-dependent events, although Pixtral 12B shows slightly more detections without re-ID overall, suggesting its raw relation predictions sometimes fire shorter queries even without a consistent identity.
+Re-identification consistently improves recall by recovering the tracking-dependent events. For Gemini 3.6 Flash, recall rises from 0.600 to 0.800, driven by loitering (0/5 to 4/5), vehicle escape (0/5 to 1/5), and handoff (4/5 to 5/5). Precision also increases for three of the four models because single-frame fragments that produce spurious detections without re-ID are suppressed by the tracking prompt: Gemini 2.5 Flash shows the largest precision gain (0.737 to 0.842). False positives decrease for Ministral 3-14B (6 to 5) and Pixtral 12B (8 to 5), while increasing slightly for Gemini 3.6 Flash (2 to 3) primarily in the fight event where the VLM detects physical altercation in non-fight scenes, an imperfection unrelated to re-ID. The net F1 improvement is substantial for three models (Gemini 3.6 Flash +0.122, Gemini 2.5 Flash +0.082, Ministral 3-14B +0.059). Pixtral 12B is the exception: it detects more events without re-ID (21 vs.\ 18 TP), though with markedly lower precision (0.724 vs.\ 0.783), suggesting its raw predictions fire duration-gated queries even without consistent identity tracking. The effect is concentrated on events requiring persistent object identity; short-duration events such as fight and vehicle collision are largely unaffected in all four models.
 
 \section{RQ2: Audio Model Ablation}
 \label{sec:rq2}
@@ -48,12 +55,12 @@ The second research question compares Qwen2-Audio-7B-Instruct (LALM) against PAN
   \begin{tabular}{lcccccccc}
     Model & Window (s) & Hop (s) & F1 & Precision & Recall & TP & FP & FN \\
     \midrule
-    \textbf{Qwen2-Audio} & \textbf{5.0} & \textbf{2.50} & \textbf{0.788} & 1.000 & 0.650 & 13 & 0 & 7 \\
+    \textbf{Qwen2-Audio} & \textbf{5.0} & \textbf{2.50} & \textbf{0.788} & \textbf{1.000} & \textbf{0.650} & \textbf{13} & \textbf{0} & \textbf{7} \\
     Qwen2-Audio & 2.5 & 1.25 & 0.750 & 1.000 & 0.600 & 12 & 0 & 8 \\
     Qwen2-Audio & 5.0 & 5.00 & 0.667 & 1.000 & 0.500 & 10 & 0 & 10 \\
     Qwen2-Audio & 2.5 & 2.50 & 0.621 & 1.000 & 0.450 & 9 & 0 & 11 \\
     Qwen2-Audio & 1.0 & 1.00 & 0.389 & 0.438 & 0.350 & 7 & 9 & 13 \\
-    Qwen2-Audio & 1.0 & 0.50 & 0.350 & 0.350 & 0.350 & 7 & 13 & 13 \\
+    Qwen2-Audio & 1.0 & 0.50 & 0.368 & 0.389 & 0.350 & 7 & 11 & 13 \\
     Qwen2-Audio & 10.0 & 10.00 & 0.320 & 0.800 & 0.200 & 4 & 1 & 16 \\
     Qwen2-Audio & 10.0 & 5.00 & 0.320 & 0.800 & 0.200 & 4 & 1 & 16 \\
     \midrule
@@ -87,7 +94,7 @@ Table~\ref{tab:vlm_comparison} reports the visual-only (condition A) results. Al
     \toprule
     VLM & F1 & Precision & Recall & TP & FP & FN \\
     \midrule
-    \textbf{Gemini 3.6 Flash} & \textbf{0.842} & 0.889 & 0.800 & 24 & 3 & 6 \\
+    \textbf{Gemini 3.6 Flash} & \textbf{0.842} & \textbf{0.889} & \textbf{0.800} & \textbf{24} & \textbf{3} & \textbf{6} \\
     Ministral 3-14B & 0.750 & 0.808 & 0.700 & 21 & 5 & 9 \\
     Pixtral 12B & 0.679 & 0.783 & 0.600 & 18 & 5 & 12 \\
     Gemini 2.5 Flash & 0.653 & 0.842 & 0.533 & 16 & 3 & 14 \\

@@ -177,7 +177,7 @@ WITH ShoutSounds AS (
 ), ImpactSounds AS (
     SELECT SoundIntervalID, StartFrame, EndFrame
     FROM SoundPerInterval SI
-    WHERE SoundClass IN ('impact', 'fight')
+    WHERE SoundClass = 'impact'
 )
 SELECT SS.SoundIntervalID,
        IMS.SoundIntervalID AS SoundIntervalID2,
@@ -260,7 +260,7 @@ ShoutSounds AS (
 ImpactSounds AS (
     SELECT SoundIntervalID, StartFrame, EndFrame
     FROM SoundPerInterval SI
-    WHERE SoundClass IN ('impact', 'fight')
+    WHERE SoundClass = 'impact'
 ),
 AudioFight AS (
     SELECT NULL AS VisualRelationID,

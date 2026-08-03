@@ -177,8 +177,9 @@ First ISEQL-based event detector using VLM perception. Reported high precision/r
 % ── RQ1: RE-ID ──
 \section{RQ1: Re-Identification}
 \begin{frame}{RQ1: Object Re-Identification Is Essential}
+\centering
 \begin{columns}[T]
-\column{0.48\textwidth}
+\column{0.5\textwidth}
 \small
 \textbf{Without re-ID:} VLM assigns new IDs per frame.\\
 \textit{Carrying(person=1)} on frame 10,\\
@@ -186,33 +187,36 @@ First ISEQL-based event detector using VLM perception. Reported high precision/r
 Intervals break into single frames.\\
 Tracking-dependent events fail duration thresholds.
 
-\vspace{0.4em}
+\column{0.5\textwidth}
+\small
 \textbf{With re-ID:} Two-phase tracking.\\
 Frame 1: detect objects and assign IDs.\\
 Frame $k$: match by class + block overlap.
-
-\vspace{0.6em}
-\footnotesize
-Re-ID mainly adds \alert{loitering, vehicle escape, handoff}\\
-(Gemini 3.6 Flash: loitering 0/5$\to$4/5, escape 0/5$\to$1/5).
-
-\column{0.52\textwidth}
-\centering
-\footnotesize
-\begin{tabular}{lcc}
-\toprule
-VLM & With re-ID (TP) & Without (TP) \\
-\midrule
-\textbf{Gemini 3.6 Flash} & \textbf{24} & 18 \\
-Ministral 3-14B & 21 & 19 \\
-Pixtral 12B & 18 & 21 \\
-Gemini 2.5 Flash & 16 & 14 \\
-\bottomrule
-\end{tabular}
-\vspace{0.3em}
-
-30 scenes. Re-ID raises F1 from 0.57-0.72 to 0.65-0.84.
 \end{columns}
+
+\vspace{0.5em}
+\footnotesize
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{l ccc cc cc ccc cc cc}
+\toprule
+VLM & \multicolumn{3}{c}{F1} & \multicolumn{2}{c}{Precision} & \multicolumn{2}{c}{Recall} & \multicolumn{3}{c}{TP} & \multicolumn{2}{c}{FP} & \multicolumn{2}{c}{FN} \\
+\cmidrule(lr){2-4} \cmidrule(lr){5-6} \cmidrule(lr){7-8} \cmidrule(lr){9-11} \cmidrule(lr){12-13} \cmidrule(lr){14-15}
+     & no-ID & re-ID & $\Delta$ & no-ID & re-ID & no-ID & re-ID & no-ID & re-ID & $\Delta$ & no-ID & re-ID & no-ID & re-ID \\
+\midrule
+\textbf{Gemini 3.6 Flash} & \textbf{0.720} & \textbf{0.842} & \textbf{+0.122} & \textbf{0.900} & \textbf{0.889} & \textbf{0.600} & \textbf{0.800} & \textbf{18} & \textbf{24} & \textbf{+6} & \textbf{2} & \textbf{3} & \textbf{12} & \textbf{6} \\
+\midrule
+Ministral 3-14B & 0.691 & 0.750 & +0.059 & 0.760 & 0.808 & 0.633 & 0.700 & 19 & 21 & +2 & 6 & 5 & 11 & 9 \\
+\midrule
+Gemini 2.5 Flash & 0.571 & 0.653 & +0.082 & 0.737 & 0.842 & 0.467 & 0.533 & 14 & 16 & +2 & 5 & 3 & 16 & 14 \\
+\midrule
+Pixtral 12B & 0.712 & 0.679 & $-$0.033 & 0.724 & 0.783 & 0.700 & 0.600 & 21 & 18 & $-$3 & 8 & 5 & 9 & 12 \\
+\bottomrule
+\end{tabular}}
+
+\vspace{0.4em}
+\footnotesize
+Re-ID mainly adds \alert{loitering, vehicle escape, handoff}:\\
+Gemini 3.6 Flash loitering 0/5$\to$4/5, escape 0/5$\to$1/5, handoff 4/5$\to$5/5.
 \end{frame}
 
 % ── RQ2: AUDIO ──
@@ -226,7 +230,7 @@ Gemini 2.5 Flash & 16 & 14 \\
 \begin{tabular}{lcccccccc}
 Model & Window (s) & Hop (s) & F1 & Precision & Recall & TP & FP & FN \\
 \midrule
-\textbf{Qwen2-Audio} & \textbf{5.0} & \textbf{2.50} & \textbf{0.788} & \alert{1.000} & 0.650 & 13 & 0 & 7 \\
+\textbf{Qwen2-Audio} & \textbf{5.0} & \textbf{2.50} & \textbf{0.788} & \textbf{1.000} & \textbf{0.650} & \textbf{13} & \textbf{0} & \textbf{7} \\
 Qwen2-Audio & 2.5 & 1.25 & 0.750 & 1.000 & 0.600 & 12 & 0 & 8 \\
 Qwen2-Audio & 5.0 & 5.00 & 0.667 & 1.000 & 0.500 & 10 & 0 & 10 \\
 Qwen2-Audio & 2.5 & 2.50 & 0.621 & 1.000 & 0.450 & 9 & 0 & 11 \\
@@ -262,7 +266,7 @@ All models use object re-identification. Best model bolded.
 \begin{tabular}{lccccccc}
 VLM & F1 & Precision & Recall & TP & FP & FN \\
 \midrule
-\textbf{Gemini 3.6 Flash} & \textbf{0.842} & 0.889 & 0.800 & 24 & 3 & 6 \\
+\textbf{Gemini 3.6 Flash} & \textbf{0.842} & \textbf{0.889} & \textbf{0.800} & \textbf{24} & \textbf{3} & \textbf{6} \\
 Ministral 3-14B & 0.750 & 0.808 & 0.700 & 21 & 5 & 9 \\
 Pixtral 12B & 0.679 & 0.783 & 0.600 & 18 & 5 & 12 \\
 Gemini 2.5 Flash & 0.653 & 0.842 & 0.533 & 16 & 3 & 14 \\

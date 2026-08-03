@@ -94,41 +94,41 @@ No public dataset existed for multimodal forensic surveillance with temporal int
 
 ## Visual: VLM Comparison (30 scenes)
 
-| VLM                  | Re-ID | F1     | TP/FN  |
-|----------------------|-------|--------|--------|
-| **Gemini 3.6 Flash** | Yes   | **0.842** | 24/6  |
-| Ministral 3-14B      | Yes   | 0.750  | 21/9   |
-| Pixtral 12B          | Yes   | 0.679  | 18/12  |
-| Gemini 2.5 Flash     | Yes   | 0.653  | 16/14  |
+| VLM                  | Re-ID | F1     | TP | FP | FN |
+|----------------------|-------|--------|----|----|----|
+| **Gemini 3.6 Flash** | Yes   | **0.842** | 24 | 3  | 6  |
+| Ministral 3-14B      | Yes   | 0.750  | 21 | 5  | 9  |
+| Pixtral 12B          | Yes   | 0.679  | 18 | 5  | 12 |
+| Gemini 2.5 Flash     | Yes   | 0.653  | 16 | 3  | 14 |
 
-Without re-ID (ablation): Gemini 3.6 Flash 0.720, Pixtral 12B 0.712, Ministral 3-14B 0.691, Gemini 2.5 Flash 0.571. Re-ID mainly adds loitering, vehicle escape, and handoff, which require a persistent identity over time.
+Without re-ID (ablation F1/TP): Gemini 3.6 Flash 0.720/18, Pixtral 12B 0.712/21, Ministral 3-14B 0.691/19, Gemini 2.5 Flash 0.571/14. Re-ID mainly adds loitering, vehicle escape, and handoff, which require a persistent identity over time.
 
 ---
 
 ## Audio: LALM vs CNN (14 audio-relevant scenes)
 
-| Provider             | Type    | F1     | TP/FN  |
-|----------------------|---------|--------|--------|
-| **Qwen2-Audio-7B**   | **LALM**| **0.788** | 13/7 |
-| PANNs CNN14          | CNN     | 0.429  | 6/14  |
+| Model             | Type    | F1     | TP | FP | FN |
+|----------------------|---------|--------|----|----|----|
+| **Qwen2-Audio-7B**   | **LALM**| **0.788** | 13 | 0  | 7  |
+| PANNs CNN14          | CNN     | 0.429  | 6  | 2  | 14 |
 This is the **first application of a Large Audio-Language Model for surveillance forensic event detection**. No prior work found on arXiv or Google Scholar.
 
 ---
 
 ## Multimodal: Ablation Results (30 scenes)
 
-Best config per pair (all 8 window/hop configs per pair are in `data/analysis_*/summary.xlsx`; the full ranked 64-combination ablation is in the thesis appendix):
+Best config per pair, ties shown (all 8 window/hop configs per pair are in `data/analysis_*/summary.xlsx`; the full ranked 64-combination ablation is in the thesis appendix):
 
-| VLM + Audio                        | Best audio config | F1     | TP/FP/FN |
-|------------------------------------|-------------------|--------|----------|
-| **Gemini 3.6 Flash + Qwen2**       | w2.5s/h1.25s      | **0.935** | 29/3/1 |
-| **Ministral 3-14B + Qwen2**        | w5.0s/h5.0s       | **0.889** | 28/5/2 |
-| Gemini 3.6 Flash + PANNs           | w5.0s/h5.0s       | 0.862  | 25/3/5   |
-| Pixtral 12B + Qwen2                | w5.0s/h5.0s       | 0.833  | 25/5/5   |
-| Gemini 2.5 Flash + Qwen2           | w5.0s/h2.5s       | 0.821  | 23/3/7   |
-| Ministral 3-14B + PANNs            | w5.0s/h5.0s       | 0.772  | 22/5/8   |
-| Gemini 2.5 Flash + PANNs           | w5.0s/h5.0s       | 0.706  | 18/3/12  |
-| Pixtral 12B + PANNs                | w5.0s/h5.0s       | 0.704  | 19/5/11  |
+| VLM + Audio Model                        | Best audio config | F1     | TP | FP | FN |
+|------------------------------------|-------------------|--------|----|----|----|
+| **Gemini 3.6 Flash + Qwen2**       | 2.5/1.25, 5.0/2.5, 5.0/5.0 | **0.935** | 29 | 3  | 1  |
+| **Ministral 3-14B + Qwen2**        | 5.0/2.5, 5.0/5.0       | **0.889** | 28 | 5  | 2  |
+| Gemini 3.6 Flash + PANNs           | 5.0/5.0, 10/5, 10/10   | 0.862  | 25 | 3  | 5  |
+| Pixtral 12B + Qwen2                | 5.0/2.5, 5.0/5.0       | 0.833  | 25 | 5  | 5  |
+| Gemini 2.5 Flash + Qwen2           | 5.0/2.5               | 0.821  | 23 | 3  | 7  |
+| Ministral 3-14B + PANNs            | 5.0/5.0, 10/5, 10/10   | 0.772  | 22 | 5  | 8  |
+| Gemini 2.5 Flash + PANNs           | 5.0/5.0               | 0.706  | 18 | 3  | 12 |
+| Pixtral 12B + PANNs                | 5.0/5.0, 10/5, 10/10   | 0.704  | 19 | 5  | 11 |
 
 Thesis claim C >= max(A, B) holds on all scenes across all providers.
 

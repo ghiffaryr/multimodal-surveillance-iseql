@@ -189,8 +189,7 @@ a collision (horn/skid followed by impact/glass breaking within 60 frames).
 
 **Description:** A person runs and then enters/exits a vehicle (visual),
 or engine sounds followed by tire squeal (audio). The person running and
-entering/exiting must be the same person (δ = 50 for visual, δ = 150 for
-audio).
+entering/exiting must be the same person.
 
 ### Visual
 
