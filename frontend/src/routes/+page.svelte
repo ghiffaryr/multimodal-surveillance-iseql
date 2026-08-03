@@ -46,7 +46,7 @@
   let availableAudioProviders = $state<string[]>(['panns', 'huggingface']);
   let vlmConfig = $state<VlmConfig>({
     provider: 'mistral',
-    model: '',
+    model: 'ministral-3-14b',
     grid_rows: 2,
     grid_cols: 4,
     vlm_delay: 3.0,
@@ -57,14 +57,13 @@
     provider: 'panns',
     model: 'cnn14',
     quantization: 'none',
+    window: 2.5,
+    hop: 1.25,
   });
   let deltas = $state<Deltas>({
-    delta_visual_vehicle_escape: 50,
     delta_visual_loitering: 150,
     delta_visual_handoff: 240,
     delta_sound_fight: 120,
-    delta_sound_vehicle_escape: 150,
-    delta_sound_vehicle_collision: 60,
   });
   let eventTypes = $state<EventTypesResponse>({ A_visual: [], B_sound_only: [], C_sound_visual: [] });
 
@@ -191,6 +190,8 @@
     form.append('audio_provider', audioConfig.provider);
     form.append('audio_model', audioConfig.model);
     form.append('audio_quantization', audioConfig.quantization);
+    form.append('audio_window', String(audioConfig.window));
+    form.append('audio_hop', String(audioConfig.hop));
 
     try {
       const resp = await api.postForm<AnalysisStartResponse>('/api/analysis/start', form);

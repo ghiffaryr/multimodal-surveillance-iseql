@@ -166,13 +166,13 @@ Static surveillance camera.
 
 **ISEQL pattern:**
 
-- A: `fight` = aggressive_gestures detected on VisualPerInterval → TP.
+- A: `fight` = physical_altercation detected on VisualPerInterval → TP.
 - B: `fight` = shout BEFORE impact on SoundPerInterval → TP.
-- C: `fight` = (shout BEFORE impact) UNION aggressive_gestures → TP.
+- C: `fight` = (shout BEFORE impact) UNION physical_altercation → TP.
 
 | Cond | Expected | Rationale |
 | ---- | -------- | --------- |
-| A    | TP       | Aggressive gestures (throwing) visible |
+| A    | TP       | Physical altercation (throwing) visible |
 | B    | TP       | Shout BEFORE impact detected |
 | C    | TP       | UNION preserves both modalities |
 
@@ -446,14 +446,14 @@ surveillance camera angle, no movement.
 
 **ISEQL pattern:**
 
-- A: `vehicle_escape` = running BEFORE/AFTER enter_or_exit_vehicle on VisualPerInterval.
-- B: `vehicle_escape` = tire_squeal BEFORE engine (within delta_sound_vehicle_escape) OR overlap on SoundPerInterval.
-- C: `vehicle_escape` = (tire_squeal BEFORE engine OR overlap) UNION (run BEFORE enter_vehicle).
+- A: `vehicle_escape` = running SP enter_or_exit_vehicle on VisualPerInterval.
+- B: `vehicle_escape` = engine SP tire_squeal on SoundPerInterval.
+- C: `vehicle_escape` = (engine SP tire_squeal) UNION (running SP enter_or_exit_vehicle).
 
 | Cond | Expected | Rationale |
 | ---- | -------- | --------- |
 | A    | TP       | VLM detects running + enter_vehicle chain |
-| B    | TP       | Tire BEFORE engine OR overlap detected |
+| B    | TP       | Engine SP tire_squeal detected |
 | C    | TP       | UNION preserves both modalities |
 
 
@@ -492,14 +492,14 @@ the distance. Static surveillance camera.
 
 **ISEQL pattern:**
 
-- A: `vehicle_escape` = running BEFORE enter_or_exit_vehicle on VisualPerInterval.
-- B: `vehicle_escape` = tire_squeal BEFORE engine (within delta) OR overlap on SoundPerInterval.
-- C: Same as scene 12 — (tire BEFORE engine OR overlap) UNION (run BEFORE enter).
+- A: `vehicle_escape` = running SP enter_or_exit_vehicle on VisualPerInterval.
+- B: `vehicle_escape` = engine SP tire_squeal on SoundPerInterval.
+- C: Same as scene 12 — (engine SP tire_squeal) UNION (running SP enter_or_exit_vehicle).
 
 | Cond | Expected | Rationale |
 | ---- | -------- | --------- |
 | A    | TP       | VLM detects running + enter_vehicle chain |
-| B    | TP       | Tire BEFORE engine OR overlap detected (motorcycle) |
+| B    | TP       | Engine SP tire_squeal detected (motorcycle) |
 | C    | TP       | UNION preserves both modalities |
 
 
@@ -541,14 +541,14 @@ camera.
 
 **ISEQL pattern:**
 
-- A: `vehicle_escape` = running BEFORE enter_or_exit_vehicle.
-- B: `vehicle_escape` = tire_squeal BEFORE engine (within delta) OR overlap.
+- A: `vehicle_escape` = running SP enter_or_exit_vehicle.
+- B: `vehicle_escape` = engine SP tire_squeal.
 - C: Same multimodal pattern.
 
 | Cond | Expected | Rationale |
 | ---- | -------- | --------- |
 | A    | TP       | VLM detects running + enter_vehicle chain |
-| B    | TP       | Tire BEFORE engine OR overlap detected (diesel) |
+| B    | TP       | Engine SP tire_squeal detected (diesel) |
 | C    | TP       | UNION preserves both modalities |
 
 
@@ -588,13 +588,13 @@ driver gets out to inspect the damage. Broken glass on the ground visible.
 **ISEQL pattern:**
 
 - A: `vehicle_collision` = vehicle_collision on VisualPerInterval (damaged vehicle visible) → TP.
-- B: `vehicle_collision` = (car_horn) BEFORE glass_breaking on SoundPerInterval → TP.
+- B: `vehicle_collision` = (car_horn) SP (impact / glass_breaking) on SoundPerInterval → TP.
 - C: `vehicle_collision` = sound query UNION visual within proximity → TP.
 
 | Cond | Expected | Rationale |
 | ---- | -------- | --------- |
 | A    | TP       | VLM detects damaged vehicle |
-| B    | TP       | Car horn BEFORE glass breaking detects collision |
+| B    | TP       | Car horn SP impact/glass detects collision |
 | C    | TP       | UNION preserves both modalities |
 
 
@@ -636,13 +636,13 @@ camera.
 **ISEQL pattern:**
 
 - A: `vehicle_collision` = vehicle_collision on VisualPerInterval → TP (damaged storefront + car).
-- B: `vehicle_collision` = (skidding) BEFORE glass_breaking on SoundPerInterval → TP.
+- B: `vehicle_collision` = (skidding) SP (impact / glass_breaking) on SoundPerInterval → TP.
 - C: Both → TP.
 
 | Cond | Expected | Rationale |
 | ---- | -------- | --------- |
 | A    | TP       | VLM detects crashed car into storefront |
-| B    | TP       | Skid BEFORE glass breaking detects collision |
+| B    | TP       | Skid SP impact/glass detects collision |
 | C    | TP       | UNION preserves both modalities |
 
 
@@ -682,13 +682,13 @@ inspect the damage. Scratches and broken glass visible on both vehicles.
 **ISEQL pattern:**
 
 - A: `vehicle_collision` = vehicle_collision on VisualPerInterval → TP.
-- B: `vehicle_collision` = (car_horn) BEFORE glass_breaking on SoundPerInterval → TP.
+- B: `vehicle_collision` = (car_horn) SP (impact / glass_breaking) on SoundPerInterval → TP.
 - C: Both → TP.
 
 | Cond | Expected | Rationale |
 | ---- | -------- | --------- |
 | A    | TP       | VLM detects damaged vehicles |
-| B    | TP       | Horn BEFORE glass detects collision |
+| B    | TP       | Horn SP impact/glass detects collision |
 | C    | TP       | UNION preserves both modalities |
 
 
@@ -1054,14 +1054,14 @@ Person B have already exited or are leaving the frame.
 
 **ISEQL pattern:**
 
-- A: `vehicle_escape` = running BEFORE/AFTER/OVERLAPS enter_vehicle on VisualPerInterval.
-- B: `vehicle_escape` = tire_squeal BEFORE/OVERLAP engine on SoundPerInterval.
-- C: `vehicle_escape` = (tire BEFORE/OVERLAP engine) UNION (run BEFORE enter).
+- A: `vehicle_escape` = running SP enter_or_exit_vehicle on VisualPerInterval.
+- B: `vehicle_escape` = engine SP tire_squeal on SoundPerInterval.
+- C: `vehicle_escape` = (engine SP tire_squeal) UNION (running SP enter_or_exit_vehicle).
 
 | Cond | Expected | Rationale |
 | ---- | -------- | --------- |
-| A    | TP       | Running BEFORE enter_vehicle detected |
-| B    | TP       | Tire_squeal OVERLAP engine detected |
+| A    | TP       | Running SP enter_or_exit_vehicle detected |
+| B    | TP       | Engine SP tire_squeal detected |
 | C    | TP       | UNION preserves both modalities |
 
 
@@ -1092,14 +1092,14 @@ Person B have already exited or are leaving the frame.
 
 **ISEQL pattern:**
 
-- A: `vehicle_escape` = running BEFORE/AFTER/OVERLAPS enter_vehicle on VisualPerInterval.
-- B: `vehicle_escape` = tire_squeal BEFORE/OVERLAP engine on SoundPerInterval.
-- C: `vehicle_escape` = (tire BEFORE/OVERLAP engine) UNION (run BEFORE enter).
+- A: `vehicle_escape` = running SP enter_or_exit_vehicle on VisualPerInterval.
+- B: `vehicle_escape` = engine SP tire_squeal on SoundPerInterval.
+- C: `vehicle_escape` = (engine SP tire_squeal) UNION (running SP enter_or_exit_vehicle).
 
 | Cond | Expected | Rationale |
 | ---- | -------- | --------- |
-| A    | TP       | Running BEFORE enter_vehicle detected |
-| B    | TP       | Tire_squeal BEFORE/OVERLAP engine |
+| A    | TP       | Running SP enter_or_exit_vehicle detected |
+| B    | TP       | Engine SP tire_squeal detected |
 | C    | TP       | UNION preserves both modalities |
 
 
@@ -1133,13 +1133,13 @@ Person B have already exited or are leaving the frame.
 **ISEQL pattern:**
 
 - A: `vehicle_collision` = vehicle_collision on VisualPerInterval.
-- B: `vehicle_collision` = car_horn BEFORE glass_breaking on SoundPerInterval.
-- C: `vehicle_collision` = (horn BEFORE glass) UNION vehicle_collision.
+- B: `vehicle_collision` = (car_horn) SP (impact / glass_breaking) on SoundPerInterval.
+- C: `vehicle_collision` = (horn SP impact/glass) UNION vehicle_collision.
 
 | Cond | Expected | Rationale |
 | ---- | -------- | --------- |
 | A    | TP       | Vehicle collision visible |
-| B    | TP       | Horn BEFORE glass_breaking |
+| B    | TP       | Horn SP impact/glass_breaking |
 | C    | TP       | UNION preserves both modalities |
 
 
@@ -1172,13 +1172,13 @@ Person B have already exited or are leaving the frame.
 **ISEQL pattern:**
 
 - A: `vehicle_collision` = vehicle_collision on VisualPerInterval.
-- B: `vehicle_collision` = skidding BEFORE glass_breaking on SoundPerInterval.
-- C: `vehicle_collision` = (skidding BEFORE glass) UNION vehicle_collision.
+- B: `vehicle_collision` = (skidding) SP (impact / glass_breaking) on SoundPerInterval.
+- C: `vehicle_collision` = (skidding SP impact/glass) UNION vehicle_collision.
 
 | Cond | Expected | Rationale |
 | ---- | -------- | --------- |
 | A    | TP       | Damaged side mirror visible |
-| B    | TP       | Skidding BEFORE glass_breaking |
+| B    | TP       | Skidding SP impact/glass_breaking |
 | C    | TP       | UNION preserves both modalities |
 
 

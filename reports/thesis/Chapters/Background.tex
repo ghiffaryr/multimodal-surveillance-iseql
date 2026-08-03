@@ -57,12 +57,12 @@ The eight ISEQL operators are parametrised by distance thresholds $\delta$ (star
 
   \item \textbf{Start Preceding} ($R\ \mathrm{SP}_{\delta}\ S$): Returns pairs where $r$ starts no later than $s$ and the intervals overlap. Condition: $0 \le s.T_s - r.T_s \le \delta$, $r.T_e - s.T_s \ge 0$. Logical disjunction of LOJ and RDJ.
 
-  \item \textbf{End Following} ($R\ \mathrm{EF}_{\varepsilon}\ S$): Returns pairs where $r$ ends no earlier than $s$, and the intervals overlap. Reverse of SP.
+  \item \textbf{End Following} ($R\ \mathrm{EF}_{\varepsilon}\ S$): Returns pairs where $r$ ends no earlier than $s$ and the intervals overlap. Condition: $0 \le r.T_e - s.T_e \le \varepsilon$, $s.T_e - r.T_s \ge 0$. Reverse of SP. Per ICSC 2016, EF is parametrised by the end-offset tolerance $\varepsilon$ (CIKM 2017 reports $\delta$ in error).
 
   \item \textbf{Right Overlap Join, Reverse During Join, After}: The reverse counterparts of LOJ, DJ, and Bef respectively.
 \end{itemize}
 
-This thesis uses primarily \textbf{BEFORE} (with delta) and \textbf{OVERLAP} (as LOJ with zero thresholds). When thresholds are omitted, maximum allowed values are used.
+This thesis uses primarily \textbf{BEFORE} (Bef) and \textbf{SP} (Start Preceding). When thresholds are omitted, maximum allowed values are used.
 
 \subsection{Formal ISEQL Query Definitions}
 
@@ -70,10 +70,10 @@ High-level events are defined as projection-selection expressions. The general f
 \[
 \begin{aligned}
 \text{Event}_A &\equiv \pi_{F}(\sigma_{P}(M_1)) \qquad \text{(single-interval query)} \\
-\text{Event}_A &\equiv \pi_{F}(\sigma_{C}(\sigma_{P_1}(M_1) \Join_{\mathrm{op}} \sigma_{P_2}(M_2))) \qquad \text{(temporal join query)}
+\text{Event}_A &\equiv \pi_{F}(\sigma_{P_1}(M_1)\ \mathrm{op}\ \sigma_{P_2}(M_2))) \qquad \text{(temporal join query)}
 \end{aligned}
 \]
-where $\pi_F$ projects fields, $\sigma_P$ selects intervals satisfying predicate $P$, $\Join_{\mathrm{op}}$ is a temporal operator, and $\sigma_C$ applies cross-conditions on interval arguments. In the multimodal condition, events combine via set union: $\text{Event}_C \equiv \text{Event}_A \cup \text{Event}_B$.
+where $\pi_F$ projects fields, $\sigma_P$ selects intervals satisfying predicate $P$, $\mathrm{op}$ is a temporal operator written directly between the two expressions, and $\sigma_C$ applies cross-conditions on interval arguments. In the multimodal condition, events combine via set union: $\text{Event}_C \equiv \text{Event}_A \cup \text{Event}_B$.
 
 Below, $M_i.\texttt{arg}_j$ denotes the $j$-th argument of interval $M_i$, and $M_i.s_f$, $M_i.e_f$ denote its start and end frames.
 
@@ -86,7 +86,7 @@ Below, $M_i.\texttt{arg}_j$ denotes the $j$-th argument of interval $M_i$, and $
   &\qquad \land\ \mathrm{count\_distinct}(M_1.\textit{arg}) \ge 2 \\[4pt]
 \text{Fight}_B &\equiv \pi_{M_1.s_f,\; M_1.e_f,\; M_2.s_f,\; M_2.e_f}\,
   \bigl(\sigma_{\textit{pred}=\text{`shout'}}(M_1)
-  \Join_{\textit{Bef}_{120}\,\lor\,\textit{Overlap}}
+  \ \textit{Bef}_{120}\ 
   \sigma_{\textit{pred}=\text{`impact'}}(M_2)\bigr) \\[4pt]
 \text{Fight}_C &\equiv \text{Fight}_A \cup \text{Fight}_B
 \end{aligned}
@@ -101,7 +101,7 @@ Below, $M_i.\texttt{arg}_j$ denotes the $j$-th argument of interval $M_i$, and $
   &\qquad_{\,M_2.\textit{arg}_1,\; M_2.\textit{arg}_2,\; M_2.s_f,\; M_2.e_f}
   \; \sigma_{\,M_1.\textit{arg}_1 \neq M_2.\textit{arg}_1 \;\land\; M_1.\textit{arg}_2 = M_2.\textit{arg}_2} \\
   &\qquad \bigl( \sigma_{\textit{pred}=\text{`carrying'}}(M_1)
-     \Join_{\textit{Bef}_{240}}
+     \ \textit{Bef}_{240}\ 
      \sigma_{\textit{pred}=\text{`carrying'}}(M_2) \bigr)
 \end{aligned}
 \]
@@ -124,14 +124,14 @@ Below, $M_i.\texttt{arg}_j$ denotes the $j$-th argument of interval $M_i$, and $
   &\pi_{\,M_1.\textit{arg}_1,\; M_1.s_f,\; M_1.e_f,} \\
   &\qquad_{\,M_2.\textit{arg}_1,\; M_2.\textit{arg}_2,\; M_2.s_f,\; M_2.e_f}
   \; \sigma_{\,M_1.\textit{arg}_1 = M_2.\textit{arg}_1} \\
-  &\qquad \bigl( \sigma_{\textit{pred}=\text{`running'}}(M_1)
-     \Join_{\textit{Bef}_{50}\,\lor\,\textit{Overlap}}
-     \sigma_{\textit{pred}=\text{`enter\_or\_exit\_vehicle'}}(M_2) \bigr) \\[4pt]
+   &\qquad \bigl( \sigma_{\textit{pred}=\text{`running'}}(M_1)
+      \ \textit{SP}\ 
+      \sigma_{\textit{pred}=\text{`enter\_or\_exit\_vehicle'}}(M_2) \bigr) \\[4pt]
 \text{Escape}_B \equiv\;
   &\pi_{M_1.s_f,\; M_1.e_f,\; M_2.s_f,\; M_2.e_f} \\
-  &\qquad \bigl( \sigma_{\textit{pred}\in\{\text{`engine'},\,\text{`vehicle'}\}}(M_1)
-     \Join_{\textit{Bef}_{150}\,\lor\,\textit{Overlap}}
-     \sigma_{\textit{pred}=\text{`tire\_squeal'}}(M_2) \bigr) \\[4pt]
+   &\qquad \bigl( \sigma_{\textit{pred}\in\{\text{`engine'},\,\text{`vehicle'}\}}(M_1)
+      \ \textit{SP}\ 
+      \sigma_{\textit{pred}=\text{`tire\_squeal'}}(M_2) \bigr) \\[4pt]
 \text{Escape}_C &\equiv \text{Escape}_A \cup \text{Escape}_B
 \end{aligned}
 \]
@@ -144,7 +144,7 @@ Below, $M_i.\texttt{arg}_j$ denotes the $j$-th argument of interval $M_i$, and $
   \sigma_{\textit{pred}=\text{`vehicle\_collision'}}(M_1) \\[4pt]
 \text{Collision}_B &\equiv \pi_{M_1.s_f,\; M_1.e_f,\; M_2.s_f,\; M_2.e_f} \\
   &\qquad \bigl( \sigma_{\textit{pred}\in\{\text{`horn'},\,\text{`skidding'}\}}(M_1)
-      \Join_{\textit{Bef}_{60}}
+      \ \textit{SP}\ 
       \sigma_{\textit{pred}\in\{\text{`impact'},\,\text{`glass\_breaking'}\}}(M_2) \bigr) \\[4pt]
 \text{Collision}_C &\equiv \text{Collision}_A \cup \text{Collision}_B
 \end{aligned}

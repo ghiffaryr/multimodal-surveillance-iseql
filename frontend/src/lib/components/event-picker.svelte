@@ -7,12 +7,9 @@
   import { Database } from 'lucide-svelte';
 
   const DELTA_FIELDS: Array<{ key: keyof Deltas; label: string; id: string; fallback: number }> = [
-    { key: 'delta_visual_vehicle_escape', label: 'delta_visual_vehicle_escape', id: 'd-visual-vehicle-escape', fallback: 50 },
     { key: 'delta_visual_loitering', label: 'delta_visual_loitering', id: 'd-visual-loitering', fallback: 150 },
     { key: 'delta_visual_handoff', label: 'delta_visual_handoff', id: 'd-visual-handoff', fallback: 240 },
     { key: 'delta_sound_fight', label: 'delta_sound_fight', id: 'd-s-fight', fallback: 120 },
-    { key: 'delta_sound_vehicle_escape', label: 'delta_sound_vehicle_escape', id: 'd-s-ve', fallback: 150 },
-    { key: 'delta_sound_vehicle_collision', label: 'delta_sound_vehicle_collision', id: 'd-s-vc', fallback: 60 },
   ];
 
   const visualFields = DELTA_FIELDS.filter(f => f.key.startsWith('delta_visual_'));

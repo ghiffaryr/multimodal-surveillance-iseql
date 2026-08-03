@@ -7,6 +7,41 @@ This appendix provides supplementary material referenced in the main text, inclu
 
 The following SQL queries define the high-level event detectors. All visual queries operate on the \texttt{VisualPerInterval} and \texttt{VisualParticipant} tables, which store VLM-extracted temporal intervals and their typed participants. Audio queries operate on the \texttt{SoundPerInterval} table, which stores audio-derived temporal intervals with their sound class labels.
 
+\subsubsection{SQL Temporal Predicates}
+
+The SQL listings use the helper predicates below, which realize the formal ISEQL operators defined in Section~\ref{sec:iseql}. Given two interval tuples $r$ and $s$, with $\delta$ (start offset) and $\varepsilon$ (end offset) frame thresholds:
+
+\begin{lstlisting}[language=SQL, caption=ISEQL SQL helper predicates.]
+iseql_before(r, s, d)            =  s.StartFrame > r.EndFrame
+                                     AND (s.StartFrame - r.EndFrame) <= d
+iseql_loj(r, s, d, e)            =  s.StartFrame >= r.StartFrame
+                                     AND s.EndFrame >= r.EndFrame
+                                     AND (s.StartFrame - r.StartFrame) <= d
+                                     AND (s.EndFrame - r.EndFrame) <= e
+iseql_sp(r, s, d)                =  s.StartFrame >= r.StartFrame
+                                     AND s.StartFrame <= r.EndFrame
+                                     AND (s.StartFrame - r.StartFrame) <= d
+iseql_dj(r, s, d, e)             =  r.StartFrame >= s.StartFrame
+                                     AND r.EndFrame <= s.EndFrame
+                                     AND (r.StartFrame - s.StartFrame) <= d
+                                     AND (s.EndFrame - r.EndFrame) <= e
+iseql_ef(r, s, e)                =  s.EndFrame <= r.EndFrame
+                                     AND s.EndFrame >= r.StartFrame
+                                     AND (r.EndFrame - s.EndFrame) <= e
+iseql_roj(r, s, d, e)            =  r.StartFrame >= s.StartFrame
+                                     AND r.EndFrame >= s.EndFrame
+                                     AND (r.StartFrame - s.StartFrame) <= d
+                                     AND (r.EndFrame - s.EndFrame) <= e
+iseql_rdj(r, s, d, e)            =  s.StartFrame >= r.StartFrame
+                                     AND s.EndFrame <= r.EndFrame
+                                     AND (s.StartFrame - r.StartFrame) <= d
+                                     AND (r.EndFrame - s.EndFrame) <= e
+iseql_after(r, s, d)             =  r.StartFrame > s.EndFrame
+                                     AND (r.StartFrame - s.EndFrame) <= d
+\end{lstlisting}
+
+\noindent The eight predicates realize the ISEQL interval operators defined in Section~\ref{sec:iseql}. \texttt{iseql\_before} corresponds to \textit{Before} (Bef), \texttt{iseql\_loj} to \textit{Left Overlap Join} (LOJ), \texttt{iseql\_sp} to \textit{Start Preceding} (SP), \texttt{iseql\_dj} to \textit{During Join} (DJ), \texttt{iseql\_ef} to \textit{End Following} (EF), \texttt{iseql\_roj} to \textit{Right Overlap Join} (ROJ), \texttt{iseql\_rdj} to \textit{Reverse During Join} (RDJ), and \texttt{iseql\_after} to \textit{After} (Aft). The reverse operators (ROJ, RDJ, After) are the corresponding forward operator with the interval arguments swapped. The event queries in this thesis use \texttt{iseql\_before} and \texttt{iseql\_sp}; the remaining six operators are provided by the implementation for completeness.
+
 \subsection{Visual Queries (Condition A)}
 
 \subsubsection{Fight (Visual)}
@@ -52,8 +87,7 @@ SELECT EEE.RelationID,
        EEE.PersonID, EEE.VehicleID
 FROM EnterExitEvents EEE
 JOIN RunEvents RE ON EEE.PersonID = RE.PersonID
-WHERE (iseql_before('RE', 'EEE', 50))
-   OR (iseql_overlap('RE', 'EEE'));
+WHERE (iseql_sp('RE', 'EEE'));
 \end{lstlisting}
 
 \subsubsection{Loitering (Visual)}
@@ -101,7 +135,6 @@ INNER JOIN CarryObject CO2 ON CA2.RelationID = CO2.RelationID
   AND CO.ObjectID = CO2.ObjectID
 WHERE (iseql_before('CA', 'CA2', 240))
    OR (iseql_before('CA2', 'CA', 240))
-   OR (iseql_overlap('CA', 'CA2'))
 \end{lstlisting}
 
 \subsubsection{Vehicle Collision (Visual)}
@@ -130,7 +163,7 @@ WHERE VIP.RelationType IN ('gunshot_visible', 'explosion_visible')
 
 \subsection{Sound-Only Queries (Condition B)}
 
-The following queries operate on the \texttt{SoundPerInterval} table.
+The following queries operate on the \texttt{SoundPerInterval} table. The three pattern events (fight, vehicle escape, vehicle collision) join two sound roles: the leading interval is reported as \texttt{SoundIntervalID} and the trailing interval as \texttt{SoundIntervalID2}.
 
 \subsubsection{Fight Sound}
 
@@ -147,6 +180,7 @@ WITH ShoutSounds AS (
     WHERE SoundClass IN ('impact', 'fight')
 )
 SELECT SS.SoundIntervalID,
+       IMS.SoundIntervalID AS SoundIntervalID2,
        MIN(SS.StartFrame, IMS.StartFrame) AS StartFrame,
        MAX(SS.EndFrame, IMS.EndFrame) AS EndFrame
 FROM ShoutSounds SS
@@ -179,12 +213,12 @@ WITH EngineSounds AS (
     WHERE SoundClass IN ('tire_squeal')
 )
 SELECT ES.SoundIntervalID,
+       TS.SoundIntervalID AS SoundIntervalID2,
        MIN(ES.StartFrame, TS.StartFrame) AS StartFrame,
        MAX(ES.EndFrame, TS.EndFrame) AS EndFrame
-FROM EngineSounds ES
-JOIN TireSounds TS ON (iseql_before('ES', 'TS', 150))
-                   OR (iseql_overlap('ES', 'TS'))
-\end{lstlisting}
+ FROM EngineSounds ES
+ JOIN TireSounds TS ON (iseql_sp('ES', 'TS'))
+ \end{lstlisting}
 
 \subsubsection{Vehicle Collision Sound}
 
@@ -201,43 +235,45 @@ WITH PreImpact AS (
     WHERE SoundClass IN ('impact', 'glass_breaking')
 )
 SELECT PI.SoundIntervalID,
+       GS.SoundIntervalID AS SoundIntervalID2,
        MIN(PI.StartFrame, GS.StartFrame) AS StartFrame,
        MAX(PI.EndFrame, GS.EndFrame) AS EndFrame
-FROM PreImpact PI
-JOIN GlassSounds GS ON (iseql_before('PI', 'GS', 60))
-                    OR (iseql_overlap('PI', 'GS'))
-\end{lstlisting}
+ FROM PreImpact PI
+ JOIN GlassSounds GS ON (iseql_sp('PI', 'GS'))
+ \end{lstlisting}
 
 \subsection{Multimodal Queries (Condition C)}
 
-Multimodal queries combine visual and audio detection via UNION. The outer query collapses the UNION into a single combined interval per event using MIN/MAX aggregation.
+Multimodal queries combine visual and audio detection via UNION. Each query returns one row per audio match and one row per visual match; no aggregation is applied, so every evidence row is preserved. For the pattern events the leading and trailing audio intervals are reported as \texttt{SoundIntervalID} and \texttt{SoundIntervalID2}.
 
 \subsubsection{Fight (Multimodal)}
 
 UNION of the audio fight detection with the visual altercation detection.
 
 \begin{lstlisting}[language=SQL, caption=Fight multimodal query (UNION).]
-WITH FightAudio AS (
-    WITH ShoutSounds AS (
-        SELECT SoundIntervalID, StartFrame, EndFrame
-        FROM SoundPerInterval SI
-        WHERE SoundClass = 'shout'
-    ),
-    ImpactSounds AS (
-        SELECT SoundIntervalID, StartFrame, EndFrame
-        FROM SoundPerInterval SI
-        WHERE SoundClass IN ('impact', 'fight')
-    )
-    SELECT SS.SoundIntervalID, NULL AS VisualRelationID,
-           SS.StartFrame, SS.EndFrame,
+WITH
+ShoutSounds AS (
+    SELECT SoundIntervalID, StartFrame, EndFrame
+    FROM SoundPerInterval SI
+    WHERE SoundClass = 'shout'
+),
+ImpactSounds AS (
+    SELECT SoundIntervalID, StartFrame, EndFrame
+    FROM SoundPerInterval SI
+    WHERE SoundClass IN ('impact', 'fight')
+),
+AudioFight AS (
+    SELECT NULL AS VisualRelationID,
+           SS.SoundIntervalID, IMS.SoundIntervalID AS SoundIntervalID2,
+           MIN(SS.StartFrame, IMS.StartFrame) AS StartFrame,
+           MAX(SS.EndFrame, IMS.EndFrame) AS EndFrame,
            NULL AS PersonID, NULL AS PersonID2
     FROM ShoutSounds SS
     JOIN ImpactSounds IMS ON iseql_before('SS', 'IMS', 120)
 ),
-Combined AS (
-    SELECT SoundIntervalID, VisualRelationID, StartFrame, EndFrame, PersonID, PersonID2 FROM FightAudio
-    UNION
-    SELECT NULL AS SoundIntervalID, VIP.RelationID AS VisualRelationID,
+VisualFight AS (
+    SELECT VIP.RelationID AS VisualRelationID,
+           NULL AS SoundIntervalID, NULL AS SoundIntervalID2,
            VIP.StartFrame, VIP.EndFrame,
            MIN(IP.ClassID) AS PersonID, MAX(IP.ClassID) AS PersonID2
     FROM VisualPerInterval VIP
@@ -246,14 +282,13 @@ Combined AS (
     GROUP BY VIP.RelationID
     HAVING COUNT(DISTINCT IP.ClassID) >= 2
 )
-SELECT MAX(VisualRelationID) AS VisualRelationID,
-       MAX(SoundIntervalID) AS SoundIntervalID,
-       MIN(StartFrame) AS StartFrame,
-       MAX(EndFrame) AS EndFrame,
-       MAX(PersonID) AS PersonID,
-       MAX(PersonID2) AS PersonID2
-FROM Combined
-HAVING StartFrame IS NOT NULL
+SELECT VisualRelationID, SoundIntervalID, SoundIntervalID2,
+       StartFrame, EndFrame, PersonID, PersonID2
+FROM AudioFight
+UNION
+SELECT VisualRelationID, SoundIntervalID, SoundIntervalID2,
+       StartFrame, EndFrame, PersonID, PersonID2
+FROM VisualFight
 \end{lstlisting}
 
 \subsubsection{Gunshot / Explosion (Multimodal)}
@@ -261,25 +296,27 @@ HAVING StartFrame IS NOT NULL
 UNION of the audio gunshot detection with the visual gunshot or explosion detection.
 
 \begin{lstlisting}[language=SQL, caption=Gunshot multimodal query (UNION).]
-SELECT MAX(VisualRelationID) AS VisualRelationID,
-       MAX(SoundIntervalID) AS SoundIntervalID,
-       MIN(StartFrame) AS StartFrame,
-       MAX(EndFrame) AS EndFrame,
-       MAX(ClassID) AS ClassID
-FROM (
-    SELECT NULL AS VisualRelationID, SI.SoundIntervalID AS SoundIntervalID,
-           StartFrame, EndFrame,
+WITH
+AudioGunshotOrExplosion AS (
+    SELECT NULL AS VisualRelationID, SI.SoundIntervalID,
+           SI.StartFrame, SI.EndFrame,
            NULL AS ClassID
     FROM SoundPerInterval SI
     WHERE SoundClass = 'gunshot_or_explosion'
-    UNION
+),
+VisualGunshotOrExplosion AS (
     SELECT VIP.RelationID AS VisualRelationID, NULL AS SoundIntervalID,
            VIP.StartFrame, VIP.EndFrame,
            IP.ClassID AS ClassID
     FROM VisualPerInterval VIP
     JOIN VisualParticipant IP ON VIP.RelationID = IP.RelationID
     WHERE VIP.RelationType IN ('gunshot_visible', 'explosion_visible')
-) HAVING StartFrame IS NOT NULL
+)
+SELECT VisualRelationID, SoundIntervalID, StartFrame, EndFrame, ClassID
+FROM AudioGunshotOrExplosion
+UNION
+SELECT VisualRelationID, SoundIntervalID, StartFrame, EndFrame, ClassID
+FROM VisualGunshotOrExplosion
 \end{lstlisting}
 
 \subsubsection{Vehicle Escape (Multimodal)}
@@ -287,63 +324,60 @@ FROM (
 UNION of the audio escape detection with the visual escape detection.
 
 \begin{lstlisting}[language=SQL, caption=Vehicle escape multimodal query (UNION).]
-WITH Combined AS (
-    SELECT SoundIntervalID, VisualRelationID, StartFrame, EndFrame, PersonID, VehicleID
-    FROM (
-        WITH EngineSounds AS (
-            SELECT SoundIntervalID, StartFrame, EndFrame
-            FROM SoundPerInterval SI
-            WHERE SoundClass IN ('engine', 'vehicle')
-        ),
-        TireSounds AS (
-            SELECT SoundIntervalID, StartFrame, EndFrame
-            FROM SoundPerInterval SI
-            WHERE SoundClass IN ('tire_squeal')
-        )
-        SELECT ES.SoundIntervalID, NULL AS VisualRelationID,
-               ES.StartFrame AS StartFrame, TS.EndFrame AS EndFrame,
-               NULL AS PersonID, NULL AS VehicleID
-        FROM EngineSounds ES
-        JOIN TireSounds TS ON (iseql_before('ES', 'TS', 150))
-                           OR (iseql_overlap('ES', 'TS'))
-    ) AudioSeq
-    UNION
-    SELECT SoundIntervalID, VisualRelationID, StartFrame, EndFrame, PersonID, VehicleID
-    FROM (
-        WITH EnterExitEvents AS (
-            SELECT VIP.RelationID,
-                   IP_P.ClassID AS PersonID, IP_V.ClassID AS VehicleID,
-                   VIP.StartFrame, VIP.EndFrame
-            FROM VisualPerInterval VIP
-            JOIN VisualParticipant IP_P ON VIP.RelationID = IP_P.RelationID AND IP_P.Class = 'person'
-            JOIN VisualParticipant IP_V ON VIP.RelationID = IP_V.RelationID AND IP_V.Class IN ('car', 'vehicle')
-            WHERE VIP.RelationType IN ('enter_or_exit_vehicle', 'enter_vehicle', 'exit_vehicle')
-        ),
-        RunEvents AS (
-            SELECT VIP.RelationID,
-                   IP.ClassID AS PersonID,
-                   VIP.StartFrame, VIP.EndFrame
-            FROM VisualPerInterval VIP
-            JOIN VisualParticipant IP ON VIP.RelationID = IP.RelationID
-            WHERE VIP.RelationType = 'running' AND IP.Class = 'person'
-        )
-        SELECT NULL AS SoundIntervalID, EEE.RelationID AS VisualRelationID,
-               MIN(EEE.StartFrame, RE.StartFrame) AS StartFrame,
-               MAX(EEE.EndFrame, RE.EndFrame) AS EndFrame,
-               EEE.PersonID, EEE.VehicleID
-        FROM EnterExitEvents EEE
-        JOIN RunEvents RE ON EEE.PersonID = RE.PersonID
-        WHERE (iseql_before('RE', 'EEE', 50))
-           OR (iseql_overlap('RE', 'EEE'))
-    ) VisualSeq
+WITH
+EngineSounds AS (
+    SELECT SoundIntervalID, StartFrame, EndFrame
+    FROM SoundPerInterval SI
+    WHERE SoundClass IN ('engine', 'vehicle')
+),
+TireSounds AS (
+    SELECT SoundIntervalID, StartFrame, EndFrame
+    FROM SoundPerInterval SI
+    WHERE SoundClass IN ('tire_squeal')
+),
+EnterExitEvents AS (
+    SELECT VIP.RelationID,
+           IP_P.ClassID AS PersonID, IP_V.ClassID AS VehicleID,
+           VIP.StartFrame, VIP.EndFrame
+    FROM VisualPerInterval VIP
+    JOIN VisualParticipant IP_P ON VIP.RelationID = IP_P.RelationID AND IP_P.Class = 'person'
+    JOIN VisualParticipant IP_V ON VIP.RelationID = IP_V.RelationID AND IP_V.Class IN ('car', 'vehicle')
+    WHERE VIP.RelationType IN ('enter_or_exit_vehicle', 'enter_vehicle', 'exit_vehicle')
+),
+RunEvents AS (
+    SELECT VIP.RelationID,
+           IP.ClassID AS PersonID,
+           VIP.StartFrame, VIP.EndFrame
+    FROM VisualPerInterval VIP
+    JOIN VisualParticipant IP ON VIP.RelationID = IP.RelationID
+    WHERE VIP.RelationType = 'running' AND IP.Class = 'person'
+),
+AudioVehicleEscape AS (
+    SELECT NULL AS VisualRelationID,
+           ES.SoundIntervalID, TS.SoundIntervalID AS SoundIntervalID2,
+           MIN(ES.StartFrame, TS.StartFrame) AS StartFrame,
+           MAX(ES.EndFrame, TS.EndFrame) AS EndFrame,
+           NULL AS PersonID, NULL AS VehicleID
+    FROM EngineSounds ES
+JOIN TireSounds TS ON (iseql_sp('ES', 'TS'))
+),
+VisualVehicleEscape AS (
+    SELECT EEE.RelationID AS VisualRelationID,
+           NULL AS SoundIntervalID, NULL AS SoundIntervalID2,
+           MIN(EEE.StartFrame, RE.StartFrame) AS StartFrame,
+           MAX(EEE.EndFrame, RE.EndFrame) AS EndFrame,
+           EEE.PersonID, EEE.VehicleID
+    FROM EnterExitEvents EEE
+    JOIN RunEvents RE ON EEE.PersonID = RE.PersonID
+     WHERE (iseql_sp('RE', 'EEE'))
 )
-SELECT MAX(VisualRelationID) AS VisualRelationID,
-       MAX(SoundIntervalID) AS SoundIntervalID,
-       MIN(StartFrame) AS StartFrame,
-       MAX(EndFrame) AS EndFrame,
-       MAX(PersonID) AS PersonID,
-       MAX(VehicleID) AS VehicleID
-FROM Combined HAVING StartFrame IS NOT NULL
+SELECT VisualRelationID, SoundIntervalID, SoundIntervalID2,
+       StartFrame, EndFrame, PersonID, VehicleID
+FROM AudioVehicleEscape
+UNION
+SELECT VisualRelationID, SoundIntervalID, SoundIntervalID2,
+       StartFrame, EndFrame, PersonID, VehicleID
+FROM VisualVehicleEscape
 \end{lstlisting}
 
 \subsubsection{Vehicle Collision (Multimodal)}
@@ -351,39 +385,43 @@ FROM Combined HAVING StartFrame IS NOT NULL
 UNION of the audio collision detection with the visual collision detection.
 
 \begin{lstlisting}[language=SQL, caption=Vehicle collision multimodal query (UNION).]
-SELECT MAX(VisualRelationID) AS VisualRelationID,
-       MAX(SoundIntervalID) AS SoundIntervalID,
-       MIN(StartFrame) AS StartFrame,
-       MAX(EndFrame) AS EndFrame,
-       MAX(VehicleID) AS VehicleID
-FROM (
-    SELECT NULL AS VisualRelationID, SoundIntervalID, StartFrame, EndFrame, NULL AS VehicleID
-    FROM (
-        WITH PreImpact AS (
-            SELECT SoundIntervalID, StartFrame, EndFrame
-            FROM SoundPerInterval SI
-            WHERE SoundClass IN ('horn', 'skidding')
-        ),
-        GlassSounds AS (
-            SELECT SoundIntervalID, StartFrame, EndFrame
-            FROM SoundPerInterval SI
-            WHERE SoundClass IN ('impact', 'glass_breaking')
-        )
-        SELECT PI.SoundIntervalID,
-               PI.StartFrame AS StartFrame, GS.EndFrame AS EndFrame
-        FROM PreImpact PI
-        JOIN GlassSounds GS ON (iseql_before('PI', 'GS', 60))
-                            OR (iseql_overlap('PI', 'GS'))
-    ) AudioCollision
-    UNION
-    SELECT VIP.RelationID AS VisualRelationID, NULL AS SoundIntervalID,
+WITH
+PreImpact AS (
+    SELECT SoundIntervalID, StartFrame, EndFrame
+    FROM SoundPerInterval SI
+    WHERE SoundClass IN ('horn', 'skidding')
+),
+GlassSounds AS (
+    SELECT SoundIntervalID, StartFrame, EndFrame
+    FROM SoundPerInterval SI
+    WHERE SoundClass IN ('impact', 'glass_breaking')
+),
+AudioVehicleCollision AS (
+    SELECT NULL AS VisualRelationID,
+           PI.SoundIntervalID, GS.SoundIntervalID AS SoundIntervalID2,
+           MIN(PI.StartFrame, GS.StartFrame) AS StartFrame,
+           MAX(PI.EndFrame, GS.EndFrame) AS EndFrame,
+           NULL AS VehicleID
+    FROM PreImpact PI
+    JOIN GlassSounds GS ON (iseql_sp('PI', 'GS'))
+),
+VisualVehicleCollision AS (
+    SELECT VIP.RelationID AS VisualRelationID,
+           NULL AS SoundIntervalID, NULL AS SoundIntervalID2,
            VIP.StartFrame, VIP.EndFrame,
            IP.ClassID AS VehicleID
     FROM VisualPerInterval VIP
     JOIN VisualParticipant IP ON VIP.RelationID = IP.RelationID
     WHERE VIP.RelationType = 'vehicle_collision'
       AND IP.Class IN ('car', 'vehicle')
-) HAVING StartFrame IS NOT NULL
+)
+SELECT VisualRelationID, SoundIntervalID, SoundIntervalID2,
+       StartFrame, EndFrame, VehicleID
+FROM AudioVehicleCollision
+UNION
+SELECT VisualRelationID, SoundIntervalID, SoundIntervalID2,
+       StartFrame, EndFrame, VehicleID
+FROM VisualVehicleCollision
 \end{lstlisting}
 
 \subsection{Ontology Mapping}
@@ -440,37 +478,98 @@ The evaluation dataset consists of 30 scenes, with 5 positive instances per even
     \midrule
     fight & 5 & 0.833 & 0.000 & 0.833 \\
     gunshot\_or\_explosion & 5 & 0.889 & 1.000 & 1.000 \\
-    vehicle\_escape & 5 & 0.545 & 1.000 & 0.769 \\
+    vehicle\_escape & 5 & 0.333 & 0.889 & 1.000 \\
     vehicle\_collision & 5 & 1.000 & 0.750 & 1.000 \\
     loitering & 5 & 0.800 & N/A & 0.800 \\
     handoff & 5 & 1.000 & N/A & 1.000 \\
     \midrule
-    Overall & 30 & 0.839 & 0.788 & 0.892 \\
+    Overall & 30 & 0.842 & 0.750 & 0.935 \\
     \bottomrule
   \end{tabular}%
   }
 \end{table}
 
-\begin{table}[h]
-  \centering
-  \caption{Complete multimodal (condition C) ablation results.}
-  \label{tab:full_ablation}
-  \resizebox{\textwidth}{!}{%
-  \begin{tabular}{lcccccc}
-    \toprule
-    VLM + Audio & F1 & Precision & Recall & TP & FP & FN \\
-    \midrule
-    \textbf{Gemini 3.6 Flash + Qwen2} & \textbf{0.892} & 0.829 & 0.967 & 29 & 6 & 1 \\
-    \textbf{Ministral 3-14B + Qwen2} & \textbf{0.892} & 0.829 & 0.967 & 29 & 6 & 1 \\
-    Gemini 3.6 Flash + PANNs & 0.857 & 0.818 & 0.900 & 27 & 6 & 3 \\
-    Ministral 3-14B + PANNs & 0.839 & 0.812 & 0.867 & 26 & 6 & 4 \\
-    Pixtral 12B + Qwen2 & 0.833 & 0.833 & 0.833 & 25 & 5 & 5 \\
-    Gemini 2.5 Flash + Qwen2 & 0.807 & 0.852 & 0.767 & 23 & 4 & 7 \\
-    Pixtral 12B + PANNs & 0.750 & 0.808 & 0.700 & 21 & 5 & 9 \\
-    Gemini 2.5 Flash + PANNs & 0.741 & 0.833 & 0.667 & 20 & 4 & 10 \\
-    \bottomrule
-  \end{tabular}%
-  }
-\end{table}
+Table~\ref{tab:full_ablation} reports the complete multimodal (condition C) ablation: all 64 combinations (4 VLM models $\times$ 2 audio models $\times$ 8 window/hop configurations), ranked by F1 descending (ties by precision, then by pair name).
+
+{\footnotesize
+\setlength{\tabcolsep}{2.5pt}
+\begin{longtable}{lcccccccc}
+\caption{Complete multimodal (condition C) ablation, all 64 combinations ranked by F1.}\\
+\label{tab:full_ablation}\\
+\toprule
+VLM + Audio & Win (s) & Hop (s) & F1 & Precision & Recall & TP & FP & FN \\
+\midrule
+\endfirsthead
+\toprule
+VLM + Audio & Win (s) & Hop (s) & F1 & Precision & Recall & TP & FP & FN \\
+\midrule
+\endhead
+    \textbf{Gemini 3.6 Flash + Qwen2-Audio} & 2.5 & 1.25 & \textbf{0.935} & 0.906 & 0.967 & 29 & 3 & 1 \\
+    Gemini 3.6 Flash + Qwen2-Audio & 5.0 & 5.00 & 0.935 & 0.906 & 0.967 & 29 & 3 & 1 \\
+    Gemini 3.6 Flash + Qwen2-Audio & 5.0 & 2.50 & 0.935 & 0.906 & 0.967 & 29 & 3 & 1 \\
+    Gemini 3.6 Flash + Qwen2-Audio & 2.5 & 2.50 & 0.900 & 0.900 & 0.900 & 27 & 3 & 3 \\
+    Ministral 3-14B + Qwen2-Audio & 5.0 & 5.00 & 0.889 & 0.848 & 0.933 & 28 & 5 & 2 \\
+    Ministral 3-14B + Qwen2-Audio & 5.0 & 2.50 & 0.889 & 0.848 & 0.933 & 28 & 5 & 2 \\
+    Ministral 3-14B + Qwen2-Audio & 2.5 & 1.25 & 0.871 & 0.844 & 0.900 & 27 & 5 & 3 \\
+    Gemini 3.6 Flash + PANNs CNN14 & 5.0 & 5.00 & 0.862 & 0.893 & 0.833 & 25 & 3 & 5 \\
+    Gemini 3.6 Flash + PANNs CNN14 & 10.0 & 10.00 & 0.862 & 0.893 & 0.833 & 25 & 3 & 5 \\
+    Gemini 3.6 Flash + PANNs CNN14 & 10.0 & 5.00 & 0.862 & 0.893 & 0.833 & 25 & 3 & 5 \\
+    Gemini 3.6 Flash + PANNs CNN14 & 1.0 & 1.00 & 0.847 & 0.862 & 0.833 & 25 & 4 & 5 \\
+    Gemini 3.6 Flash + PANNs CNN14 & 1.0 & 0.50 & 0.847 & 0.862 & 0.833 & 25 & 4 & 5 \\
+    Gemini 3.6 Flash + Qwen2-Audio & 10.0 & 10.00 & 0.847 & 0.862 & 0.833 & 25 & 4 & 5 \\
+    Gemini 3.6 Flash + Qwen2-Audio & 10.0 & 5.00 & 0.847 & 0.862 & 0.833 & 25 & 4 & 5 \\
+    Gemini 3.6 Flash + PANNs CNN14 & 2.5 & 2.50 & 0.833 & 0.833 & 0.833 & 25 & 5 & 5 \\
+    Gemini 3.6 Flash + PANNs CNN14 & 2.5 & 1.25 & 0.833 & 0.833 & 0.833 & 25 & 5 & 5 \\
+    Gemini 3.6 Flash + PANNs CNN14 & 5.0 & 2.50 & 0.833 & 0.833 & 0.833 & 25 & 5 & 5 \\
+    Ministral 3-14B + Qwen2-Audio & 2.5 & 2.50 & 0.833 & 0.833 & 0.833 & 25 & 5 & 5 \\
+    Pixtral 12B + Qwen2-Audio & 5.0 & 5.00 & 0.833 & 0.833 & 0.833 & 25 & 5 & 5 \\
+    Pixtral 12B + Qwen2-Audio & 5.0 & 2.50 & 0.833 & 0.833 & 0.833 & 25 & 5 & 5 \\
+    Gemini 2.5 Flash + Qwen2-Audio & 5.0 & 2.50 & 0.821 & 0.885 & 0.767 & 23 & 3 & 7 \\
+    Pixtral 12B + Qwen2-Audio & 2.5 & 1.25 & 0.814 & 0.828 & 0.800 & 24 & 5 & 6 \\
+    Gemini 2.5 Flash + Qwen2-Audio & 2.5 & 1.25 & 0.800 & 0.880 & 0.733 & 22 & 3 & 8 \\
+    Gemini 2.5 Flash + Qwen2-Audio & 5.0 & 5.00 & 0.800 & 0.880 & 0.733 & 22 & 3 & 8 \\
+    Ministral 3-14B + PANNs CNN14 & 5.0 & 5.00 & 0.772 & 0.815 & 0.733 & 22 & 5 & 8 \\
+    Ministral 3-14B + PANNs CNN14 & 10.0 & 10.00 & 0.772 & 0.815 & 0.733 & 22 & 5 & 8 \\
+    Ministral 3-14B + PANNs CNN14 & 10.0 & 5.00 & 0.772 & 0.815 & 0.733 & 22 & 5 & 8 \\
+    Pixtral 12B + Qwen2-Audio & 2.5 & 2.50 & 0.772 & 0.815 & 0.733 & 22 & 5 & 8 \\
+    Gemini 3.6 Flash + Qwen2-Audio & 1.0 & 1.00 & 0.765 & 0.684 & 0.867 & 26 & 12 & 4 \\
+    Ministral 3-14B + PANNs CNN14 & 1.0 & 1.00 & 0.759 & 0.786 & 0.733 & 22 & 6 & 8 \\
+    Ministral 3-14B + PANNs CNN14 & 1.0 & 0.50 & 0.759 & 0.786 & 0.733 & 22 & 6 & 8 \\
+    Ministral 3-14B + Qwen2-Audio & 10.0 & 10.00 & 0.759 & 0.786 & 0.733 & 22 & 6 & 8 \\
+    Ministral 3-14B + Qwen2-Audio & 10.0 & 5.00 & 0.759 & 0.786 & 0.733 & 22 & 6 & 8 \\
+    Ministral 3-14B + PANNs CNN14 & 2.5 & 2.50 & 0.746 & 0.759 & 0.733 & 22 & 7 & 8 \\
+    Ministral 3-14B + PANNs CNN14 & 2.5 & 1.25 & 0.746 & 0.759 & 0.733 & 22 & 7 & 8 \\
+    Ministral 3-14B + PANNs CNN14 & 5.0 & 2.50 & 0.746 & 0.759 & 0.733 & 22 & 7 & 8 \\
+    Gemini 3.6 Flash + Qwen2-Audio & 1.0 & 0.50 & 0.732 & 0.634 & 0.867 & 26 & 15 & 4 \\
+    Gemini 2.5 Flash + Qwen2-Audio & 2.5 & 2.50 & 0.731 & 0.864 & 0.633 & 19 & 3 & 11 \\
+    Gemini 2.5 Flash + PANNs CNN14 & 5.0 & 5.00 & 0.706 & 0.857 & 0.600 & 18 & 3 & 12 \\
+    Gemini 2.5 Flash + PANNs CNN14 & 2.5 & 1.25 & 0.704 & 0.792 & 0.633 & 19 & 5 & 11 \\
+    Pixtral 12B + PANNs CNN14 & 5.0 & 5.00 & 0.704 & 0.792 & 0.633 & 19 & 5 & 11 \\
+    Pixtral 12B + PANNs CNN14 & 10.0 & 10.00 & 0.704 & 0.792 & 0.633 & 19 & 5 & 11 \\
+    Pixtral 12B + PANNs CNN14 & 10.0 & 5.00 & 0.704 & 0.792 & 0.633 & 19 & 5 & 11 \\
+    Gemini 2.5 Flash + PANNs CNN14 & 1.0 & 1.00 & 0.692 & 0.818 & 0.600 & 18 & 4 & 12 \\
+    Gemini 2.5 Flash + PANNs CNN14 & 1.0 & 0.50 & 0.692 & 0.818 & 0.600 & 18 & 4 & 12 \\
+    Gemini 2.5 Flash + Qwen2-Audio & 10.0 & 10.00 & 0.692 & 0.818 & 0.600 & 18 & 4 & 12 \\
+    Gemini 2.5 Flash + Qwen2-Audio & 10.0 & 5.00 & 0.692 & 0.818 & 0.600 & 18 & 4 & 12 \\
+    Pixtral 12B + PANNs CNN14 & 1.0 & 1.00 & 0.691 & 0.760 & 0.633 & 19 & 6 & 11 \\
+    Pixtral 12B + PANNs CNN14 & 1.0 & 0.50 & 0.691 & 0.760 & 0.633 & 19 & 6 & 11 \\
+    Pixtral 12B + Qwen2-Audio & 10.0 & 10.00 & 0.691 & 0.760 & 0.633 & 19 & 6 & 11 \\
+    Pixtral 12B + Qwen2-Audio & 10.0 & 5.00 & 0.691 & 0.760 & 0.633 & 19 & 6 & 11 \\
+    Ministral 3-14B + Qwen2-Audio & 1.0 & 1.00 & 0.687 & 0.622 & 0.767 & 23 & 14 & 7 \\
+    Gemini 2.5 Flash + PANNs CNN14 & 10.0 & 10.00 & 0.680 & 0.850 & 0.567 & 17 & 3 & 13 \\
+    Gemini 2.5 Flash + PANNs CNN14 & 10.0 & 5.00 & 0.680 & 0.850 & 0.567 & 17 & 3 & 13 \\
+    Gemini 2.5 Flash + PANNs CNN14 & 2.5 & 2.50 & 0.679 & 0.783 & 0.600 & 18 & 5 & 12 \\
+    Gemini 2.5 Flash + PANNs CNN14 & 5.0 & 2.50 & 0.679 & 0.783 & 0.600 & 18 & 5 & 12 \\
+    Pixtral 12B + PANNs CNN14 & 2.5 & 2.50 & 0.679 & 0.731 & 0.633 & 19 & 7 & 11 \\
+    Pixtral 12B + PANNs CNN14 & 2.5 & 1.25 & 0.679 & 0.731 & 0.633 & 19 & 7 & 11 \\
+    Pixtral 12B + PANNs CNN14 & 5.0 & 2.50 & 0.679 & 0.731 & 0.633 & 19 & 7 & 11 \\
+    Ministral 3-14B + Qwen2-Audio & 1.0 & 0.50 & 0.648 & 0.561 & 0.767 & 23 & 18 & 7 \\
+    Pixtral 12B + Qwen2-Audio & 1.0 & 1.00 & 0.625 & 0.588 & 0.667 & 20 & 14 & 10 \\
+    Gemini 2.5 Flash + Qwen2-Audio & 1.0 & 1.00 & 0.623 & 0.613 & 0.633 & 19 & 12 & 11 \\
+    Gemini 2.5 Flash + Qwen2-Audio & 1.0 & 0.50 & 0.594 & 0.559 & 0.633 & 19 & 15 & 11 \\
+    Pixtral 12B + Qwen2-Audio & 1.0 & 0.50 & 0.588 & 0.526 & 0.667 & 20 & 18 & 10 \\
+\bottomrule
+\end{longtable}
+}
 
 

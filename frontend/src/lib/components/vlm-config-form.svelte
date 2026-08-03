@@ -17,6 +17,14 @@
     ollama: { delay: 0, max_retries: 0 },
   };
 
+  const MODEL_DEFAULTS: Record<string, string> = {
+    gemini: 'gemini-3.6-flash',
+    mistral: 'ministral-3-14b',
+    openai: 'gpt-4o-mini',
+    claude: 'claude-3-haiku-20240307',
+    zhipu: 'glm-4v-flash',
+  };
+
   const QUANTIZATION_OPTIONS = [
     { value: 'none', label: 'None (full precision)' },
     { value: '8bit', label: '8-bit' },
@@ -71,7 +79,8 @@
     if (availableProviders.length > 0 && !value.provider) {
       const p = availableProviders[0];
       const d = PROVIDER_DEFAULTS[p] || { delay: 3, max_retries: 10 };
-      patch({ provider: p, model: '', vlm_delay: d.delay, max_retries: d.max_retries });
+      const m = p === 'ollama' ? '' : (MODEL_DEFAULTS[p] || '');
+      patch({ provider: p, model: m, vlm_delay: d.delay, max_retries: d.max_retries });
       if (p === 'ollama') fetchOllamaModels();
     }
   });
@@ -79,7 +88,8 @@
   function handleProviderChange(e: Event) {
     const p = selectValue(e);
     const d = PROVIDER_DEFAULTS[p] || { delay: 3, max_retries: 10 };
-    patch({ provider: p, model: '', vlm_delay: d.delay, max_retries: d.max_retries });
+    const m = p === 'ollama' ? '' : (MODEL_DEFAULTS[p] || '');
+    patch({ provider: p, model: m, vlm_delay: d.delay, max_retries: d.max_retries });
     if (p === 'ollama') fetchOllamaModels();
   }
 </script>

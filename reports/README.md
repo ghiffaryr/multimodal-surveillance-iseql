@@ -16,10 +16,8 @@ VIS MODE framework.
 
 **VIS MODE: Video Interval-based Surveillance using complex event
 MOdeling and DEtection** - Crescitelli, Persia, Cipriani, Pea
-(CIKM '26 demo). Prior work suffered from a zero-event bug (no object re-ID)
-and unverifiable precision/recall claims on unlabeled ground truth.
-This project fixes both through object re-identification and a 30-scene labeled
-evaluation benchmark.
+(CIKM '26 demo). Prior work lacked object re-identification (so tracking-dependent events went undetected) and had unverifiable precision/recall claims on unlabeled ground truth.
+This project addresses both through object re-identification and a 30-scene labeled evaluation benchmark.
 
 For the ISEQL interval-join kernel (the underlying temporal-reasoning machinery
 preserved in `interval_engine/`):
@@ -34,6 +32,6 @@ preserved in `interval_engine/`):
 | File | Contents |
 |------|----------|
 | `experiments/evaluation_scenes.md` | Scene-by-scene prompts, ISEQL patterns, expected results |
-| `data/analysis_gemini_3_6_flash_qwen2_audio/` | Best result: Gemini 3.6 Flash + Qwen2-Audio (29/30, F1=0.892) |
+| `data/analysis_gemini_3_6_flash_qwen2_audio/` | Best result: Gemini 3.6 Flash + Qwen2-Audio (29/30, F1=0.935) |
 | `backend/src/service/impl/events_service_impl.py` | All 16 SQL queries and EventSpec definitions |
 | `backend/src/service/impl/iseql_helpers.py` | ISEQL temporal operator definitions |

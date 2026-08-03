@@ -15,7 +15,8 @@ Predicate names in `σ_{pred="..."}` must match the `RelationType` values in the
 | Notation | Meaning |
 |----------|---------|
 | `Bef_{δ=N}` | Before: gap ≤ N frames between end of first interval and start of second |
-| `∨` | Logical OR (in sigma conditions for compound predicates) |
+| `SP` | Start Preceding: r starts no later than s and the intervals overlap |
+| `∨` | Logical OR (combine temporal operators or sigma conditions) |
 | `∪` | Set union (multimodal: combine visual + audio results) |
 | `π_{...}` | Projection (select output columns) |
 | `σ_{...}` | Selection (filter matching intervals) |
@@ -168,7 +169,7 @@ a collision (horn/skid followed by impact/glass breaking within 60 frames).
 -- Generated ISEQL query for vehicle_collision_audio
 π_{M1.sf, M1.ef, M2.sf, M2.ef} (
   σ_{pred="horn" ∨ pred="skidding"}(M1)
-  Bef_{δ=60}
+  SP
   σ_{pred="impact" ∨ pred="glass_breaking"}(M2)
 )
 ```
@@ -177,7 +178,7 @@ a collision (horn/skid followed by impact/glass breaking within 60 frames).
 
 ```iseql
 -- Generated ISEQL query for vehicle_collision_multimodal
-σ_{pred="horn" ∨ pred="skidding"}(M1) Bef_{δ=60} σ_{pred="impact" ∨ pred="glass_breaking"}(M2)
+σ_{pred="horn" ∨ pred="skidding"}(M1) SP σ_{pred="impact" ∨ pred="glass_breaking"}(M2)
 ∪
 σ_{pred="vehicle_collision"}(M3)
 ```
@@ -198,7 +199,7 @@ audio).
 π_{M1.arg1, M1.sf, M1.ef, M2.arg1, M2.arg2, M2.sf, M2.ef} (
   σ_{M1.arg1=M2.arg1} (
       σ_{pred="running" ∧ arg1="person"}(M1)
-      Bef_{δ=50}
+     SP
       σ_{pred="enter_or_exit_vehicle" ∧ arg1="person" ∧ arg2="vehicle"}(M2)
   )
 )
@@ -210,7 +211,7 @@ audio).
 -- Generated ISEQL query for vehicle_escape_audio
 π_{M1.sf, M1.ef, M2.sf, M2.ef} (
   σ_{pred="engine" ∨ pred="vehicle"}(M1)
-  Bef_{δ=150}
+  SP
   σ_{pred="tire_squeal"}(M2)
 )
 ```
@@ -219,10 +220,10 @@ audio).
 
 ```iseql
 -- Generated ISEQL query for vehicle_escape_multimodal
-σ_{pred="engine" ∨ pred="vehicle"}(M1) Bef_{δ=150} σ_{pred="tire_squeal"}(M2)
+σ_{pred="engine" ∨ pred="vehicle"}(M1) SP σ_{pred="tire_squeal"}(M2)
 ∪
 σ_{M1.arg1=M2.arg1} (
-  σ_{pred="running" ∧ arg1="person"}(M3) Bef_{δ=50}
+  σ_{pred="running" ∧ arg1="person"}(M3) SP
   σ_{pred="enter_or_exit_vehicle" ∧ arg1="person" ∧ arg2="vehicle"}(M4)
 )
 ```
@@ -249,18 +250,20 @@ column names in our backend; the ISEQL `π{...}` above uses symbolic fields.
 
 | Event | Column order |
 |-------|-------------|
-| Fight | `SoundIntervalID, StartFrame, EndFrame` |
+| Fight | `SoundIntervalID, SoundIntervalID2, StartFrame, EndFrame` |
 | Gunshot | `SoundIntervalID, StartFrame, EndFrame` |
-| Vehicle escape | `SoundIntervalID, StartFrame, EndFrame` |
-| Vehicle collision | `SoundIntervalID, StartFrame, EndFrame` |
+| Vehicle escape | `SoundIntervalID, SoundIntervalID2, StartFrame, EndFrame` |
+| Vehicle collision | `SoundIntervalID, SoundIntervalID2, StartFrame, EndFrame` |
 
 ### Condition C — Multimodal
 
+Each query returns one row per audio match and one row per visual match (no aggregation).
+
 | Event | Column order |
 |-------|-------------|
-| Fight | `VisualRelationID, SoundIntervalID, StartFrame, EndFrame, PersonID, PersonID2` |
+| Fight | `VisualRelationID, SoundIntervalID, SoundIntervalID2, StartFrame, EndFrame, PersonID, PersonID2` |
 | Gunshot | `VisualRelationID, SoundIntervalID, StartFrame, EndFrame, ClassID` |
-| Vehicle escape | `VisualRelationID, SoundIntervalID, StartFrame, EndFrame, PersonID, VehicleID` |
-| Vehicle collision | `VisualRelationID, SoundIntervalID, StartFrame, EndFrame, VehicleID` |
+| Vehicle escape | `VisualRelationID, SoundIntervalID, SoundIntervalID2, StartFrame, EndFrame, PersonID, VehicleID` |
+| Vehicle collision | `VisualRelationID, SoundIntervalID, SoundIntervalID2, StartFrame, EndFrame, VehicleID` |
 | Loitering | `RelationID, StartFrame, EndFrame, PersonID, VehicleID` |
 | Handoff | `RelationID, StartFrame, EndFrame, GiverID, ReceiverID, ObjectID` |

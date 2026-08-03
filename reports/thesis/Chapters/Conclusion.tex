@@ -8,9 +8,9 @@ This thesis presented WATCHOUT ISEQL, a forensic multimodal surveillance framewo
 The evaluation on a 30-scene dataset across four VLM models and two audio providers yields three principal findings:
 
 \begin{enumerate}
-  \item \textbf{Object re-identification is essential.} Without it, all four VLM models produce zero true positives. The two-phase tracking prompt with block-overlap matching fixes the zero-event bug identified in prior work.
-  \item \textbf{The LALM achieves perfect precision.} Qwen2-Audio-7B-Instruct attains precision of 1.000 at the optimal 2.5 s / 1.25 s configuration, with an F1 of 0.750 ,  substantially outperforming PANNs CNN14 (F1 = 0.429).
-  \item \textbf{Multimodal union outperforms both unimodal baselines.} The best combination (Gemini 3.6 Flash + Qwen2-Audio) achieves 29/30 TP (F1 = 0.892, 6 FP, 1 FN), and the claim $C \ge \max(A, B)$ holds on all 30 scenes.
+  \item \textbf{Object re-identification is essential for tracking-dependent events.} Without it, loitering, vehicle escape, and handoff are largely missed because per-frame ID assignment fragments intervals; for Gemini 3.6 Flash these rise from 0/5 to 4/5, 1/5, and 5/5 with re-ID, lifting visual F1 from 0.720 to 0.842.
+  \item \textbf{The LALM achieves perfect precision.} Qwen2-Audio-7B-Instruct attains precision of 1.000 at the optimal 5.0 s / 2.5 s configuration (F1 = 0.788) and 0.750 at 2.5 s / 1.25 s, substantially outperforming PANNs CNN14 (F1 = 0.429).
+  \item \textbf{Multimodal union outperforms both unimodal baselines.} The best combination (Gemini 3.6 Flash + Qwen2-Audio) achieves 29/30 TP (F1 = 0.935, 3 FP, 1 FN), and the claim $C \ge \max(A, B)$ holds on all 30 scenes.
 \end{enumerate}
 
 The union approach, concatenating independent modality detections without temporal cross-modal joins ,  is shown to be more effective than fusion approaches that rely on temporal alignment, which reduce recall. Every detection is the output of a SQL query, providing a fully auditable pipeline suitable for forensic applications.

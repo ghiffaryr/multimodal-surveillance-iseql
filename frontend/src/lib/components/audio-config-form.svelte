@@ -14,6 +14,20 @@
     panns: 'PANNs CNN14 (local)',
     huggingface: 'HuggingFace LALM',
   };
+  const DEFAULT_CONFIGS: Record<string, { window: number; hop: number }> = {
+    huggingface: { window: 5.0, hop: 2.5 },
+    panns: { window: 2.5, hop: 1.25 },
+  };
+  const WINDOW_HOP_OPTIONS = [
+    { window: 1.0, hop: 1.00, label: '1.0s / 1.00s' },
+    { window: 1.0, hop: 0.50, label: '1.0s / 0.50s' },
+    { window: 2.5, hop: 2.50, label: '2.5s / 2.50s' },
+    { window: 2.5, hop: 1.25, label: '2.5s / 1.25s' },
+    { window: 5.0, hop: 5.00, label: '5.0s / 5.00s' },
+    { window: 5.0, hop: 2.50, label: '5.0s / 2.50s' },
+    { window: 10.0, hop: 10.00, label: '10.0s / 10.00s' },
+    { window: 10.0, hop: 5.00, label: '10.0s / 5.00s' },
+  ];
 
   const QUANTIZATION_OPTIONS = [
     { value: 'none', label: 'None (full precision)' },
@@ -53,7 +67,8 @@
 
   function handleProviderChange(e: Event) {
     const newProvider = selectValue(e);
-    patch({ provider: newProvider, model: DEFAULT_AUDIO_MODELS[newProvider] || '' });
+    const cfg = DEFAULT_CONFIGS[newProvider] || DEFAULT_CONFIGS.panns;
+    patch({ provider: newProvider, model: DEFAULT_AUDIO_MODELS[newProvider] || '', window: cfg.window, hop: cfg.hop });
   }
 
   let providerOptions = $derived(
@@ -62,6 +77,20 @@
       label: PROVIDER_LABELS[p] || p,
     }))
   );
+
+  let windowHopOptions = $derived(
+    WINDOW_HOP_OPTIONS.map(c => ({ value: c.label, label: c.label }))
+  );
+
+  let windowHopLabel = $derived(
+    WINDOW_HOP_OPTIONS.find(c => c.window === value.window && c.hop === value.hop)?.label ?? '2.5s / 1.25s'
+  );
+
+  function handleWindowHopChange(e: Event) {
+    const label = selectValue(e);
+    const cfg = WINDOW_HOP_OPTIONS.find(c => c.label === label);
+    if (cfg) patch({ window: cfg.window, hop: cfg.hop });
+  }
 
 </script>
 
@@ -93,6 +122,17 @@
         PANNs CNN14 (fixed)
       </div>
     {/if}
+  </Field>
+
+  <Field>
+    <Label for="audio-window-hop">Window / Hop</Label>
+    <Select
+      id="audio-window-hop"
+      options={windowHopOptions}
+      value={windowHopLabel}
+      onchange={handleWindowHopChange}
+      {disabled}
+    />
   </Field>
 
   {#if isHuggingface}

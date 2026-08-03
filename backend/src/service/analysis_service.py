@@ -30,6 +30,8 @@ class AnalysisService(ABC):
         audio_provider: str,
         audio_model: str,
         audio_quantization: str,
+        audio_window: float,
+        audio_hop: float,
     ) -> RunState:
         pass
 

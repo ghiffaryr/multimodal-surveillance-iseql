@@ -136,6 +136,8 @@ class AnalysisServiceImpl(AnalysisService):
         audio_provider: str,
         audio_model: str,
         audio_quantization: str,
+        audio_window: float,
+        audio_hop: float,
     ) -> RunState:
         analysis_id = uuid.uuid4().hex[:ANALYSIS_ID_HEX_LENGTH]
         cfg = Config.get()
@@ -156,6 +158,8 @@ class AnalysisServiceImpl(AnalysisService):
             audio_provider=audio_provider,
             audio_model=audio_model,
             audio_quantization=audio_quantization,
+            audio_window=audio_window,
+            audio_hop=audio_hop,
         )
         self._runs[analysis_id] = run
 
@@ -361,6 +365,8 @@ class AnalysisServiceImpl(AnalysisService):
                 audio_provider=run.audio_provider,
                 audio_model=run.audio_model or None,
                 quantization=run.audio_quantization,
+                audio_window=run.audio_window,
+                audio_hop=run.audio_hop,
             )
             result = audio.run_pipeline(
                 video_path=run.video_path,

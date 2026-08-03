@@ -93,9 +93,11 @@ DEFAULT_QUERY_DELTA = {"fight": 120, "gunshot_or_explosion": 60, "vehicle_escape
 DEFAULT_QUERY_THRESHOLD = {"fight": 0.05, "gunshot_or_explosion": 0.05, "vehicle_escape": 0.05, "loitering": 0.05, "vehicle_collision": 0.05}
 
 
-def _sliding_windows(audio: np.ndarray, sr: int, fps: int) -> list[tuple[int, int, np.ndarray]]:
-    win_s = int(WINDOW_SECONDS * sr)
-    hop_s = int(HOP_SECONDS * sr)
+def _sliding_windows(audio: np.ndarray, sr: int, fps: int,
+                     window_seconds: float = WINDOW_SECONDS,
+                     hop_seconds: float = HOP_SECONDS) -> list[tuple[int, int, np.ndarray]]:
+    win_s = int(window_seconds * sr)
+    hop_s = int(hop_seconds * sr)
     windows = []
     for start in range(0, max(1, len(audio) - win_s + 1), hop_s):
         end = min(start + win_s, len(audio))
@@ -107,8 +109,9 @@ def _sliding_windows(audio: np.ndarray, sr: int, fps: int) -> list[tuple[int, in
     return windows
 
 
-def _merge_predictions(predictions: list[dict], fps: int) -> list[dict]:
-    gap = int(HOP_SECONDS * fps)
+def _merge_predictions(predictions: list[dict], fps: int,
+                       hop_seconds: float = HOP_SECONDS) -> list[dict]:
+    gap = int(hop_seconds * fps)
     merged: dict[str, list] = {}
     for r in predictions:
         merged.setdefault(r["sound_class"], []).append(r)
@@ -173,11 +176,14 @@ def extract_wav(video_path: Path, out_wav_path: Path, sample_rate: int = 16000, 
 
 class AudioServiceImpl(AudioService):
     def __init__(self, audio_provider: str = "panns", audio_model: str = None,
-                 quantization: str = "none", device: str = "cpu"):
+                 quantization: str = "none", device: str = "cpu",
+                 audio_window: float = 2.5, audio_hop: float = 1.25):
         self.audio_provider = audio_provider
         self.audio_model = audio_model
         self.quantization = quantization
         self.device = device
+        self.window_seconds = audio_window
+        self.hop_seconds = audio_hop
 
     def run_pipeline(self, video_path: Path, conn: sqlite3.Connection, out_dir: Path,
                      fps: int = 24, analysis_id: str = "",
@@ -252,7 +258,8 @@ class AudioServiceImpl(AudioService):
         labels_list = list(classifier.labels)
         all_results = []
 
-        for sf_, ef_, clip in _sliding_windows(audio_32k, SAMPLE_RATE, fps):
+        for sf_, ef_, clip in _sliding_windows(audio_32k, SAMPLE_RATE, fps,
+                                               self.window_seconds, self.hop_seconds):
             if clip.size < SAMPLE_RATE // 2:
                 continue
             # Pad to 10s (320k samples at 32kHz) - PANNs trained on 10s AudioSet clips
@@ -273,7 +280,7 @@ class AudioServiceImpl(AudioService):
                 all_results.append({"sound_class": label, "start_frame": sf_,
                                     "end_frame": ef_, "confidence": conf})
 
-        out = _merge_predictions(all_results, fps)
+        out = _merge_predictions(all_results, fps, self.hop_seconds)
         log_fn(f"PANNs: {len(out)} sound events detected")
         return [(r["sound_class"], r["start_frame"], r["end_frame"], r["confidence"]) for r in out]
 
@@ -305,7 +312,8 @@ class AudioServiceImpl(AudioService):
         CLASSES = ['shout', 'impact', 'gunshot_or_explosion', 'engine',
                    'tire_squeal', 'glass_breaking', 'horn', 'skidding']
 
-        for sf_, ef_, clip in _sliding_windows(waveform, sr, fps):
+        for sf_, ef_, clip in _sliding_windows(waveform, sr, fps,
+                                                self.window_seconds, self.hop_seconds):
             path = os.path.join(tempfile.gettempdir(), f"qwen2_window_{window_idx}.wav")
             sf.write(path, clip, sr, subtype="PCM_16")
 
@@ -343,7 +351,7 @@ class AudioServiceImpl(AudioService):
             except OSError:
                 pass
 
-        out = _merge_predictions(all_results, fps)
+        out = _merge_predictions(all_results, fps, self.hop_seconds)
         log_fn(f"HuggingFace LALM: {len(out)} sound events detected")
         return [(r["sound_class"], r["start_frame"], r["end_frame"], r["confidence"]) for r in out]
 

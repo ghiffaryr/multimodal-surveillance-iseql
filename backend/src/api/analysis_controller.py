@@ -38,6 +38,8 @@ class AnalysisStartController:
         audio_provider: str = Form("panns"),
         audio_model: str = Form("cnn14"),
         audio_quantization: str = Form("none"),
+        audio_window: float = Form(2.5),
+        audio_hop: float = Form(1.25),
     ) -> AnalysisStartResponse:
         cfg = Config.get()
         available = Config.get_available_providers()
@@ -96,6 +98,8 @@ class AnalysisStartController:
             audio_provider=audio_provider,
             audio_model=audio_model,
             audio_quantization=audio_quantization,
+            audio_window=audio_window,
+            audio_hop=audio_hop,
         )
         return AnalysisStartResponse(
             analysis_id=run.id,

@@ -13,13 +13,13 @@ A multimodal forensic surveillance framework that detects events through a **thr
 
 ### Key innovations
 - **First application of Large Audio-Language Model (LALM) for surveillance forensics** - Qwen2-Audio-7B-Instruct
-- **Object re-identification** via VLM tracking prompt - fixes the prior work's zero-event bug (0% to 84% visual accuracy)
+- **Object re-identification** via VLM tracking prompt - enables tracking-dependent events (loitering, vehicle escape, handoff)
 - **First labeled multimodal forensic surveillance dataset** - 30 scenes generated with Dreamina Seedance (ByteDance), with per-frame ground truth
 - **UNION-based multimodal** - C = A U B, no temporal cross-modal JOINs (which reduce recall)
 - **Auditable SQL pipeline** - every event is output of a SQL query; no black-box reasoning
 
 ### Best result
-> **Gemini 3.6 Flash + Qwen2-Audio-7B and Ministral 3-14B + Qwen2-Audio-7B achieved 29/30 scenes (F1=0.892)**
+> **Gemini 3.6 Flash + Qwen2-Audio-7B achieved 29/30 events (F1=0.935)**
 
 ---
 
@@ -63,7 +63,7 @@ A multimodal forensic surveillance framework that detects events through a **thr
 
 ## Object Re-Identification
 
-Without re-ID, every VLM call assigns new IDs to the same person/vehicle. This is the bug that caused prior work (VIS MODE) to report zero events.
+Without re-ID, every VLM call assigns new IDs to the same person/vehicle. Short, single-frame intervals cannot satisfy the ISEQL duration thresholds for events that require a persistent identity over time (loitering, vehicle escape, handoff). Prior work (VIS MODE) reported zero events from this failure.
 
 **Re-ID mechanism** (in `backend/src/service/impl/visual_service_impl.py`):
 
@@ -74,7 +74,7 @@ Without re-ID, every VLM call assigns new IDs to the same person/vehicle. This i
   - Same class + adjacent blocks: same object moved, reuse ID
   - Different class: never reuse ID
 
-**Impact**: All 4 VLMs with re-ID achieve 72-84% accuracy; without re-ID = 0% across all models.
+**Impact**: Re-ID unlocks tracking-dependent events: loitering and vehicle escape rise from 0 to 4-5 / 5 detected with Gemini 3.6 Flash, raising visual F1 from 0.72 (no re-ID) to 0.84.
 
 ---
 
@@ -96,11 +96,12 @@ No public dataset existed for multimodal forensic surveillance with temporal int
 
 | VLM                  | Re-ID | F1     | TP/FN  |
 |----------------------|-------|--------|--------|
-| **Gemini 3.6 Flash** | Yes   | **0.839** | 26/4  |
-| Ministral 3-14B      | Yes   | 0.820  | 25/5   |
-| Pixtral 12B          | Yes   | 0.727  | 20/10  |
-| Gemini 2.5 Flash     | Yes   | 0.717  | 19/11  |
-| Any VLM              | **No**| **0.0**| 0/30   |
+| **Gemini 3.6 Flash** | Yes   | **0.842** | 24/6  |
+| Ministral 3-14B      | Yes   | 0.750  | 21/9   |
+| Pixtral 12B          | Yes   | 0.679  | 18/12  |
+| Gemini 2.5 Flash     | Yes   | 0.653  | 16/14  |
+
+Without re-ID (ablation): Gemini 3.6 Flash 0.720, Pixtral 12B 0.712, Ministral 3-14B 0.691, Gemini 2.5 Flash 0.571. Re-ID mainly adds loitering, vehicle escape, and handoff, which require a persistent identity over time.
 
 ---
 
@@ -110,23 +111,24 @@ No public dataset existed for multimodal forensic surveillance with temporal int
 |----------------------|---------|--------|--------|
 | **Qwen2-Audio-7B**   | **LALM**| **0.788** | 13/7 |
 | PANNs CNN14          | CNN     | 0.429  | 6/14  |
-
 This is the **first application of a Large Audio-Language Model for surveillance forensic event detection**. No prior work found on arXiv or Google Scholar.
 
 ---
 
 ## Multimodal: Ablation Results (30 scenes)
 
-| VLM + Audio                        | F1     | TP/FN  |
-|------------------------------------|--------|--------|
-| **Gemini 3.6 Flash + Qwen2**       | **0.892** | 29/1 |
-| **Ministral 3-14B + Qwen2**        | **0.892** | 29/1 |
-| Gemini 3.6 Flash + PANNs           | 0.857  | 27/3   |
-| Ministral 3-14B + PANNs            | 0.839  | 26/4   |
-| Pixtral 12B + Qwen2                | 0.833  | 25/5   |
-| Gemini 2.5 Flash + Qwen2           | 0.807  | 23/7   |
-| Pixtral 12B + PANNs                | 0.750  | 21/9   |
-| Gemini 2.5 Flash + PANNs           | 0.741  | 20/10  |
+Best config per pair (all 8 window/hop configs per pair are in `data/analysis_*/summary.xlsx`; the full ranked 64-combination ablation is in the thesis appendix):
+
+| VLM + Audio                        | Best audio config | F1     | TP/FP/FN |
+|------------------------------------|-------------------|--------|----------|
+| **Gemini 3.6 Flash + Qwen2**       | w2.5s/h1.25s      | **0.935** | 29/3/1 |
+| **Ministral 3-14B + Qwen2**        | w5.0s/h5.0s       | **0.889** | 28/5/2 |
+| Gemini 3.6 Flash + PANNs           | w5.0s/h5.0s       | 0.862  | 25/3/5   |
+| Pixtral 12B + Qwen2                | w5.0s/h5.0s       | 0.833  | 25/5/5   |
+| Gemini 2.5 Flash + Qwen2           | w5.0s/h2.5s       | 0.821  | 23/3/7   |
+| Ministral 3-14B + PANNs            | w5.0s/h5.0s       | 0.772  | 22/5/8   |
+| Gemini 2.5 Flash + PANNs           | w5.0s/h5.0s       | 0.706  | 18/3/12  |
+| Pixtral 12B + PANNs                | w5.0s/h5.0s       | 0.704  | 19/5/11  |
 
 Thesis claim C >= max(A, B) holds on all scenes across all providers.
 
@@ -235,7 +237,7 @@ OpenAPI docs are auto-generated at `/docs` and `/redoc` when the backend is runn
 
 - **Object re-identification** and **first LALM for surveillance**: Ghiffary R. (this thesis)
 - C++ interval engine (`interval_engine/`): Piatov, Helmer, Dignoes, Persia (2021), *Cache-efficient sweeping-based interval joins for extended Allen relation predicates*, VLDB Journal 30(3), 379-402.
-- VIS MODE framework (predecessor, 2026 CIKM demo paper): Crescitelli, Persia, Cipriani, Pea. Prior work suffered from zero-event bug (no re-ID) and unverifiable claims (no labeled ground truth). This project fixes both.
+- VIS MODE framework (predecessor, 2026 CIKM demo paper): Crescitelli, Persia, Cipriani, Pea. Prior work suffered from zero-event bug (no re-ID, so tracking-dependent events were missed) and unverifiable claims (no labeled ground truth). This project fixes both.
 - PANNs CNN14: Kong et al., *PANNs: Large-scale Pretrained Audio Neural Networks for Audio Pattern Recognition*, IEEE/ACM TASLP 2020.
 - Qwen2-Audio-7B-Instruct: Chu et al., *Qwen2-Audio Technical Report*, 2024.
 

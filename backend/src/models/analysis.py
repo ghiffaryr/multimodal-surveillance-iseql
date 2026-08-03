@@ -42,6 +42,8 @@ class RunState:
     audio_provider: str = "panns"
     audio_model: str = "cnn14"
     audio_quantization: str = "none"
+    audio_window: float = 2.5
+    audio_hop: float = 1.25
     stage: AnalysisStage = AnalysisStage.QUEUED
     counters: Dict[str, int] = field(default_factory=dict)
     log_queue: "asyncio.Queue" = field(default_factory=asyncio.Queue)

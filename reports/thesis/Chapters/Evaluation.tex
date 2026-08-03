@@ -25,15 +25,15 @@ The first research question asks whether object re-identification is necessary f
     \toprule
     VLM & With re-ID (TP) & Without re-ID (TP) & Gain \\
     \midrule
-    Gemini 3.6 Flash & 24 & 0 & +24 \\
-    Ministral 3-14B & 23 & 0 & +23 \\
-    Gemini 2.5 Flash & 17 & 0 & +17 \\
-    Pixtral 12B & 17 & 0 & +17 \\
+    Gemini 3.6 Flash & 24 & 18 & +6 \\
+    Ministral 3-14B & 21 & 19 & +2 \\
+    Gemini 2.5 Flash & 16 & 14 & +2 \\
+    Pixtral 12B & 18 & 21 & -3 \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-The result is unequivocal: without re-identification, every model produces zero true positives on all 30 scenes. This confirms that the zero-event bug reported in prior work \citep{crescitelli2026vismode} is caused by the absence of cross-frame object tracking. Without re-ID, intervals cannot span multiple frames, so queries requiring duration thresholds (loitering, handoff, vehicle escape) never fire.
+Re-identification mainly benefits the events that require a persistent object identity over time: loitering, vehicle escape, and handoff. Without re-ID, per-frame ID assignment fragments intervals into single frames, so these duration-gated queries rarely fire. For Gemini 3.6 Flash, re-ID raises loitering from 0/5 to 4/5, vehicle escape from 0/5 to 1/5, and handoff from 4/5 to 5/5, while the short-duration events (fight, gunshot, vehicle collision) are largely unaffected. The effect is consistent across models for the tracking-dependent events, although Pixtral 12B shows slightly more detections without re-ID overall, suggesting its raw relation predictions sometimes fire shorter queries even without a consistent identity.
 
 \section{RQ2: Audio Model Ablation}
 \label{sec:rq2}
@@ -48,25 +48,28 @@ The second research question compares Qwen2-Audio-7B-Instruct (LALM) against PAN
     \toprule
     Provider & Win (s) & Hop (s) & F1 & Precision & Recall & TP/FP/FN \\
     \midrule
-    \textbf{Qwen2-Audio} & \textbf{2.5} & \textbf{1.25} & \textbf{0.788} & 1.000 & 0.650 & 13/0/7 \\
-    Qwen2-Audio & 5.0 & 2.50 & 0.788 & 1.000 & 0.650 & 13/0/7 \\
-    Qwen2-Audio & 2.5 & 2.50 & 0.667 & 1.000 & 0.500 & 10/0/10 \\
+    \textbf{Qwen2-Audio} & \textbf{5.0} & \textbf{2.50} & \textbf{0.788} & 1.000 & 0.650 & 13/0/7 \\
+    Qwen2-Audio & 2.5 & 1.25 & 0.750 & 1.000 & 0.600 & 12/0/8 \\
     Qwen2-Audio & 5.0 & 5.00 & 0.667 & 1.000 & 0.500 & 10/0/10 \\
-    Qwen2-Audio & 1.0 & 1.00 & 0.514 & 0.600 & 0.450 & 9/6/11 \\
-    Qwen2-Audio & 1.0 & 0.50 & 0.488 & 0.476 & 0.500 & 10/11/10 \\
+    Qwen2-Audio & 2.5 & 2.50 & 0.621 & 1.000 & 0.450 & 9/0/11 \\
+    Qwen2-Audio & 1.0 & 1.00 & 0.389 & 0.438 & 0.350 & 7/9/13 \\
+    Qwen2-Audio & 1.0 & 0.50 & 0.350 & 0.350 & 0.350 & 7/13/13 \\
     Qwen2-Audio & 10.0 & 10.00 & 0.320 & 0.800 & 0.200 & 4/1/16 \\
     Qwen2-Audio & 10.0 & 5.00 & 0.320 & 0.800 & 0.200 & 4/1/16 \\
     \midrule
     PANNs CNN14 & 2.5 & 1.25 & 0.429 & 0.750 & 0.300 & 6/2/14 \\
+    PANNs CNN14 & 5.0 & 5.00 & 0.400 & 1.000 & 0.250 & 5/0/15 \\
     PANNs CNN14 & 1.0 & 0.50 & 0.385 & 0.833 & 0.250 & 5/1/15 \\
     PANNs CNN14 & 2.5 & 2.50 & 0.370 & 0.714 & 0.250 & 5/2/15 \\
-    PANNs CNN14 & 5.0 & 5.00 & 0.333 & 1.000 & 0.200 & 4/0/16 \\
+    PANNs CNN14 & 5.0 & 2.50 & 0.370 & 0.714 & 0.250 & 5/2/15 \\
+    PANNs CNN14 & 1.0 & 1.00 & 0.320 & 0.800 & 0.200 & 4/1/16 \\
     PANNs CNN14 & 10.0 & 10.00 & 0.261 & 1.000 & 0.150 & 3/0/17 \\
+    PANNs CNN14 & 10.0 & 5.00 & 0.261 & 1.000 & 0.150 & 3/0/17 \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-Several patterns emerge from the ablation. First, Qwen2-Audio achieves \textbf{perfect precision} (1.000) for all configurations with a window of 2.5 s or larger: every detection is correct. Its best micro F1 (0.788) occurs at both (2.5 s, 1.25 s) and (5.0 s, 2.5 s). Smaller windows (1.0 s) degrade precision because the model has insufficient acoustic context; larger windows (10.0 s) miss short-duration events. Second, PANNs CNN14 achieves its best F1 of 0.429 at (2.5 s, 1.25 s) but never exceeds this value. PANNs performs well on gunshot detection (high recall) but suffers from false positives and low recall on other events. The fight audio query uses a BEFORE($\delta=120$) with an OVERLAP fallback, matching the ISEQL paper definition, though it did not improve recall because Qwen2-Audio detects impact before shout in the two relevant scenes. The optimal configuration for both providers is 2.5 s windows with 1.25 s hop, which balances context size and temporal resolution. This configuration is used in all subsequent multimodal experiments.
+Several patterns emerge from the ablation. First, Qwen2-Audio achieves \textbf{perfect precision} (1.000) for all configurations with a window of 2.5 s or larger: every detection is correct. Its best micro F1 (0.788) occurs at (5.0 s, 2.5 s), with the 2.5 s / 1.25 s configuration close behind (0.750). Smaller windows (1.0 s) degrade precision because the model has insufficient acoustic context; larger windows (10.0 s) miss short-duration events. Second, PANNs CNN14 achieves its best F1 of 0.429 at (2.5 s, 1.25 s) but never exceeds this value. PANNs performs well on gunshot detection (high recall) but suffers from false positives and low recall on other events. The fight audio query uses a BEFORE($\delta=120$), matching the ISEQL paper definition, though it did not improve recall because Qwen2-Audio detects impact before shout in the two relevant scenes. The 2.5 s / 1.25 s configuration balances context size and temporal resolution and is used in the multimodal experiments; at this configuration Qwen2-Audio still achieves perfect precision with F1 = 0.750.
 
 \section{RQ3: Multimodal vs.\ Unimodal}
 \label{sec:rq3}
@@ -83,15 +86,15 @@ Table~\ref{tab:vlm_comparison} reports the visual-only (condition A) results. Al
     \toprule
     VLM & F1 & Precision & Recall & TP & FP & FN \\
     \midrule
-    \textbf{Gemini 3.6 Flash} & \textbf{0.839} & 0.812 & 0.867 & 26 & 6 & 4 \\
-    Ministral 3-14B & 0.820 & 0.806 & 0.833 & 25 & 6 & 5 \\
-    Pixtral 12B & 0.727 & 0.800 & 0.667 & 20 & 5 & 10 \\
-    Gemini 2.5 Flash & 0.717 & 0.826 & 0.633 & 19 & 4 & 11 \\
+    \textbf{Gemini 3.6 Flash} & \textbf{0.842} & 0.889 & 0.800 & 24 & 3 & 6 \\
+    Ministral 3-14B & 0.750 & 0.808 & 0.700 & 21 & 5 & 9 \\
+    Pixtral 12B & 0.679 & 0.783 & 0.600 & 18 & 5 & 12 \\
+    Gemini 2.5 Flash & 0.653 & 0.842 & 0.533 & 16 & 3 & 14 \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-Gemini 3.6 Flash achieves the highest F1 (0.839), detecting 26 of 30 events. The gap between the best and worst model is 0.122 F1 points, with the largest differences on events requiring accurate re-identification across multiple frames (vehicle escape, handoff). The improvement over previous results is due to fixing the explosion detection query: explosion scenes involve vehicles and objects, not persons, so the earlier query silently dropped all explosion detections.
+Gemini 3.6 Flash achieves the highest F1 (0.842), detecting 24 of 30 events. The gap between the best and worst model is 0.189 F1 points, with the largest differences on events requiring accurate re-identification across multiple frames (vehicle escape, handoff). The improvement over previous results is due to fixing the explosion detection query: explosion scenes involve vehicles and objects, not persons, so the earlier query silently dropped all explosion detections.
 
 \subsection{Multimodal Union Results}
 
@@ -105,19 +108,19 @@ Table~\ref{tab:multimodal_results} shows the multimodal (condition C) results co
     \toprule
     VLM + Audio & F1 & Precision & Recall & TP & FP & FN \\
     \midrule
-    \textbf{Gemini 3.6 Flash + Qwen2} & \textbf{0.892} & 0.829 & 0.967 & 29 & 6 & 1 \\
-    \textbf{Ministral 3-14B + Qwen2} & \textbf{0.892} & 0.829 & 0.967 & 29 & 6 & 1 \\
-    Gemini 3.6 Flash + PANNs & 0.857 & 0.818 & 0.900 & 27 & 6 & 3 \\
-    Ministral 3-14B + PANNs & 0.839 & 0.812 & 0.867 & 26 & 6 & 4 \\
-    Pixtral 12B + Qwen2 & 0.833 & 0.833 & 0.833 & 25 & 5 & 5 \\
-    Gemini 2.5 Flash + Qwen2 & 0.807 & 0.852 & 0.767 & 23 & 4 & 7 \\
-    Pixtral 12B + PANNs & 0.750 & 0.808 & 0.700 & 21 & 5 & 9 \\
-    Gemini 2.5 Flash + PANNs & 0.741 & 0.833 & 0.667 & 20 & 4 & 10 \\
+    \textbf{Gemini 3.6 Flash + Qwen2} & \textbf{0.935} & 0.906 & 0.967 & 29 & 3 & 1 \\
+    Ministral 3-14B + Qwen2 & 0.871 & 0.844 & 0.900 & 27 & 5 & 3 \\
+    Gemini 3.6 Flash + PANNs & 0.833 & 0.833 & 0.833 & 25 & 5 & 5 \\
+    Pixtral 12B + Qwen2 & 0.814 & 0.828 & 0.800 & 24 & 5 & 6 \\
+    Gemini 2.5 Flash + Qwen2 & 0.800 & 0.880 & 0.733 & 22 & 3 & 8 \\
+    Ministral 3-14B + PANNs & 0.746 & 0.759 & 0.733 & 22 & 7 & 8 \\
+    Gemini 2.5 Flash + PANNs & 0.704 & 0.792 & 0.633 & 19 & 5 & 11 \\
+    Pixtral 12B + PANNs & 0.679 & 0.731 & 0.633 & 19 & 7 & 11 \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-The best combinations achieve F1 = 0.892, detecting 29 of 30 events with 6 false positives and 1 false negative. The top four combinations all use Qwen2-Audio, demonstrating that the LALM's perfect precision carries through to the multimodal setting: false positives from audio would propagate to condition C, so precise audio models are essential.
+The best combination achieves F1 = 0.935, detecting 29 of 30 events with 3 false positives and 1 false negative. The top combinations all use Qwen2-Audio, demonstrating that the LALM's perfect precision carries through to the multimodal setting: false positives from audio would propagate to condition C, so precise audio models are essential. The complete ranked ablation across all 64 combinations (4 VLM models $\times$ 2 audio models $\times$ 8 window/hop configurations) is reported in Appendix~\ref{AppendixA} (Table~\ref{tab:full_ablation}).
 
 \subsection{Thesis Claim Verification}
 
@@ -133,19 +136,19 @@ The thesis claim is $C \ge \max(A, B)$ ,  the multimodal condition never perform
     \midrule
     Fight & 5 & 5/5 & 0/5 & 5/5 \\
     Gunshot/Explosion & 5 & 4/5 & 5/5 & 5/5 \\
-    Vehicle Escape & 5 & 3/5 & 5/5 & 5/5 \\
+    Vehicle Escape & 5 & 1/5 & 4/5 & 5/5 \\
     Vehicle Collision & 5 & 5/5 & 3/5 & 5/5 \\
     Loitering & 5 & 4/5 & -- & 4/5 \\
     Handoff & 5 & 5/5 & -- & 5/5 \\
     \midrule
-    Overall & 30 & 26/30 & 13/20 & 29/30 \\
+    Overall & 30 & 24/30 & 12/20 & 29/30 \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-The claim holds on all 30 scenes: condition C is never worse than $\max(A, B)$. The union is most beneficial when the modalities are complementary: audio contributes 2 additional true positives on vehicle escape that visual alone would have missed, while visual carries the fight detection (5/5) that audio completely misses. Fixing the explosion query improved visual detection from 24 to 26 TP, and the LALM now detects all 5 gunshot/explosion events through synonym resolution. The two visual-only events (handoff, loitering) are unchanged in C since they have no audio query.
+The claim holds on all 30 scenes: condition C is never worse than $\max(A, B)$. The union is most beneficial when the modalities are complementary: audio contributes 4 additional true positives on vehicle escape that visual alone would have missed (visual 1/5, audio 4/5, union 5/5), while visual carries the fight detection (5/5) that audio completely misses. The LALM detects all 5 gunshot/explosion events through synonym resolution, adding one detection over visual alone. The two visual-only events (handoff, loitering) are unchanged in C since they have no audio query; handoff is recovered to 5/5 by re-identification.
 
 \section{Summary}
 \label{sec:eval-summary}
 
-The evaluation establishes three findings. \textbf{RQ1:} Object re-identification is essential; without it, all four VLM models produce zero true positives. \textbf{RQ2:} Qwen2-Audio achieves perfect precision (1.000) and a micro F1 of 0.788 at 2.5 s / 1.25 s, outperforming PANNs (F1 = 0.429) across all configurations. \textbf{RQ3:} The multimodal union achieves F1 = 0.892 with the best combination (29/30 TP), outperforming both unimodal baselines (visual F1 = 0.839, audio F1 = 0.788), and the claim $C \ge \max(A, B)$ holds on all 30 scenes.
+The evaluation establishes three findings. \textbf{RQ1:} Object re-identification is essential for tracking-dependent events; without it, loitering, vehicle escape, and handoff are largely missed (e.g. Gemini 3.6 Flash loitering 0/5 to 4/5, escape 0/5 to 1/5). \textbf{RQ2:} Qwen2-Audio achieves perfect precision (1.000) and a micro F1 of 0.788 at 5.0 s / 2.5 s (0.750 at 2.5 s / 1.25 s), outperforming PANNs (best F1 = 0.429) across all configurations. \textbf{RQ3:} The multimodal union achieves F1 = 0.935 with the best combination (Gemini 3.6 Flash + Qwen2-Audio, 29/30 TP), outperforming both unimodal baselines (visual F1 = 0.842, audio F1 = 0.788), and the claim $C \ge \max(A, B)$ holds on all 30 scenes.

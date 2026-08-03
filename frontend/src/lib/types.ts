@@ -88,13 +88,12 @@ export interface AudioConfig {
   provider: string;
   model: string;
   quantization: string;
+  window: number;
+  hop: number;
 }
 
 export interface Deltas {
-  delta_visual_vehicle_escape: number;
   delta_visual_loitering: number;
-  delta_visual_handoff: number;
-  delta_sound_fight: number;
-  delta_sound_vehicle_escape: number;
-  delta_sound_vehicle_collision: number;
+   delta_visual_handoff: number;
+   delta_sound_fight: number;
 }
