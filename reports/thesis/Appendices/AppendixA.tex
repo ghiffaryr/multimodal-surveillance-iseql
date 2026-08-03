@@ -492,21 +492,21 @@ The evaluation dataset consists of 30 scenes, with 5 positive instances per even
 Table~\ref{tab:full_ablation} reports the complete multimodal (condition C) ablation: all 64 combinations (4 VLM models $\times$ 2 audio models $\times$ 8 window/hop configurations), ranked by F1 descending (ties by precision, then by pair name).
 
 {\footnotesize
-\setlength{\tabcolsep}{2.5pt}
+\setlength{\tabcolsep}{2.0pt}
 \begin{longtable}{lcccccccc}
 \caption{Complete multimodal (condition C) ablation, all 64 combinations ranked by F1.}\\
 \label{tab:full_ablation}\\
 \toprule
-VLM + Audio & Win (s) & Hop (s) & F1 & Precision & Recall & TP & FP & FN \\
+VLM + Audio Model & Window (s) & Hop (s) & F1 & Precision & Recall & TP & FP & FN \\
 \midrule
 \endfirsthead
 \toprule
-VLM + Audio & Win (s) & Hop (s) & F1 & Precision & Recall & TP & FP & FN \\
+VLM + Audio Model & Window (s) & Hop (s) & F1 & Precision & Recall & TP & FP & FN \\
 \midrule
 \endhead
-    \textbf{Gemini 3.6 Flash + Qwen2-Audio} & 2.5 & 1.25 & \textbf{0.935} & 0.906 & 0.967 & 29 & 3 & 1 \\
-    Gemini 3.6 Flash + Qwen2-Audio & 5.0 & 5.00 & 0.935 & 0.906 & 0.967 & 29 & 3 & 1 \\
-    Gemini 3.6 Flash + Qwen2-Audio & 5.0 & 2.50 & 0.935 & 0.906 & 0.967 & 29 & 3 & 1 \\
+    \textbf{Gemini 3.6 Flash + Qwen2-Audio} & \textbf{2.5} & \textbf{1.25} & \textbf{0.935} & \textbf{0.906} & \textbf{0.967} & \textbf{29} & \textbf{3} & \textbf{1} \\
+    \textbf{Gemini 3.6 Flash + Qwen2-Audio} & \textbf{5.0} & \textbf{5.00} & \textbf{0.935} & \textbf{0.906} & \textbf{0.967} & \textbf{29} & \textbf{3} & \textbf{1} \\
+    \textbf{Gemini 3.6 Flash + Qwen2-Audio} & \textbf{5.0} & \textbf{2.50} & \textbf{0.935} & \textbf{0.906} & \textbf{0.967} & \textbf{29} & \textbf{3} & \textbf{1} \\
     Gemini 3.6 Flash + Qwen2-Audio & 2.5 & 2.50 & 0.900 & 0.900 & 0.900 & 27 & 3 & 3 \\
     Ministral 3-14B + Qwen2-Audio & 5.0 & 5.00 & 0.889 & 0.848 & 0.933 & 28 & 5 & 2 \\
     Ministral 3-14B + Qwen2-Audio & 5.0 & 2.50 & 0.889 & 0.848 & 0.933 & 28 & 5 & 2 \\

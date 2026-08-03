@@ -2,6 +2,10 @@
 \usetheme{Madrid}
 \usecolortheme{dolphin}
 
+% Exclude appendix slides from the main slide-number count (main shows N/13,
+% appendix shows A-1/A-4).
+\setbeamertemplate{page number in head/foot}[appendixframenumber]
+
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{booktabs}
@@ -215,61 +219,76 @@ Gemini 2.5 Flash & 16 & 14 \\
 \section{RQ2: Audio}
 \begin{frame}{RQ2: Audio Model Ablation (Window/Hop)}
 \centering
-\tiny
+\footnotesize
 \textbf{20 audio-relevant scenes. F1 = harmonic mean of precision and recall. Best config per model bolded.}
 \vspace{0.2em}
 
-\begin{tabular}{lcccccc}
-\toprule
-Provider & Win (s) & Hop (s) & F1 & Precision & Recall & TP/FP/FN \\
+\begin{tabular}{lcccccccc}
+Model & Window (s) & Hop (s) & F1 & Precision & Recall & TP & FP & FN \\
 \midrule
-\textbf{Qwen2-Audio} & \textbf{5.0} & \textbf{2.50} & \textbf{0.788} & \alert{1.000} & 0.650 & 13/0/7 \\
-Qwen2-Audio & 2.5 & 1.25 & 0.750 & 1.000 & 0.600 & 12/0/8 \\
-Qwen2-Audio & 5.0 & 5.00 & 0.667 & 1.000 & 0.500 & 10/0/10 \\
-Qwen2-Audio & 2.5 & 2.50 & 0.621 & 1.000 & 0.450 & 9/0/11 \\
-Qwen2-Audio & 1.0 & 1.00 & 0.389 & 0.438 & 0.350 & 7/9/13 \\
-Qwen2-Audio & 1.0 & 0.50 & 0.350 & 0.350 & 0.350 & 7/13/13 \\
-Qwen2-Audio & 10.0 & 10.00 & 0.320 & 0.800 & 0.200 & 4/1/16 \\
-Qwen2-Audio & 10.0 & 5.00 & 0.320 & 0.800 & 0.200 & 4/1/16 \\
+\textbf{Qwen2-Audio} & \textbf{5.0} & \textbf{2.50} & \textbf{0.788} & \alert{1.000} & 0.650 & 13 & 0 & 7 \\
+Qwen2-Audio & 2.5 & 1.25 & 0.750 & 1.000 & 0.600 & 12 & 0 & 8 \\
+Qwen2-Audio & 5.0 & 5.00 & 0.667 & 1.000 & 0.500 & 10 & 0 & 10 \\
+Qwen2-Audio & 2.5 & 2.50 & 0.621 & 1.000 & 0.450 & 9 & 0 & 11 \\
+Qwen2-Audio & 1.0 & 1.00 & 0.389 & 0.438 & 0.350 & 7 & 9 & 13 \\
+Qwen2-Audio & 1.0 & 0.50 & 0.350 & 0.350 & 0.350 & 7 & 13 & 13 \\
+Qwen2-Audio & 10.0 & 10.00 & 0.320 & 0.800 & 0.200 & 4 & 1 & 16 \\
+Qwen2-Audio & 10.0 & 5.00 & 0.320 & 0.800 & 0.200 & 4 & 1 & 16 \\
 \midrule
-PANNs CNN14 & 2.5 & 1.25 & 0.429 & 0.750 & 0.300 & 6/2/14 \\
-PANNs CNN14 & 5.0 & 5.00 & 0.400 & 1.000 & 0.250 & 5/0/15 \\
-PANNs CNN14 & 1.0 & 0.50 & 0.385 & 0.833 & 0.250 & 5/1/15 \\
-PANNs CNN14 & 2.5 & 2.50 & 0.370 & 0.714 & 0.250 & 5/2/15 \\
-PANNs CNN14 & 5.0 & 2.50 & 0.370 & 0.714 & 0.250 & 5/2/15 \\
-PANNs CNN14 & 1.0 & 1.00 & 0.320 & 0.800 & 0.200 & 4/1/16 \\
-PANNs CNN14 & 10.0 & 10.00 & 0.261 & 1.000 & 0.150 & 3/0/17 \\
-PANNs CNN14 & 10.0 & 5.00 & 0.261 & 1.000 & 0.150 & 3/0/17 \\
+PANNs CNN14 & 2.5 & 1.25 & 0.429 & 0.750 & 0.300 & 6 & 2 & 14 \\
+PANNs CNN14 & 5.0 & 5.00 & 0.400 & 1.000 & 0.250 & 5 & 0 & 15 \\
+PANNs CNN14 & 1.0 & 0.50 & 0.385 & 0.833 & 0.250 & 5 & 1 & 15 \\
+PANNs CNN14 & 2.5 & 2.50 & 0.370 & 0.714 & 0.250 & 5 & 2 & 15 \\
+PANNs CNN14 & 5.0 & 2.50 & 0.370 & 0.714 & 0.250 & 5 & 2 & 15 \\
+PANNs CNN14 & 1.0 & 1.00 & 0.320 & 0.800 & 0.200 & 4 & 1 & 16 \\
+PANNs CNN14 & 10.0 & 10.00 & 0.261 & 1.000 & 0.150 & 3 & 0 & 17 \\
+PANNs CNN14 & 10.0 & 5.00 & 0.261 & 1.000 & 0.150 & 3 & 0 & 17 \\
 \bottomrule
 \end{tabular}
 
 \vspace{0.2em}
-\scriptsize
+\footnotesize
 \textbf{Qwen2-Audio: perfect precision (1.000) for all windows $\ge$ 2.5 s; best 5.0s/2.5s (F1=0.788).}
 \end{frame}
 
 % ── RQ3: MULTIMODAL ──
 \section{RQ3: Multimodal}
+\begin{frame}{RQ3: Visual-Only Results (Condition A)}
+\centering
+\footnotesize
+All models use object re-identification. Best model bolded.
+\vspace{0.2em}
+
+\begin{tabular}{lccccccc}
+VLM & F1 & Precision & Recall & TP & FP & FN \\
+\midrule
+\textbf{Gemini 3.6 Flash} & \textbf{0.842} & 0.889 & 0.800 & 24 & 3 & 6 \\
+Ministral 3-14B & 0.750 & 0.808 & 0.700 & 21 & 5 & 9 \\
+Pixtral 12B & 0.679 & 0.783 & 0.600 & 18 & 5 & 12 \\
+Gemini 2.5 Flash & 0.653 & 0.842 & 0.533 & 16 & 3 & 14 \\
+\bottomrule
+\end{tabular}
+\end{frame}
+
 \begin{frame}{RQ3: Multimodal Union Outperforms Unimodal}
 \centering
 \footnotesize
 \textbf{Condition C:} $C = A \cup B$ (no temporal cross-modal joins).\\
-Best audio window/hop per pair (full 64-combo ranking in thesis appendix).
+Best audio window/hop per pair (all tied configs shown; complete 64-combo ranking in appendix).
 \vspace{0.2em}
 
 \resizebox{\textwidth}{!}{%
-\begin{tabular}{lcccccc}
-\toprule
-VLM + Audio Model & Window (s) & Hop (s) & F1 & Precision & Recall & TP/FP/FN \\
+\begin{tabular}{lccccccc}
+VLM + Audio Model & Window/Hop (s) & F1 & Precision & Recall & TP & FP & FN \\
 \midrule
-Gemini 3.6 Flash + Qwen2-Audio & 2.5 & 1.25 & \textbf{0.935} & 0.906 & 0.967 & 29/3/1 \\
-Gemini 3.6 Flash + PANNs & 5.0 & 5.0 & 0.862 & 0.893 & 0.833 & 25/3/5 \\
-Gemini 2.5 Flash + Qwen2-Audio & 5.0 & 2.5 & 0.821 & 0.885 & 0.767 & 23/3/7 \\
-Gemini 2.5 Flash + PANNs & 5.0 & 5.0 & 0.706 & 0.857 & 0.600 & 18/3/12 \\
-Ministral 3-14B + Qwen2-Audio & 5.0 & 5.0 & 0.889 & 0.848 & 0.933 & 28/5/2 \\
-Ministral 3-14B + PANNs & 5.0 & 5.0 & 0.772 & 0.815 & 0.733 & 22/5/8 \\
-Pixtral 12B + Qwen2-Audio & 5.0 & 5.0 & 0.833 & 0.833 & 0.833 & 25/5/5 \\
-Pixtral 12B + PANNs & 5.0 & 5.0 & 0.704 & 0.792 & 0.633 & 19/5/11 \\
+\textbf{Gemini 3.6 Flash + Qwen2-Audio} & \textbf{2.5/1.25, 5.0/2.5, 5.0/5.0} & \textbf{0.935} & \textbf{0.906} & \textbf{0.967} & \textbf{29} & \textbf{3} & \textbf{1} \\
+Gemini 3.6 Flash + PANNs & 5.0/5.0, 10/5, 10/10 & 0.862 & 0.893 & 0.833 & 25 & 3 & 5 \\
+Gemini 2.5 Flash + Qwen2-Audio & 5.0/2.5 & 0.821 & 0.885 & 0.767 & 23 & 3 & 7 \\
+Gemini 2.5 Flash + PANNs & 5.0/5.0 & 0.706 & 0.857 & 0.600 & 18 & 3 & 12 \\
+Ministral 3-14B + Qwen2-Audio & 5.0/2.5, 5.0/5.0 & 0.889 & 0.848 & 0.933 & 28 & 5 & 2 \\
+Ministral 3-14B + PANNs & 5.0/5.0, 10/5, 10/10 & 0.772 & 0.815 & 0.733 & 22 & 5 & 8 \\
+Pixtral 12B + Qwen2-Audio & 5.0/2.5, 5.0/5.0 & 0.833 & 0.833 & 0.833 & 25 & 5 & 5 \\
+Pixtral 12B + PANNs & 5.0/5.0, 10/5, 10/10 & 0.704 & 0.792 & 0.633 & 19 & 5 & 11 \\
 \bottomrule
 \end{tabular}}
 
@@ -277,7 +296,7 @@ Pixtral 12B + PANNs & 5.0 & 5.0 & 0.704 & 0.792 & 0.633 & 19/5/11 \\
 \footnotesize
 Visual-only best \textbf{0.842} (Gemini 3.6 Flash); Audio-only best \textbf{0.788} (Qwen2, 5.0s/2.5s).\\
 \textbf{Thesis claim: $C \ge \max(A, B)$ holds on all 30 scenes.}\\
-Best audio config varies: Qwen2 $\to$ 2.5s/1.25s-5.0s; PANNs $\to$ 5.0s/5.0s.
+Best multimodal result is robust: Gemini 3.6 Flash + Qwen2-Audio reaches F1 = 0.935 at the audio-optimal 5.0s/2.5s (and at 2.5s/1.25s, 5.0s/5.0s).
 \end{frame}
 
 % ── PER-EVENT ──
@@ -356,5 +375,121 @@ PANNs (Kong et al.) and Qwen2-Audio authors
 \normalsize Questions?
 \end{columns}
 \end{frame}
+
+% ── APPENDIX: COMPLETE ABLATION ──
+\appendix
+\section*{Appendix}
+\begin{frame}{Appendix: Complete Multimodal Ablation (Condition C), Rows 1-16}
+\centering
+\footnotesize
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lcccccccc}
+\toprule
+VLM + Audio Model & Window (s) & Hop (s) & F1 & Precision & Recall & TP & FP & FN \\
+\midrule
+    \textbf{Gemini 3.6 Flash + Qwen2-Audio} & \textbf{2.5} & \textbf{1.25} & \textbf{0.935} & \textbf{0.906} & \textbf{0.967} & \textbf{29} & \textbf{3} & \textbf{1} \\
+    \textbf{Gemini 3.6 Flash + Qwen2-Audio} & \textbf{5.0} & \textbf{5.00} & \textbf{0.935} & \textbf{0.906} & \textbf{0.967} & \textbf{29} & \textbf{3} & \textbf{1} \\
+    \textbf{Gemini 3.6 Flash + Qwen2-Audio} & \textbf{5.0} & \textbf{2.50} & \textbf{0.935} & \textbf{0.906} & \textbf{0.967} & \textbf{29} & \textbf{3} & \textbf{1} \\
+    Gemini 3.6 Flash + Qwen2-Audio & 2.5 & 2.50 & 0.900 & 0.900 & 0.900 & 27 & 3 & 3 \\
+    Ministral 3-14B + Qwen2-Audio & 5.0 & 5.00 & 0.889 & 0.848 & 0.933 & 28 & 5 & 2 \\
+    Ministral 3-14B + Qwen2-Audio & 5.0 & 2.50 & 0.889 & 0.848 & 0.933 & 28 & 5 & 2 \\
+    Ministral 3-14B + Qwen2-Audio & 2.5 & 1.25 & 0.871 & 0.844 & 0.900 & 27 & 5 & 3 \\
+    Gemini 3.6 Flash + PANNs CNN14 & 5.0 & 5.00 & 0.862 & 0.893 & 0.833 & 25 & 3 & 5 \\
+    Gemini 3.6 Flash + PANNs CNN14 & 10.0 & 10.00 & 0.862 & 0.893 & 0.833 & 25 & 3 & 5 \\
+    Gemini 3.6 Flash + PANNs CNN14 & 10.0 & 5.00 & 0.862 & 0.893 & 0.833 & 25 & 3 & 5 \\
+    Gemini 3.6 Flash + PANNs CNN14 & 1.0 & 1.00 & 0.847 & 0.862 & 0.833 & 25 & 4 & 5 \\
+    Gemini 3.6 Flash + PANNs CNN14 & 1.0 & 0.50 & 0.847 & 0.862 & 0.833 & 25 & 4 & 5 \\
+    Gemini 3.6 Flash + Qwen2-Audio & 10.0 & 10.00 & 0.847 & 0.862 & 0.833 & 25 & 4 & 5 \\
+    Gemini 3.6 Flash + Qwen2-Audio & 10.0 & 5.00 & 0.847 & 0.862 & 0.833 & 25 & 4 & 5 \\
+    Gemini 3.6 Flash + PANNs CNN14 & 2.5 & 2.50 & 0.833 & 0.833 & 0.833 & 25 & 5 & 5 \\
+    Gemini 3.6 Flash + PANNs CNN14 & 2.5 & 1.25 & 0.833 & 0.833 & 0.833 & 25 & 5 & 5 \\
+\bottomrule
+\end{tabular}}
+\end{frame}
+
+\begin{frame}{Appendix: Complete Multimodal Ablation (Condition C), Rows 17-32}
+\centering
+\footnotesize
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lcccccccc}
+\toprule
+VLM + Audio Model & Window (s) & Hop (s) & F1 & Precision & Recall & TP & FP & FN \\
+\midrule
+    Gemini 3.6 Flash + PANNs CNN14 & 5.0 & 2.50 & 0.833 & 0.833 & 0.833 & 25 & 5 & 5 \\
+    Ministral 3-14B + Qwen2-Audio & 2.5 & 2.50 & 0.833 & 0.833 & 0.833 & 25 & 5 & 5 \\
+    Pixtral 12B + Qwen2-Audio & 5.0 & 5.00 & 0.833 & 0.833 & 0.833 & 25 & 5 & 5 \\
+    Pixtral 12B + Qwen2-Audio & 5.0 & 2.50 & 0.833 & 0.833 & 0.833 & 25 & 5 & 5 \\
+    Gemini 2.5 Flash + Qwen2-Audio & 5.0 & 2.50 & 0.821 & 0.885 & 0.767 & 23 & 3 & 7 \\
+    Pixtral 12B + Qwen2-Audio & 2.5 & 1.25 & 0.814 & 0.828 & 0.800 & 24 & 5 & 6 \\
+    Gemini 2.5 Flash + Qwen2-Audio & 2.5 & 1.25 & 0.800 & 0.880 & 0.733 & 22 & 3 & 8 \\
+    Gemini 2.5 Flash + Qwen2-Audio & 5.0 & 5.00 & 0.800 & 0.880 & 0.733 & 22 & 3 & 8 \\
+    Ministral 3-14B + PANNs CNN14 & 5.0 & 5.00 & 0.772 & 0.815 & 0.733 & 22 & 5 & 8 \\
+    Ministral 3-14B + PANNs CNN14 & 10.0 & 10.00 & 0.772 & 0.815 & 0.733 & 22 & 5 & 8 \\
+    Ministral 3-14B + PANNs CNN14 & 10.0 & 5.00 & 0.772 & 0.815 & 0.733 & 22 & 5 & 8 \\
+    Pixtral 12B + Qwen2-Audio & 2.5 & 2.50 & 0.772 & 0.815 & 0.733 & 22 & 5 & 8 \\
+    Gemini 3.6 Flash + Qwen2-Audio & 1.0 & 1.00 & 0.765 & 0.684 & 0.867 & 26 & 12 & 4 \\
+    Ministral 3-14B + PANNs CNN14 & 1.0 & 1.00 & 0.759 & 0.786 & 0.733 & 22 & 6 & 8 \\
+    Ministral 3-14B + PANNs CNN14 & 1.0 & 0.50 & 0.759 & 0.786 & 0.733 & 22 & 6 & 8 \\
+    Ministral 3-14B + Qwen2-Audio & 10.0 & 10.00 & 0.759 & 0.786 & 0.733 & 22 & 6 & 8 \\
+\bottomrule
+\end{tabular}}
+\end{frame}
+
+\begin{frame}{Appendix: Complete Multimodal Ablation (Condition C), Rows 33-48}
+\centering
+\footnotesize
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lcccccccc}
+\toprule
+VLM + Audio Model & Window (s) & Hop (s) & F1 & Precision & Recall & TP & FP & FN \\
+\midrule
+    Ministral 3-14B + Qwen2-Audio & 10.0 & 5.00 & 0.759 & 0.786 & 0.733 & 22 & 6 & 8 \\
+    Ministral 3-14B + PANNs CNN14 & 2.5 & 2.50 & 0.746 & 0.759 & 0.733 & 22 & 7 & 8 \\
+    Ministral 3-14B + PANNs CNN14 & 2.5 & 1.25 & 0.746 & 0.759 & 0.733 & 22 & 7 & 8 \\
+    Ministral 3-14B + PANNs CNN14 & 5.0 & 2.50 & 0.746 & 0.759 & 0.733 & 22 & 7 & 8 \\
+    Gemini 3.6 Flash + Qwen2-Audio & 1.0 & 0.50 & 0.732 & 0.634 & 0.867 & 26 & 15 & 4 \\
+    Gemini 2.5 Flash + Qwen2-Audio & 2.5 & 2.50 & 0.731 & 0.864 & 0.633 & 19 & 3 & 11 \\
+    Gemini 2.5 Flash + PANNs CNN14 & 5.0 & 5.00 & 0.706 & 0.857 & 0.600 & 18 & 3 & 12 \\
+    Gemini 2.5 Flash + PANNs CNN14 & 2.5 & 1.25 & 0.704 & 0.792 & 0.633 & 19 & 5 & 11 \\
+    Pixtral 12B + PANNs CNN14 & 5.0 & 5.00 & 0.704 & 0.792 & 0.633 & 19 & 5 & 11 \\
+    Pixtral 12B + PANNs CNN14 & 10.0 & 10.00 & 0.704 & 0.792 & 0.633 & 19 & 5 & 11 \\
+    Pixtral 12B + PANNs CNN14 & 10.0 & 5.00 & 0.704 & 0.792 & 0.633 & 19 & 5 & 11 \\
+    Gemini 2.5 Flash + PANNs CNN14 & 1.0 & 1.00 & 0.692 & 0.818 & 0.600 & 18 & 4 & 12 \\
+    Gemini 2.5 Flash + PANNs CNN14 & 1.0 & 0.50 & 0.692 & 0.818 & 0.600 & 18 & 4 & 12 \\
+    Gemini 2.5 Flash + Qwen2-Audio & 10.0 & 10.00 & 0.692 & 0.818 & 0.600 & 18 & 4 & 12 \\
+    Gemini 2.5 Flash + Qwen2-Audio & 10.0 & 5.00 & 0.692 & 0.818 & 0.600 & 18 & 4 & 12 \\
+    Pixtral 12B + PANNs CNN14 & 1.0 & 1.00 & 0.691 & 0.760 & 0.633 & 19 & 6 & 11 \\
+\bottomrule
+\end{tabular}}
+\end{frame}
+
+\begin{frame}{Appendix: Complete Multimodal Ablation (Condition C), Rows 49-64}
+\centering
+\footnotesize
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lcccccccc}
+\toprule
+VLM + Audio Model & Window (s) & Hop (s) & F1 & Precision & Recall & TP & FP & FN \\
+\midrule
+    Pixtral 12B + PANNs CNN14 & 1.0 & 0.50 & 0.691 & 0.760 & 0.633 & 19 & 6 & 11 \\
+    Pixtral 12B + Qwen2-Audio & 10.0 & 10.00 & 0.691 & 0.760 & 0.633 & 19 & 6 & 11 \\
+    Pixtral 12B + Qwen2-Audio & 10.0 & 5.00 & 0.691 & 0.760 & 0.633 & 19 & 6 & 11 \\
+    Ministral 3-14B + Qwen2-Audio & 1.0 & 1.00 & 0.687 & 0.622 & 0.767 & 23 & 14 & 7 \\
+    Gemini 2.5 Flash + PANNs CNN14 & 10.0 & 10.00 & 0.680 & 0.850 & 0.567 & 17 & 3 & 13 \\
+    Gemini 2.5 Flash + PANNs CNN14 & 10.0 & 5.00 & 0.680 & 0.850 & 0.567 & 17 & 3 & 13 \\
+    Gemini 2.5 Flash + PANNs CNN14 & 2.5 & 2.50 & 0.679 & 0.783 & 0.600 & 18 & 5 & 12 \\
+    Gemini 2.5 Flash + PANNs CNN14 & 5.0 & 2.50 & 0.679 & 0.783 & 0.600 & 18 & 5 & 12 \\
+    Pixtral 12B + PANNs CNN14 & 2.5 & 2.50 & 0.679 & 0.731 & 0.633 & 19 & 7 & 11 \\
+    Pixtral 12B + PANNs CNN14 & 2.5 & 1.25 & 0.679 & 0.731 & 0.633 & 19 & 7 & 11 \\
+    Pixtral 12B + PANNs CNN14 & 5.0 & 2.50 & 0.679 & 0.731 & 0.633 & 19 & 7 & 11 \\
+    Ministral 3-14B + Qwen2-Audio & 1.0 & 0.50 & 0.648 & 0.561 & 0.767 & 23 & 18 & 7 \\
+    Pixtral 12B + Qwen2-Audio & 1.0 & 1.00 & 0.625 & 0.588 & 0.667 & 20 & 14 & 10 \\
+    Gemini 2.5 Flash + Qwen2-Audio & 1.0 & 1.00 & 0.623 & 0.613 & 0.633 & 19 & 12 & 11 \\
+    Gemini 2.5 Flash + Qwen2-Audio & 1.0 & 0.50 & 0.594 & 0.559 & 0.633 & 19 & 15 & 11 \\
+    Pixtral 12B + Qwen2-Audio & 1.0 & 0.50 & 0.588 & 0.526 & 0.667 & 20 & 18 & 10 \\
+\bottomrule
+\end{tabular}}
+\end{frame}
+
 
 \end{document}

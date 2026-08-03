@@ -159,7 +159,7 @@ def _build_sound_queries(deltas: dict, analysis_id: str = "") -> dict[str, str]:
             ImpactSounds AS (
                 SELECT SoundIntervalID, StartFrame, EndFrame
                 FROM SoundPerInterval SI
-                WHERE SoundClass IN ('impact', 'fight')
+                WHERE SoundClass = 'impact'
                   AND Confidence >= {confidence_threshold} {a}
             )
             SELECT SS.SoundIntervalID,
@@ -243,7 +243,7 @@ def _build_multimodal_queries(deltas: dict, analysis_id: str = "") -> dict[str, 
             ImpactSounds AS (
                 SELECT SoundIntervalID, StartFrame, EndFrame
                 FROM SoundPerInterval SI
-                WHERE SoundClass IN ('impact', 'fight')
+                WHERE SoundClass = 'impact'
                   AND Confidence >= {confidence_threshold} {a_sound}
             ),
             AudioFight AS (

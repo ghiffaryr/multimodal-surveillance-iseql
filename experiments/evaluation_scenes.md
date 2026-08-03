@@ -1,4 +1,4 @@
-# Evaluation Scenes — Multimodal ISEQL Temporal Event Detection
+# Evaluation Scenes: Multimodal ISEQL Temporal Event Detection
 
 30 scenes across 6 event types, each with 5 variations for consistency measurement.
 Multimodal (C) evaluated on all scenes; visual-only (A) and sound-only (B) evaluated
@@ -6,10 +6,10 @@ on modality-capable scenes only.
 
 ## Setup
 
-- **Model**: Dreamina Seedance — single generation per scene, 10 seconds each
+- **Model**: Dreamina Seedance, single generation per scene, 10 seconds each
 - **Camera**: Fixed, surveillance angle (slightly elevated), no zoom, no pan
 - **Resolution**: 1280×720, 24 fps
-- **Each scene**: generated once with ALL detail in the prompt — no post-production edits
+- **Each scene**: generated once with ALL detail in the prompt, no post-production edits
 - **Audio pipeline**: PANNs CNN14 or Qwen2-Audio-7B-Instruct → SoundPerFrame → SoundPerInterval
 - **Visual pipeline**: VLM (Pixtral 12B, Ministral 3-14B, Gemini 2.5 Flash, Gemini 3.6 Flash) → VisualRelation → VisualPerInterval
 - **High-level detection**: ISEQL temporal queries over VisualPerInterval and SoundPerInterval
@@ -24,7 +24,7 @@ Each condition is evaluated only on scenes where that modality can physically pe
 |-----------|----------------|------------|
 | A (visual) | Event visible in-frame | Off-camera / occluded events excluded |
 | B (sound) | Event has audio correlate | Handoff, loitering (no sound) excluded |
-| C (multimodal) | All scenes | — |
+| C (multimodal) | All scenes | (none) |
 
 ### Per-Event Binary Metrics
 
@@ -47,12 +47,12 @@ With 5 positive scenes per event (where modality-capable), the expected recall i
 ---
 
 
-## Scene 4 — Visible Fistfight Near Wall
+## Scene 4: Visible Fistfight Near Wall
 
 **Dreamina prompt (10 seconds, exact timing):**
 
 0-2 seconds: Fixed security camera view of a parking lot near a wall. Two people
-stand facing each other, arguing — arms waving, pointing fingers. Voices raised,
+stand facing each other, arguing, arms waving, pointing fingers. Voices raised,
 shouting audible.
 
 2-4.5 seconds: The argument escalates. One person shoves the other. The second
@@ -95,12 +95,12 @@ the other walks away right. Third person follows. Frame becomes empty.
 ---
 
 
-## Scene 5 — Visible Fistfight
+## Scene 5: Visible Fistfight
 
 **Dreamina prompt (10 seconds, exact timing):**
 
 0-2 seconds: Fixed security camera view of a parking lot near a wall. Two people
-stand facing each other, arguing — arms waving, pointing fingers. Voices raised,
+stand facing each other, arguing, arms waving, pointing fingers. Voices raised,
 shouting audible.
 
 2-4.5 seconds: The argument escalates. One person shoves the other. The second
@@ -143,7 +143,7 @@ the other walks away right. Third person follows. Frame becomes empty.
 ---
 
 
-## Scene 6 — Argument With Thrown Object
+## Scene 6: Argument With Thrown Object
 
 **Dreamina prompt (10 seconds, exact timing):**
 
@@ -188,7 +188,7 @@ Static surveillance camera.
 ---
 
 
-## Scene 7 — Gunshot + Explosion (Gas Leak)
+## Scene 7: Gunshot + Explosion (Gas Leak)
 
 **Dreamina prompt (10 seconds, exact timing):**
 
@@ -201,7 +201,7 @@ is clearly visible. The gunshot sound is sharp and distinct. The person is
 holding the gun in plain view.
 
 3-5 seconds: The bullet hits the gas line on the building wall. Sparks fly,
-then a large explosion erupts — fireball, smoke, and debris visible. The
+then a large explosion erupts: a fireball, smoke, and debris visible. The
 explosion sound is a deep boom. Both people duck and run.
 
 5-8 seconds: The fire spreads. People flee in all directions. Smoke billows.
@@ -237,7 +237,7 @@ The building wall is damaged with visible debris on the ground.
 ---
 
 
-## Scene 8 — Visible Drive-By Gunshot
+## Scene 8: Visible Drive-By Gunshot
 
 **Dreamina prompt (10 seconds, exact timing):**
 
@@ -249,7 +249,7 @@ As it passes through the frame, a hand with a gun extends from the passenger
 window. A muzzle flash is clearly visible. The gunshot sound is sharp and
 distinct. The car continues driving and exits right.
 
-3.5-5 seconds: Pedestrians react immediately — some duck, some run, some look
+3.5-5 seconds: Pedestrians react immediately: some duck, some run, some look
 around in panic. One person falls to the ground, then gets up and runs.
 
 5-8 seconds: People continue fleeing. The street becomes empty.
@@ -283,7 +283,7 @@ around in panic. One person falls to the ground, then gets up and runs.
 
 
 
-## Scene 9 — Parking Lot Shooting
+## Scene 9: Parking Lot Shooting
 
 **Dreamina prompt (10 seconds, exact timing):**
 
@@ -291,7 +291,7 @@ around in panic. One person falls to the ground, then gets up and runs.
 cars. A person walks across the frame from left to right at a normal pace.
 
 2-4 seconds: Another person steps out from between two parked cars, facing the
-first person. An argument begins — shouting heard, arms waving.
+first person. An argument begins: shouting heard, arms waving.
 
 4-5.5 seconds: The second person pulls out a handgun and fires a shot. The
 muzzle flash is clearly visible. The gunshot sound is sharp and loud. Smoke
@@ -328,7 +328,7 @@ Static surveillance camera.
 
 ---
 
-## Scene 10 — Visible Warehouse Explosion
+## Scene 10: Visible Warehouse Explosion
 
 **Dreamina prompt (10 seconds, exact timing):**
 
@@ -336,7 +336,7 @@ Static surveillance camera.
 in the background. A truck is parked near the warehouse loading dock. A person
 walks near the truck.
 
-2-4 seconds: A massive explosion erupts from the warehouse — a large fireball,
+2-4 seconds: A massive explosion erupts from the warehouse: a large fireball,
 thick black smoke billowing upward, debris flying through the air. The
 explosion sound is a deep, powerful boom. Windows in nearby buildings shatter
 audibly.
@@ -377,7 +377,7 @@ the area. Static surveillance camera.
 
 
 
-## Scene 11 — Car Fire Explosion
+## Scene 11: Car Fire Explosion
 
 **Dreamina prompt (10 seconds, exact timing):**
 
@@ -385,7 +385,7 @@ the area. Static surveillance camera.
 center of frame has smoke rising from under the hood. A person nearby notices
 and steps back.
 
-3-5 seconds: The car erupts into a large fireball explosion — flames burst from
+3-5 seconds: The car erupts into a large fireball explosion: flames burst from
 the hood, windows shatter, black smoke billows upward. The explosion sound is a
 deep powerful boom. Debris flies in all directions.
 
@@ -420,7 +420,7 @@ heard in the distance. Static camera.
 
 ---
 
-## Scene 12 — Vehicle Escape
+## Scene 12: Vehicle Escape
 
 **Dreamina prompt (10 seconds, exact timing):**
 
@@ -469,7 +469,7 @@ surveillance camera angle, no movement.
 ---
 
 
-## Scene 13 — Motorcycle Escape
+## Scene 13: Motorcycle Escape
 
 **Dreamina prompt (10 seconds, exact timing):**
 
@@ -494,7 +494,7 @@ the distance. Static surveillance camera.
 
 - A: `vehicle_escape` = running SP enter_or_exit_vehicle on VisualPerInterval.
 - B: `vehicle_escape` = engine SP tire_squeal on SoundPerInterval.
-- C: Same as scene 12 — (engine SP tire_squeal) UNION (running SP enter_or_exit_vehicle).
+- C: Same as scene 12: (engine SP tire_squeal) UNION (running SP enter_or_exit_vehicle).
 
 | Cond | Expected | Rationale |
 | ---- | -------- | --------- |
@@ -515,7 +515,7 @@ the distance. Static surveillance camera.
 ---
 
 
-## Scene 14 — Diesel Truck Escape
+## Scene 14: Diesel Truck Escape
 
 **Dreamina prompt (10 seconds, exact timing):**
 
@@ -526,7 +526,7 @@ from the warehouse toward the truck.
 2-4 seconds: The person opens the truck door, climbs into the cab, and closes
 the door.
 
-4-6 seconds: The diesel engine starts with a loud rumble — distinct deep diesel
+4-6 seconds: The diesel engine starts with a loud rumble: distinct deep diesel
 starting sound. Exhaust smoke visible from the vertical exhaust pipe.
 
 6-7.5 seconds: The truck begins moving forward slowly, then accelerates.
@@ -564,7 +564,7 @@ camera.
 ---
 
 
-## Scene 15 — Vehicle Collision (Horn → Hit Parked Car)
+## Scene 15: Vehicle Collision (Horn → Hit Parked Car)
 
 **Dreamina prompt (10 seconds, exact timing):**
 
@@ -610,7 +610,7 @@ driver gets out to inspect the damage. Broken glass on the ground visible.
 ---
 
 
-## Scene 16 — Vehicle Collision (Skid → Storefront)
+## Scene 16: Vehicle Collision (Skid → Storefront)
 
 **Dreamina prompt (10 seconds, exact timing):**
 
@@ -618,7 +618,7 @@ driver gets out to inspect the damage. Broken glass on the ground visible.
 right side. A car drives along the street from left to right at moderate speed.
 
 2-3.5 seconds: A dog runs into the street. The driver slams the brakes. Loud
-tire skidding sound — tires locking and sliding on asphalt. The car skids
+tire skidding sound: tires locking and sliding on asphalt. The car skids
 forward, leaving visible skid marks.
 
 3.5-5 seconds: The car slides into a storefront window, shattering the glass.
@@ -658,7 +658,7 @@ camera.
 ---
 
 
-## Scene 17 — Vehicle Collision (Horn → Sideswipe)
+## Scene 17: Vehicle Collision (Horn → Sideswipe)
 
 **Dreamina prompt (10 seconds, exact timing):**
 
@@ -704,7 +704,7 @@ inspect the damage. Scratches and broken glass visible on both vehicles.
 ---
 
 
-## Scene 18 — Loitering (Suspicious Near Vehicle)
+## Scene 18: Loitering (Suspicious Near Vehicle)
 
 **Dreamina prompt (10 seconds, exact timing):**
 
@@ -746,7 +746,7 @@ surveillance camera angle.
 ---
 
 
-## Scene 19 — Loitering (Crouching Near SUV)
+## Scene 19: Loitering (Crouching Near SUV)
 
 **Dreamina prompt (10 seconds, exact timing):**
 
@@ -760,7 +760,7 @@ the tire itself. The person stays crouched.
 4-8 seconds: The person remains crouched next to the car for several seconds,
 occasionally reaching out to touch the tire or look underneath. The person looks
 around briefly, then returns attention to the car. This is clearly suspicious
-behavior — inspecting the car up close.
+behavior, inspecting the car up close.
 
 8-10 seconds: The person stands up, looks around again, and walks away quickly,
 exiting frame left. The SUV remains. Static surveillance camera.
@@ -788,7 +788,7 @@ exiting frame left. The SUV remains. Static surveillance camera.
 
 
 
-## Scene 20 — Loitering (Delivery Van)
+## Scene 20: Loitering (Delivery Van)
 
 **Dreamina prompt (10 seconds, exact timing):**
 
@@ -801,7 +801,7 @@ it. The person peers into the driver window with hands cupped around the eyes.
 
 4-7 seconds: The person tries the van's door handle. The door is locked. The
 person walks to the back of the van and tries the rear handle. Clearly
-suspicious behavior — this is not their vehicle.
+suspicious behavior; this is not their vehicle.
 
 7-8.5 seconds: The person steps back, looks around, then walks away quickly.
 
@@ -828,7 +828,7 @@ suspicious behavior — this is not their vehicle.
 
 ---
 
-## Scene 21 — Package Handoff
+## Scene 21: Package Handoff
 
 **Dreamina prompt (10 seconds, exact timing):**
 
@@ -872,7 +872,7 @@ Static surveillance camera angle, no zoom, no movement.
 ---
 
 
-## Scene 22 — Briefcase Handoff
+## Scene 22: Briefcase Handoff
 
 **Dreamina prompt (10 seconds, exact timing):**
 
@@ -913,7 +913,7 @@ Static surveillance camera.
 ---
 
 
-## Scene 23 — Three-Person Chain Handoff
+## Scene 23: Three-Person Chain Handoff
 
 **Dreamina prompt (10 seconds, exact timing):**
 
@@ -957,13 +957,13 @@ Person B have already exited or are leaving the frame.
 ---
 
 
-## Scene 29 — Fight: Park Fight
+## Scene 29: Fight: Park Fight
 
 **Dreamina prompt (10 seconds, exact timing):**
 
 0-2 seconds: Fixed security camera view of a park area with benches. Two people stand facing each other, arguing loudly.
 
-2-4 seconds: The argument escalates. One person shoves the other. A physical fight breaks out — pushing, shoving, punching. Loud shouting throughout.
+2-4 seconds: The argument escalates. One person shoves the other. A physical fight breaks out, with pushing, shoving, and punching. Loud shouting throughout.
 
 4-6 seconds: The fight continues with grappling and throwing punches. Shouting and impact sounds.
 
@@ -997,13 +997,13 @@ Person B have already exited or are leaving the frame.
 | visual   | physical_altercation      |    1.542 |    5.500 |    37 | 132   | Fighting, punching, shoving |
 ---
 
-## Scene 30 — Fight: Stairwell Fight
+## Scene 30: Fight: Stairwell Fight
 
 **Dreamina prompt (10 seconds, exact timing):**
 
 0-2 seconds: Fixed security camera view of an indoor stairwell landing. Two people face each other, arguing loudly. Shouting clearly audible.
 
-2-4 seconds: One person pushes the other against the wall. A physical fight breaks out — punching and pushing. Loud shouting continues.
+2-4 seconds: One person pushes the other against the wall. A physical fight breaks out, with punching and pushing. Loud shouting continues.
 
 4-6 seconds: The fight continues with grappling. Punches thrown. Continued shouting.
 
@@ -1036,7 +1036,7 @@ Person B have already exited or are leaving the frame.
 | visual   | physical_altercation      |    0.417 |    5.417 |    10 | 130   | Fighting, pushing, punching |
 ---
 
-## Scene 31 — Vehicle Escape: Parking Garage Getaway
+## Scene 31: Vehicle Escape: Parking Garage Getaway
 
 **Dreamina prompt (10 seconds, exact timing):**
 
@@ -1076,7 +1076,7 @@ Person B have already exited or are leaving the frame.
 | visual   | enter_or_exit_vehicle     |    1.958 |    4.042 |    47 | 97    | Person enters car |
 ---
 
-## Scene 32 — Vehicle Escape: Delivery Van Getaway
+## Scene 32: Vehicle Escape: Delivery Van Getaway
 
 **Dreamina prompt (10 seconds, exact timing):**
 
@@ -1114,7 +1114,7 @@ Person B have already exited or are leaving the frame.
 | visual   | enter_or_exit_vehicle     |    2.042 |    4.125 |    49 | 99    | Person enters van |
 ---
 
-## Scene 33 — Vehicle Collision: Forward Collision with Horn
+## Scene 33: Vehicle Collision: Forward Collision with Horn
 
 **Dreamina prompt (10 seconds, exact timing):**
 
@@ -1153,7 +1153,7 @@ Person B have already exited or are leaving the frame.
 | visual   | vehicle_collision         |    2.625 |   10.000 |    63 | 240   | Damaged car with broken taillight |
 ---
 
-## Scene 34 — Vehicle Collision: Skidding Forward Collision
+## Scene 34: Vehicle Collision: Skidding Forward Collision
 
 **Dreamina prompt (10 seconds, exact timing):**
 
@@ -1192,7 +1192,7 @@ Person B have already exited or are leaving the frame.
 | visual   | vehicle_collision         |    2.167 |   10.000 |    52 | 240   | Damaged cars after collision |
 ---
 
-## Scene 35 — Loitering: Person Inspecting Parked Car
+## Scene 35: Loitering: Person Inspecting Parked Car
 
 **Dreamina prompt (10 seconds, exact timing):**
 
@@ -1225,7 +1225,7 @@ Person B have already exited or are leaving the frame.
 | visual   | suspicious_near_vehicle   |    2.375 |    6.625 |    57 | 159   | Person peers into car, suspicious |
 ---
 
-## Scene 36 — Loitering: Person Inspecting Parked SUV
+## Scene 36: Loitering: Person Inspecting Parked SUV
 
 **Dreamina prompt (10 seconds, exact timing):**
 
@@ -1258,7 +1258,7 @@ Person B have already exited or are leaving the frame.
 | visual   | suspicious_near_vehicle   |    1.667 |    6.917 |    40 | 166   | Person peers into SUV, suspicious |
 ---
 
-## Scene 37 — Handoff: Backpack Exchange on Park Bench
+## Scene 37: Handoff: Backpack Exchange on Park Bench
 
 **Dreamina prompt (10 seconds, exact timing):**
 
@@ -1294,7 +1294,7 @@ Person B have already exited or are leaving the frame.
 | visual   | carrying                  |    4.625 |   10.000 |   111 | 240   | Person B carries backpack after handoff |
 ---
 
-## Scene 38 — Handoff: Shopping Bag Handoff at Bus Stop
+## Scene 38: Handoff: Shopping Bag Handoff at Bus Stop
 
 **Dreamina prompt (10 seconds, exact timing):**
 
