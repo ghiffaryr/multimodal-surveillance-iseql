@@ -61,7 +61,7 @@ Critical events go unnoticed. A missed event could mean a missed crime.
 % ── PROBLEM & GAP ──
 \section{Problem and Gap}
 \begin{frame}{Prior Work: VIS MODE and Its Limitations}
-\begin{block}{VIS MODE (Crescitelli et al., CIKM '26)}
+\begin{block}{VIS MODE (Crescitelli et al., CIKM 2026)}
 First ISEQL-based event detector using VLM perception. Reported high precision/recall on surveillance footage.
 \end{block}
 \vspace{0.4em}
@@ -69,11 +69,11 @@ First ISEQL-based event detector using VLM perception. Reported high precision/r
 \begin{enumerate}
   \item \textbf{Missing re-identification:} VLM assigned new IDs every frame, intervals never spanned multiple frames, \alert{tracking-dependent events undetected}.
   \item \textbf{Unverifiable claims:} Evaluated on unlabeled ground truth.
-  \item \textbf{Non-deterministic:} Temperature $>0$, no fixed seed.
+  \item \textbf{Non-deterministic:} Temperature $>0$, no fixed seed. The model freely writes descriptions, so results are \alert{not reproducible}: fresh person/object IDs every call mean \alert{handoff failed completely} (GATCHA project: 0 detections).
 \end{enumerate}
 \end{alertblock}
 \vspace{0.3em}
-\textbf{Our fix:} Object re-identification unlocks tracking-dependent events.\hspace{1em}\textbf{Our extension:} Audio modality via LALM.
+\textbf{Our fix:} Object re-identification unlocks tracking-dependent events; temperature $=0$, seed $=42$ make inference deterministic.\hspace{0.5em}\textbf{Our extension:} Audio modality via LALM.
 \end{frame}
 
 % ── SYSTEM OVERVIEW ──
@@ -104,6 +104,7 @@ First ISEQL-based event detector using VLM perception. Reported high precision/r
 \section{ISEQL}
 \begin{frame}{ISEQL: Formal Event Definitions (1/2)}
 \footnotesize
+\textbf{ISEQL (Helmer \& Persia, 2016; Persia et al., 2017):} Interval-based SQL Event Query Language.\\
 \textbf{Notation:} $M_i.\texttt{arg}_j$: $j$-th argument of interval $i$. $M_i.s_f$, $M_i.e_f$: start/end frame. $\mathrm{Bef}_{\delta}$: before operator with gap $\le\delta$. $\mathrm{SP}$: start preceding (overlap). $\cup$: set union. $\sigma_P$: select intervals satisfying $P$. $\pi_F$: project fields $F$.
 \vspace{0.3em}
 
@@ -223,7 +224,7 @@ Gemini 3.6 Flash loitering 0/5$\to$5/5, escape 0/5$\to$1/5, handoff 4/5$\to$5/5.
 \begin{frame}{RQ2: Audio Model Ablation (Window/Hop)}
 \centering
 \footnotesize
-\textbf{20 audio-relevant scenes. F1 = harmonic mean of precision and recall. Best config per model bolded.}
+\textbf{20 audio-relevant scenes. Qwen2-Audio (Chu et al., 2024) vs.\ PANNs (Kong et al., 2020). F1 = harmonic mean of precision and recall. Best config per model bolded.}
 \vspace{0.6em}
 
 \begin{tabular}{lcccccccc}
@@ -478,5 +479,27 @@ VLM + Audio Model & Window (s) & Hop (s) & F1 & Precision & Recall & TP & FP & F
 \end{tabular}}
 \end{frame}
 
+% ── BIBLIOGRAPHY ──
+\begin{frame}{References}
+\footnotesize
+\begin{itemize}
+\setlength{\itemsep}{0.3em}
+
+\item S.~Helmer and F.~Persia. High-level Surveillance Event Detection Using an Interval-based Query Language. In \emph{Proc.\ ICSC}, pp.\ 39--46. IEEE, 2016.
+
+\item F.~Persia, F.~Bettini, and S.~Helmer. An Interactive Framework for Video Surveillance Event Detection and Modeling. In \emph{Proc.\ CIKM}, pp.\ 2515--2518. ACM, 2017.
+
+\item J.~F.~Allen. Maintaining Knowledge about Temporal Intervals. \emph{Communications of the ACM}, 26(11):832--843, 1983.
+
+\item Q.~Kong et al. {PANNs}: Large-Scale Pretrained Audio Neural Networks for Audio Pattern Recognition. \emph{IEEE/ACM Trans.\ Audio, Speech, Lang.\ Process.}, 28:2880--2894, 2020.
+
+\item Y.~Chu et al. Qwen2-Audio Technical Report. \emph{arXiv preprint arXiv:2407.10759}, 2024.
+
+\item V.~Crescitelli et al. {VIS MODE}: Video Interval-based Surveillance using Complex Event Modeling and Detection. In \emph{Proc.\ CIKM (Demo Track)}. ACM, 2026.
+
+\item Y.~Tang et al. Video Understanding with Large Language Models: A Survey. \emph{IEEE Trans.\ Circuits Syst.\ Video Technol.}, 36(2):1355--1376, 2026.
+
+\end{itemize}
+\end{frame}
 
 \end{document}
