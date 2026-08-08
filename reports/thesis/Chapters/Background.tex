@@ -70,7 +70,7 @@ High-level events are defined as projection-selection expressions. The general f
 \[
 \begin{aligned}
 \text{Event}_A &\equiv \pi_{F}(\sigma_{P}(M_1)) \qquad \text{(single-interval query)} \\
-\text{Event}_A &\equiv \pi_{F}(\sigma_{P_1}(M_1)\ \mathrm{op}\ \sigma_{P_2}(M_2))) \qquad \text{(temporal join query)}
+\text{Event}_A &\equiv \pi_{F}(\sigma_{P_1}(M_1)\ \mathrm{op}\ \sigma_{P_2}(M_2)) \qquad \text{(temporal join query)}
 \end{aligned}
 \]
 where $\pi_F$ projects fields, $\sigma_P$ selects intervals satisfying predicate $P$, $\mathrm{op}$ is a temporal operator written directly between the two expressions, and $\sigma_C$ applies cross-conditions on interval arguments. In the multimodal condition, events combine via set union: $\text{Event}_C \equiv \text{Event}_A \cup \text{Event}_B$.
@@ -81,13 +81,13 @@ Below, $M_i.\texttt{arg}_j$ denotes the $j$-th argument of interval $M_i$, and $
 \[
 \small
 \begin{aligned}
-\text{Fight}_A &\equiv \pi_{M_1.\textit{arg}_1,\; M_1.\textit{arg}_2,\; M_1.s_f,\; M_1.e_f}\,
-  \sigma_{\textit{pred}=\text{`physical\_altercation'}}(M_1)\,, \\[2pt]
-  &\qquad \land\ \mathrm{count\_distinct}(M_1.\textit{arg}) \ge 2 \\[4pt]
-\text{Fight}_B &\equiv \pi_{M_1.s_f,\; M_1.e_f,\; M_2.s_f,\; M_2.e_f}\,
-  \bigl(\sigma_{\textit{pred}=\text{`shout'}}(M_1)
+\text{Fight}_A &\equiv \pi_{M_1.\textit{arg}_1,\; M_1.\textit{arg}_2,\; M_1.s_f,\; M_1.e_f}(
+  \sigma_{\,M_1.\textit{arg}_1 \neq M_1.\textit{arg}_2}(
+  \sigma_{\textit{pred}=\text{`physical\_altercation'}}(M_1) ) ) \\[4pt]
+\text{Fight}_B &\equiv \pi_{M_1.s_f,\; M_2.e_f}(
+  \sigma_{\textit{pred}=\text{`shout'}}(M_1)
   \ \textit{Bef}_{120}\ 
-  \sigma_{\textit{pred}=\text{`impact'}}(M_2)\bigr) \\[4pt]
+  \sigma_{\textit{pred}=\text{`impact'}}(M_2) ) \\[4pt]
 \text{Fight}_C &\equiv \text{Fight}_A \cup \text{Fight}_B
 \end{aligned}
 \]
@@ -97,12 +97,11 @@ Below, $M_i.\texttt{arg}_j$ denotes the $j$-th argument of interval $M_i$, and $
 \small
 \begin{aligned}
 \text{Handoff}_A \equiv\;
-  &\pi_{\,M_1.\textit{arg}_1,\; M_1.\textit{arg}_2,\; M_1.s_f,\; M_1.e_f,} \\
-  &\qquad_{\,M_2.\textit{arg}_1,\; M_2.\textit{arg}_2,\; M_2.s_f,\; M_2.e_f}
-  \; \sigma_{\,M_1.\textit{arg}_1 \neq M_2.\textit{arg}_1 \;\land\; M_1.\textit{arg}_2 = M_2.\textit{arg}_2} \\
-  &\qquad \bigl( \sigma_{\textit{pred}=\text{`carrying'}}(M_1)
+  &\pi_{\,M_1.\textit{arg}_1,\; M_2.\textit{arg}_1,\; M_1.\textit{arg}_2,\; M_1.s_f,\; M_2.e_f} ( \\
+  &\qquad \sigma_{\,M_1.\textit{arg}_1 \neq M_2.\textit{arg}_1 \;\land\; M_1.\textit{arg}_2 = M_2.\textit{arg}_2} ( \\
+  &\qquad \sigma_{\textit{pred}=\text{`carrying'}}(M_1)
      \ \textit{Bef}_{240}\ 
-     \sigma_{\textit{pred}=\text{`carrying'}}(M_2) \bigr)
+     \sigma_{\textit{pred}=\text{`carrying'}}(M_2) ) )
 \end{aligned}
 \]
 
@@ -110,9 +109,9 @@ Below, $M_i.\texttt{arg}_j$ denotes the $j$-th argument of interval $M_i$, and $
 \[
 \small
 \begin{aligned}
-\text{Loitering}_A \equiv\; &\pi_{M_1.\textit{arg}_1,\; M_1.\textit{arg}_2,\; M_1.s_f,\; M_1.e_f}\,
+\text{Loitering}_A \equiv\; &\pi_{M_1.\textit{arg}_1,\; M_1.\textit{arg}_2,\; M_1.s_f,\; M_1.e_f}(
   \sigma_{\textit{pred}=\text{`suspicious\_near\_vehicle'}}(M_1) \\
-  &\quad \land\; (M_1.e_f - M_1.s_f) \ge 120
+  &\quad \land\; (M_1.e_f - M_1.s_f) \ge 120 )
 \end{aligned}
 \]
 
@@ -121,17 +120,16 @@ Below, $M_i.\texttt{arg}_j$ denotes the $j$-th argument of interval $M_i$, and $
 \small
 \begin{aligned}
 \text{Escape}_A \equiv\;
-  &\pi_{\,M_1.\textit{arg}_1,\; M_1.s_f,\; M_1.e_f,} \\
-  &\qquad_{\,M_2.\textit{arg}_1,\; M_2.\textit{arg}_2,\; M_2.s_f,\; M_2.e_f}
-  \; \sigma_{\,M_1.\textit{arg}_1 = M_2.\textit{arg}_1} \\
-   &\qquad \bigl( \sigma_{\textit{pred}=\text{`running'}}(M_1)
-      \ \textit{SP}\ 
-      \sigma_{\textit{pred}=\text{`enter\_or\_exit\_vehicle'}}(M_2) \bigr) \\[4pt]
+  &\pi_{\,M_1.\textit{arg}_1,\; M_2.\textit{arg}_2,\; M_1.s_f,\; M_2.e_f} ( \\
+  &\qquad \sigma_{\,M_1.\textit{arg}_1 = M_2.\textit{arg}_1} ( \\
+  &\qquad \sigma_{\textit{pred}=\text{`running'}}(M_1)
+     \ \textit{SP}\ 
+     \sigma_{\textit{pred}=\text{`enter\_or\_exit\_vehicle'}}(M_2) ) ) \\[4pt]
 \text{Escape}_B \equiv\;
-  &\pi_{M_1.s_f,\; M_1.e_f,\; M_2.s_f,\; M_2.e_f} \\
-   &\qquad \bigl( \sigma_{\textit{pred}\in\{\text{`engine'},\,\text{`vehicle'}\}}(M_1)
+  &\pi_{M_1.s_f,\; M_2.e_f} ( \\
+  &\qquad \sigma_{\textit{pred}\in\{\text{`engine'},\,\text{`vehicle'}\}}(M_1)
       \ \textit{SP}\ 
-      \sigma_{\textit{pred}=\text{`tire\_squeal'}}(M_2) \bigr) \\[4pt]
+      \sigma_{\textit{pred}=\text{`tire\_squeal'}}(M_2) ) \\[4pt]
 \text{Escape}_C &\equiv \text{Escape}_A \cup \text{Escape}_B
 \end{aligned}
 \]
@@ -140,12 +138,12 @@ Below, $M_i.\texttt{arg}_j$ denotes the $j$-th argument of interval $M_i$, and $
 \[
 \small
 \begin{aligned}
-\text{Collision}_A &\equiv \pi_{M_1.\textit{arg}_1,\; M_1.s_f,\; M_1.e_f}\,
-  \sigma_{\textit{pred}=\text{`vehicle\_collision'}}(M_1) \\[4pt]
-\text{Collision}_B &\equiv \pi_{M_1.s_f,\; M_1.e_f,\; M_2.s_f,\; M_2.e_f} \\
-  &\qquad \bigl( \sigma_{\textit{pred}\in\{\text{`horn'},\,\text{`skidding'}\}}(M_1)
+\text{Collision}_A &\equiv \pi_{M_1.\textit{arg}_1,\; M_1.s_f,\; M_1.e_f}(
+  \sigma_{\textit{pred}=\text{`vehicle\_collision'}}(M_1) ) \\[4pt]
+\text{Collision}_B &\equiv \pi_{M_1.s_f,\; M_2.e_f} ( \\
+  &\qquad \sigma_{\textit{pred}\in\{\text{`horn'},\,\text{`skidding'}\}}(M_1)
       \ \textit{SP}\ 
-      \sigma_{\textit{pred}\in\{\text{`impact'},\,\text{`glass\_breaking'}\}}(M_2) \bigr) \\[4pt]
+      \sigma_{\textit{pred}\in\{\text{`impact'},\,\text{`glass\_breaking'}\}}(M_2) ) \\[4pt]
 \text{Collision}_C &\equiv \text{Collision}_A \cup \text{Collision}_B
 \end{aligned}
 \]
@@ -154,10 +152,10 @@ Below, $M_i.\texttt{arg}_j$ denotes the $j$-th argument of interval $M_i$, and $
 \[
 \small
 \begin{aligned}
-\text{Gunshot}_A &\equiv \pi_{M_1.\textit{arg}_1,\; M_1.s_f,\; M_1.e_f}\,
-  \sigma_{\textit{pred}\in\{\text{`gunshot\_visible'},\,\text{`explosion\_visible'}\}}(M_1) \\[4pt]
-\text{Gunshot}_B &\equiv \pi_{M_1.s_f,\; M_1.e_f}\,
-  \sigma_{\textit{pred}=\text{`gunshot\_or\_explosion'}}(M_1) \\[4pt]
+\text{Gunshot}_A &\equiv \pi_{M_1.\textit{arg}_1,\; M_1.s_f,\; M_1.e_f}(
+  \sigma_{\textit{pred}\in\{\text{`gunshot\_visible'},\,\text{`explosion\_visible'}\}}(M_1) ) \\[4pt]
+\text{Gunshot}_B &\equiv \pi_{M_1.s_f,\; M_1.e_f}(
+  \sigma_{\textit{pred}=\text{`gunshot\_or\_explosion'}}(M_1) ) \\[4pt]
 \text{Gunshot}_C &\equiv \text{Gunshot}_A \cup \text{Gunshot}_B
 \end{aligned}
 \]

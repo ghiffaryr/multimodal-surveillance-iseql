@@ -112,8 +112,9 @@ First ISEQL-based event detector using VLM perception. Reported high precision/r
 \[
 \begin{aligned}
 \text{Fight}_A &\equiv \pi_{M_1.\texttt{arg}_1, M_1.\texttt{arg}_2, M_1.s_f, M_1.e_f}(
-  \sigma_{\texttt{pred}=\text{`physical\_altercation'}}(M_1) ) \\[2pt]
-\text{Fight}_B &\equiv \pi_{M_1.s_f, M_1.e_f, M_2.s_f, M_2.e_f}(
+  \sigma_{M_1.\texttt{arg}_1 \neq M_1.\texttt{arg}_2}(
+  \sigma_{\texttt{pred}=\text{`physical\_altercation'}}(M_1) ) ) \\[2pt]
+\text{Fight}_B &\equiv \pi_{M_1.s_f, M_2.e_f}(
   \sigma_{\texttt{pred}=\text{`shout'}}(M_1) \ \mathrm{Bef}_{120}\ \sigma_{\texttt{pred}=\text{`impact'}}(M_2) ) \\[2pt]
 \text{Fight}_C &\equiv \text{Fight}_A \cup \text{Fight}_B
 \end{aligned}
@@ -122,7 +123,7 @@ First ISEQL-based event detector using VLM perception. Reported high precision/r
 \noindent\textbf{Handoff} \textit{(visual only, $\delta=240$)}
 \[
 \begin{aligned}
-\text{Handoff}_A &\equiv \pi_{M_1.\texttt{arg}_1, M_1.\texttt{arg}_2, M_1.s_f, M_1.e_f, M_2.\texttt{arg}_1, M_2.\texttt{arg}_2, M_2.s_f, M_2.e_f}( \\
+\text{Handoff}_A &\equiv \pi_{M_1.\texttt{arg}_1, M_2.\texttt{arg}_1, M_1.\texttt{arg}_2, M_1.s_f, M_2.e_f}( \\
 &\qquad \sigma_{M_1.\texttt{arg}_1 \neq M_2.\texttt{arg}_1 \land M_1.\texttt{arg}_2 = M_2.\texttt{arg}_2}(
   \sigma_{\texttt{pred}=\text{`carrying'}}(M_1) \ \mathrm{Bef}_{240}\ \sigma_{\texttt{pred}=\text{`carrying'}}(M_2) ) )
 \end{aligned}
@@ -143,10 +144,10 @@ First ISEQL-based event detector using VLM perception. Reported high precision/r
 \noindent\textbf{Vehicle Escape} \textit{(visual + audio)}
 \[
 \begin{aligned}
-\text{Escape}_A &\equiv \pi_{M_1.\texttt{arg}_1, M_1.s_f, M_1.e_f, M_2.\texttt{arg}_1, M_2.\texttt{arg}_2, M_2.s_f, M_2.e_f}( \\
+\text{Escape}_A &\equiv \pi_{M_1.\texttt{arg}_1, M_2.\texttt{arg}_2, M_1.s_f, M_2.e_f}( \\
 &\qquad \sigma_{M_1.\texttt{arg}_1 = M_2.\texttt{arg}_1}(
   \sigma_{\texttt{pred}=\text{`running'}}(M_1) \ \mathrm{SP}\ \sigma_{\texttt{pred}=\text{`enter\_or\_exit\_vehicle'}}(M_2) ) ) \\[2pt]
-\text{Escape}_B &\equiv \pi_{M_1.s_f, M_1.e_f, M_2.s_f, M_2.e_f}(
+\text{Escape}_B &\equiv \pi_{M_1.s_f, M_2.e_f}(
   \sigma_{\texttt{pred}\in\{\text{`engine'},\text{`vehicle'}\}}(M_1) \ \mathrm{SP}\ \sigma_{\texttt{pred}=\text{`tire\_squeal'}}(M_2) ) \\[2pt]
 \text{Escape}_C &\equiv \text{Escape}_A \cup \text{Escape}_B
 \end{aligned}
@@ -157,7 +158,7 @@ First ISEQL-based event detector using VLM perception. Reported high precision/r
 \begin{aligned}
 \text{Collision}_A &\equiv \pi_{M_1.\texttt{arg}_1, M_1.s_f, M_1.e_f}(
   \sigma_{\texttt{pred}=\text{`vehicle\_collision'}}(M_1) ) \\[2pt]
-\text{Collision}_B &\equiv \pi_{M_1.s_f, M_1.e_f, M_2.s_f, M_2.e_f}(
+\text{Collision}_B &\equiv \pi_{M_1.s_f, M_2.e_f}(
   \sigma_{\texttt{pred}\in\{\text{`horn'},\text{`skidding'}\}}(M_1) \ \mathrm{SP}\ \sigma_{\texttt{pred}\in\{\text{`impact'},\text{`glass\_breaking'}\}}(M_2) ) \\[2pt]
 \text{Collision}_C &\equiv \text{Collision}_A \cup \text{Collision}_B
 \end{aligned}

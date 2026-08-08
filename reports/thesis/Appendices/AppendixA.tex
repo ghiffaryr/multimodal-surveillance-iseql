@@ -55,7 +55,7 @@ FROM VisualPerInterval VIP
 JOIN VisualParticipant IP ON VIP.RelationID = IP.RelationID
 WHERE VIP.RelationType = 'physical_altercation' AND IP.Class = 'person'
 GROUP BY VIP.RelationID
-HAVING COUNT(DISTINCT IP.ClassID) >= 2
+HAVING MIN(IP.ClassID) != MAX(IP.ClassID)
 \end{lstlisting}
 
 \subsubsection{Vehicle Escape (Visual)}
@@ -280,7 +280,7 @@ VisualFight AS (
     JOIN VisualParticipant IP ON VIP.RelationID = IP.RelationID
     WHERE VIP.RelationType = 'physical_altercation' AND IP.Class = 'person'
     GROUP BY VIP.RelationID
-    HAVING COUNT(DISTINCT IP.ClassID) >= 2
+    HAVING MIN(IP.ClassID) != MAX(IP.ClassID)
 )
 SELECT VisualRelationID, SoundIntervalID, SoundIntervalID2,
        StartFrame, EndFrame, PersonID, PersonID2

@@ -55,7 +55,7 @@ def _build_visual_queries(deltas: dict, analysis_id: str = "") -> dict[str, str]
             JOIN VisualParticipant IP ON VIP.RelationID = IP.RelationID
             WHERE VIP.RelationType = 'physical_altercation' AND {ip_person} {a}
             GROUP BY VIP.RelationID
-            HAVING COUNT(DISTINCT IP.ClassID) >= 2
+            HAVING MIN(IP.ClassID) != MAX(IP.ClassID)
         """,
 
         "vehicle_escape": f"""
@@ -80,7 +80,7 @@ def _build_visual_queries(deltas: dict, analysis_id: str = "") -> dict[str, str]
             SELECT EEE.RelationID,
                    MIN(EEE.StartFrame, RE.StartFrame) AS StartFrame,
                    MAX(EEE.EndFrame, RE.EndFrame) AS EndFrame,
-                   EEE.PersonID, EEE.VehicleID
+                   RE.PersonID, EEE.VehicleID
             FROM EnterExitEvents EEE
             JOIN RunEvents RE ON EEE.PersonID = RE.PersonID
             WHERE ({iseql_sp('RE', 'EEE')});
@@ -264,7 +264,7 @@ def _build_multimodal_queries(deltas: dict, analysis_id: str = "") -> dict[str, 
                 JOIN VisualParticipant IP ON VIP.RelationID = IP.RelationID
                 WHERE VIP.RelationType = 'physical_altercation' AND {ip_person} {a}
                 GROUP BY VIP.RelationID
-                HAVING COUNT(DISTINCT IP.ClassID) >= 2
+                HAVING MIN(IP.ClassID) != MAX(IP.ClassID)
             )
             SELECT VisualRelationID, SoundIntervalID, SoundIntervalID2,
                    StartFrame, EndFrame, PersonID, PersonID2
@@ -345,7 +345,7 @@ def _build_multimodal_queries(deltas: dict, analysis_id: str = "") -> dict[str, 
                        NULL AS SoundIntervalID, NULL AS SoundIntervalID2,
                        MIN(EEE.StartFrame, RE.StartFrame) AS StartFrame,
                        MAX(EEE.EndFrame, RE.EndFrame) AS EndFrame,
-                       EEE.PersonID, EEE.VehicleID
+                       RE.PersonID, EEE.VehicleID
                 FROM EnterExitEvents EEE
                 JOIN RunEvents RE ON EEE.PersonID = RE.PersonID
                 WHERE ({iseql_sp('RE', 'EEE')})

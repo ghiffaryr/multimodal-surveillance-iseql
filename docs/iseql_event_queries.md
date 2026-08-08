@@ -33,15 +33,15 @@ followed by impact sounds within 120 frames.
 ```iseql
 -- Generated ISEQL query for fight_visual
 π_{M1.arg1, M1.arg2, M1.sf, M1.ef} (
-  σ_{pred="physical_altercation" ∧ arg1="person1" ∧ arg2="person2"}(M1)
-)
+  σ_{M1.arg1≠M1.arg2} (
+  σ_{pred="physical_altercation" ∧ arg1="person1" ∧ arg2="person2"}(M1) ) )
 ```
 
 ### Audio
 
 ```iseql
 -- Generated ISEQL query for fight_audio
-π_{M1.sf, M1.ef, M2.sf, M2.ef} (
+π_{M1.sf, M2.ef} (
   σ_{pred="shout"}(M1)
   Bef_{δ=120}
   σ_{pred="impact"}(M2)
@@ -103,7 +103,7 @@ different persons but same object.
 
 ```iseql
 -- Generated ISEQL query for handoff
-π_{M1.arg1, M1.arg2, M1.sf, M1.ef, M2.arg1, M2.arg2, M2.sf, M2.ef} (
+π_{M1.arg1, M2.arg1, M1.arg2, M1.sf, M2.ef} (
   σ_{M1.arg1≠M2.arg1 ∧ M1.arg2=M2.arg2} (
       σ_{pred="carrying" ∧ arg1="person" ∧ arg2="object"}(M1)
       Bef_{δ=240}
@@ -167,7 +167,7 @@ a collision (horn/skid followed by impact/glass breaking within 60 frames).
 
 ```iseql
 -- Generated ISEQL query for vehicle_collision_audio
-π_{M1.sf, M1.ef, M2.sf, M2.ef} (
+π_{M1.sf, M2.ef} (
   σ_{pred="horn" ∨ pred="skidding"}(M1)
   SP
   σ_{pred="impact" ∨ pred="glass_breaking"}(M2)
@@ -195,7 +195,7 @@ entering/exiting must be the same person.
 
 ```iseql
 -- Generated ISEQL query for vehicle_escape_visual
-π_{M1.arg1, M1.sf, M1.ef, M2.arg1, M2.arg2, M2.sf, M2.ef} (
+π_{M1.arg1, M2.arg2, M1.sf, M2.ef} (
   σ_{M1.arg1=M2.arg1} (
       σ_{pred="running" ∧ arg1="person"}(M1)
      SP
@@ -208,7 +208,7 @@ entering/exiting must be the same person.
 
 ```iseql
 -- Generated ISEQL query for vehicle_escape_audio
-π_{M1.sf, M1.ef, M2.sf, M2.ef} (
+π_{M1.sf, M2.ef} (
   σ_{pred="engine" ∨ pred="vehicle"}(M1)
   SP
   σ_{pred="tire_squeal"}(M2)
