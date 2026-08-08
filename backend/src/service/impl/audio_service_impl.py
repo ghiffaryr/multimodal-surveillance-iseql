@@ -25,6 +25,20 @@ AUDIO_PROVIDERS = {"panns": "PANNs CNN14 (local)", "huggingface": "HuggingFace L
 DEFAULT_AUDIO_MODELS = {"panns": "cnn14", "huggingface": "Qwen/Qwen2-Audio-7B-Instruct"}
 QUANTIZATION_OPTIONS = ["none", "8bit", "4bit"]
 
+# --- determinism (same seed block as the evaluation notebooks) ---
+SEED = 42
+
+def _set_seed(seed: int = SEED) -> None:
+    """Fix RNG seeds so audio inference is reproducible, mirroring the notebooks."""
+    import random
+    import torch
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
 # --- synonym resolution (same as notebook) ---
 _RE_KEEP = re.compile(r"[^a-zA-Z0-9_ ]+")
 
@@ -191,6 +205,8 @@ class AudioServiceImpl(AudioService):
         log_fn = log_fn or (lambda msg: log.info(msg))
         out_dir = Path(out_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
+
+        _set_seed()
 
         wav_path = out_dir / (Path(video_path).stem + ".16k.wav")
         wav_path, duration = extract_wav(video_path, wav_path, log_fn=log_fn)

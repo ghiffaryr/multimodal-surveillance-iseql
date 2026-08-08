@@ -55,7 +55,7 @@ def _build_visual_queries(deltas: dict, analysis_id: str = "") -> dict[str, str]
             JOIN VisualParticipant IP ON VIP.RelationID = IP.RelationID
             WHERE VIP.RelationType = 'physical_altercation' AND {ip_person} {a}
             GROUP BY VIP.RelationID
-            HAVING MIN(IP.ClassID) != MAX(IP.ClassID)
+            HAVING MIN(IP.ClassID) != MAX(IP.ClassID);
         """,
 
         "vehicle_escape": f"""
@@ -78,8 +78,8 @@ def _build_visual_queries(deltas: dict, analysis_id: str = "") -> dict[str, str]
                 WHERE VIP.RelationType = 'running' AND {ip_person} {a}
             )
             SELECT EEE.RelationID,
-                   MIN(EEE.StartFrame, RE.StartFrame) AS StartFrame,
-                   MAX(EEE.EndFrame, RE.EndFrame) AS EndFrame,
+                   RE.StartFrame AS StartFrame,
+                   EEE.EndFrame AS EndFrame,
                    RE.PersonID, EEE.VehicleID
             FROM EnterExitEvents EEE
             JOIN RunEvents RE ON EEE.PersonID = RE.PersonID
@@ -94,7 +94,7 @@ def _build_visual_queries(deltas: dict, analysis_id: str = "") -> dict[str, str]
             JOIN VisualParticipant IP_V ON VIP.RelationID = IP_V.RelationID AND IP_V.Class IN ('car', 'vehicle')
             WHERE VIP.RelationType = 'suspicious_near_vehicle'
               AND IP_P.ClassID != IP_V.ClassID
-              AND (VIP.EndFrame - VIP.StartFrame) >= {delta_visual_loitering} {a}
+              AND (VIP.EndFrame - VIP.StartFrame) >= {delta_visual_loitering} {a};
         """,
 
         "handoff": f"""
@@ -112,8 +112,8 @@ def _build_visual_queries(deltas: dict, analysis_id: str = "") -> dict[str, str]
                 WHERE VIP.RelationType = 'carrying' AND IP.Class = 'object' {a}
             )
             SELECT CA.RelationID,
-                   MIN(CA.StartFrame, CA2.StartFrame) AS StartFrame,
-                   MAX(CA.EndFrame, CA2.EndFrame) AS EndFrame,
+                   CA.StartFrame AS StartFrame,
+                   CA2.EndFrame AS EndFrame,
                    CA.PersonID AS GiverID, CA2.PersonID AS ReceiverID,
                    COALESCE(CO.ObjectID, CO2.ObjectID) AS ObjectID
             FROM CarryAll CA
@@ -121,8 +121,7 @@ def _build_visual_queries(deltas: dict, analysis_id: str = "") -> dict[str, str]
             INNER JOIN CarryObject CO ON CA.RelationID = CO.RelationID
             INNER JOIN CarryObject CO2 ON CA2.RelationID = CO2.RelationID
               AND CO.ObjectID = CO2.ObjectID
-            WHERE ({iseql_before('CA', 'CA2', delta_visual_handoff)})
-               OR ({iseql_before('CA2', 'CA', delta_visual_handoff)});
+            WHERE ({iseql_before('CA', 'CA2', delta_visual_handoff)});
         """,
 
         "vehicle_collision": f"""
@@ -131,7 +130,7 @@ def _build_visual_queries(deltas: dict, analysis_id: str = "") -> dict[str, str]
             FROM VisualPerInterval VIP
             JOIN VisualParticipant IP ON VIP.RelationID = IP.RelationID
             WHERE VIP.RelationType = 'vehicle_collision'
-              AND {ip_vehicle} {a}
+              AND {ip_vehicle} {a};
         """,
 
         "gunshot_or_explosion": f"""
@@ -139,7 +138,7 @@ def _build_visual_queries(deltas: dict, analysis_id: str = "") -> dict[str, str]
             FROM VisualPerInterval VIP
             JOIN VisualParticipant IP ON VIP.RelationID = IP.RelationID
             WHERE VIP.RelationType IN ('gunshot_visible', 'explosion_visible')
-              {a}
+              {a};
         """,
     }
 
@@ -164,8 +163,8 @@ def _build_sound_queries(deltas: dict, analysis_id: str = "") -> dict[str, str]:
             )
             SELECT SS.SoundIntervalID,
                    IMS.SoundIntervalID AS SoundIntervalID2,
-                   MIN(SS.StartFrame, IMS.StartFrame) AS StartFrame,
-                   MAX(SS.EndFrame, IMS.EndFrame) AS EndFrame
+                   SS.StartFrame AS StartFrame,
+                   IMS.EndFrame AS EndFrame
             FROM ShoutSounds SS
             JOIN ImpactSounds IMS ON {iseql_before('SS', 'IMS', delta_sound_fight)};
         """,
@@ -192,8 +191,8 @@ def _build_sound_queries(deltas: dict, analysis_id: str = "") -> dict[str, str]:
             )
             SELECT ES.SoundIntervalID,
                    TS.SoundIntervalID AS SoundIntervalID2,
-                   MIN(ES.StartFrame, TS.StartFrame) AS StartFrame,
-                   MAX(ES.EndFrame, TS.EndFrame) AS EndFrame
+                   ES.StartFrame AS StartFrame,
+                   TS.EndFrame AS EndFrame
             FROM EngineSounds ES
             JOIN TireSounds TS ON ({iseql_sp('ES', 'TS')});
         """,
@@ -213,8 +212,8 @@ def _build_sound_queries(deltas: dict, analysis_id: str = "") -> dict[str, str]:
             )
             SELECT PI.SoundIntervalID,
                    GS.SoundIntervalID AS SoundIntervalID2,
-                   MIN(PI.StartFrame, GS.StartFrame) AS StartFrame,
-                   MAX(PI.EndFrame, GS.EndFrame) AS EndFrame
+                   PI.StartFrame AS StartFrame,
+                   GS.EndFrame AS EndFrame
             FROM PreImpact PI
             JOIN GlassSounds GS ON ({iseql_sp('PI', 'GS')});
         """,
@@ -249,8 +248,8 @@ def _build_multimodal_queries(deltas: dict, analysis_id: str = "") -> dict[str, 
             AudioFight AS (
                 SELECT NULL AS VisualRelationID,
                        SS.SoundIntervalID, IMS.SoundIntervalID AS SoundIntervalID2,
-                       MIN(SS.StartFrame, IMS.StartFrame) AS StartFrame,
-                       MAX(SS.EndFrame, IMS.EndFrame) AS EndFrame,
+                       SS.StartFrame AS StartFrame,
+                       IMS.EndFrame AS EndFrame,
                        NULL AS PersonID, NULL AS PersonID2
                 FROM ShoutSounds SS
                 JOIN ImpactSounds IMS ON {iseql_before('SS', 'IMS', delta_sound_fight)}
@@ -334,8 +333,8 @@ def _build_multimodal_queries(deltas: dict, analysis_id: str = "") -> dict[str, 
             AudioVehicleEscape AS (
                 SELECT NULL AS VisualRelationID,
                        ES.SoundIntervalID, TS.SoundIntervalID AS SoundIntervalID2,
-                       MIN(ES.StartFrame, TS.StartFrame) AS StartFrame,
-                       MAX(ES.EndFrame, TS.EndFrame) AS EndFrame,
+                       ES.StartFrame AS StartFrame,
+                       TS.EndFrame AS EndFrame,
                        NULL AS PersonID, NULL AS VehicleID
                 FROM EngineSounds ES
                 JOIN TireSounds TS ON ({iseql_sp('ES', 'TS')})
@@ -343,8 +342,8 @@ def _build_multimodal_queries(deltas: dict, analysis_id: str = "") -> dict[str, 
             VisualVehicleEscape AS (
                 SELECT EEE.RelationID AS VisualRelationID,
                        NULL AS SoundIntervalID, NULL AS SoundIntervalID2,
-                       MIN(EEE.StartFrame, RE.StartFrame) AS StartFrame,
-                       MAX(EEE.EndFrame, RE.EndFrame) AS EndFrame,
+                       RE.StartFrame AS StartFrame,
+                       EEE.EndFrame AS EndFrame,
                        RE.PersonID, EEE.VehicleID
                 FROM EnterExitEvents EEE
                 JOIN RunEvents RE ON EEE.PersonID = RE.PersonID
@@ -376,8 +375,8 @@ def _build_multimodal_queries(deltas: dict, analysis_id: str = "") -> dict[str, 
             AudioVehicleCollision AS (
                 SELECT NULL AS VisualRelationID,
                        PI.SoundIntervalID, GS.SoundIntervalID AS SoundIntervalID2,
-                       MIN(PI.StartFrame, GS.StartFrame) AS StartFrame,
-                       MAX(PI.EndFrame, GS.EndFrame) AS EndFrame,
+                       PI.StartFrame AS StartFrame,
+                       GS.EndFrame AS EndFrame,
                        NULL AS VehicleID
                 FROM PreImpact PI
                 JOIN GlassSounds GS ON ({iseql_sp('PI', 'GS')})
@@ -408,7 +407,7 @@ def _build_multimodal_queries(deltas: dict, analysis_id: str = "") -> dict[str, 
             JOIN VisualParticipant IP_V ON VIP.RelationID = IP_V.RelationID AND IP_V.Class IN ('car', 'vehicle')
             WHERE VIP.RelationType = 'suspicious_near_vehicle'
               AND IP_P.ClassID != IP_V.ClassID
-              AND (VIP.EndFrame - VIP.StartFrame) >= {delta_visual_loitering} {a}
+              AND (VIP.EndFrame - VIP.StartFrame) >= {delta_visual_loitering} {a};
         """,
 
         "handoff": f"""
@@ -426,8 +425,8 @@ def _build_multimodal_queries(deltas: dict, analysis_id: str = "") -> dict[str, 
                 WHERE VIP.RelationType = 'carrying' AND IP.Class = 'object' {a}
             )
             SELECT CA.RelationID,
-                   MIN(CA.StartFrame, CA2.StartFrame) AS StartFrame,
-                   MAX(CA.EndFrame, CA2.EndFrame) AS EndFrame,
+                   CA.StartFrame AS StartFrame,
+                   CA2.EndFrame AS EndFrame,
                    CA.PersonID AS GiverID, CA2.PersonID AS ReceiverID,
                    COALESCE(CO.ObjectID, CO2.ObjectID) AS ObjectID
             FROM CarryAll CA
@@ -435,8 +434,7 @@ def _build_multimodal_queries(deltas: dict, analysis_id: str = "") -> dict[str, 
             INNER JOIN CarryObject CO ON CA.RelationID = CO.RelationID
             INNER JOIN CarryObject CO2 ON CA2.RelationID = CO2.RelationID
               AND CO.ObjectID = CO2.ObjectID
-            WHERE ({iseql_before('CA', 'CA2', delta_visual_handoff)})
-               OR ({iseql_before('CA2', 'CA', delta_visual_handoff)})
+            WHERE ({iseql_before('CA', 'CA2', delta_visual_handoff)});
         """,
 
     }

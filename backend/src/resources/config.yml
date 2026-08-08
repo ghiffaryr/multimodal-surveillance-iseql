@@ -22,16 +22,6 @@ engine:
 
 vlm:
   ollama_base_url: http://localhost:11434
-  sampling_rate: 24
-  grid_rows: 2
-  grid_cols: 4
-
-sound:
-  enabled: true
-  checkpoint: ""
-  window_seconds: 5.0
-  hop_seconds: 2.0
-  top_k: 8
 
 log:
   path: tmp/log

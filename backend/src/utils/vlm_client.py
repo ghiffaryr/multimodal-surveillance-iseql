@@ -26,7 +26,7 @@ class VLMClient:
                  base_url: str = None,
                  max_tokens: int = 2048,
                  temperature: float = 0.0,
-                 seed: int | None = None):
+                 seed: int | None = 42):
         provider = provider.lower().strip()
         if provider not in DEFAULT_MODELS:
             raise ValueError(f"Unknown provider '{provider}'. "
