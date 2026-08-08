@@ -49,7 +49,7 @@ includes $n$ explicit attributes $A_i$ and two temporal attributes $T_s, T_e \in
 The eight ISEQL operators are parametrised by distance thresholds $\delta$ (start offset) and $\varepsilon$ (end offset):
 
 \begin{itemize}
-  \item \textbf{Before} ($R \ \mathrm{Bef}_{\delta}\ S$): Returns pairs where $r$ ends before $s$ starts, with a gap of at most $\delta$ frames. Condition: $0 < s.T_s - r.T_e \le \delta$. Setting $\delta = 1$ gives Allen's \textit{meets}. Corresponds to Allen's \textit{before}.
+  \item \textbf{Before} ($R \ \mathrm{Bef}_{\delta}\ S$): Returns pairs where $r$ ends before $s$ starts, with a gap of at most $\delta$ frames. Condition: $0 < s.T_s - r.T_e \le \delta$. Corresponds to Allen's \textit{before}.
 
   \item \textbf{Left Overlap Join} ($R\ \mathrm{LOJ}_{\delta,\varepsilon}\ S$): Returns pairs where both start and end of $s$ lag those of $r$ by at most $\delta$ and $\varepsilon$. Condition: $0 \le s.T_s - r.T_s \le \delta$, $0 \le s.T_e - r.T_e \le \varepsilon$, with $0 \le \delta < \mathrm{size}(r)$, $0 \le \varepsilon < \mathrm{size}(s)$. Corresponds to Allen's \textit{overlaps}.
 
@@ -75,14 +75,14 @@ High-level events are defined as projection-selection expressions. The general f
 \]
 where $\pi_F$ projects fields, $\sigma_P$ selects intervals satisfying predicate $P$, $\mathrm{op}$ is a temporal operator written directly between the two expressions, and $\sigma_C$ applies cross-conditions on interval arguments. In the multimodal condition, events combine via set union: $\text{Event}_C \equiv \text{Event}_A \cup \text{Event}_B$.
 
-Below, $M_i.\texttt{arg}_j$ denotes the $j$-th argument of interval $M_i$, and $M_i.s_f$, $M_i.e_f$ denote its start and end frames.
+Below, $M_i.\mathrm{arg}_j$ denotes the $j$-th argument of interval $M_i$, and $M_i.s_f$, $M_i.e_f$ denote its start and end frames.
 
 \paragraph{Fight.}
 \[
 \small
 \begin{aligned}
-\text{Fight}_A &\equiv \pi_{M_1.\textit{arg}_1,\; M_1.\textit{arg}_2,\; M_1.s_f,\; M_1.e_f}(
-  \sigma_{\,M_1.\textit{arg}_1 \neq M_1.\textit{arg}_2}(
+\text{Fight}_A &\equiv \pi_{M_1.\mathrm{arg}_1,\; M_1.\mathrm{arg}_2,\; M_1.s_f,\; M_1.e_f}(
+  \sigma_{\,M_1.\mathrm{arg}_1 \neq M_1.\mathrm{arg}_2}(
   \sigma_{\textit{pred}=\text{`physical\_altercation'}}(M_1) ) ) \\[4pt]
 \text{Fight}_B &\equiv \pi_{M_1.s_f,\; M_2.e_f}(
   \sigma_{\textit{pred}=\text{`shout'}}(M_1)
@@ -97,8 +97,8 @@ Below, $M_i.\texttt{arg}_j$ denotes the $j$-th argument of interval $M_i$, and $
 \small
 \begin{aligned}
 \text{Handoff}_A \equiv\;
-  &\pi_{\,M_1.\textit{arg}_1,\; M_2.\textit{arg}_1,\; M_1.\textit{arg}_2,\; M_1.s_f,\; M_2.e_f} ( \\
-  &\qquad \sigma_{\,M_1.\textit{arg}_1 \neq M_2.\textit{arg}_1 \;\land\; M_1.\textit{arg}_2 = M_2.\textit{arg}_2} ( \\
+  &\pi_{\,M_1.\mathrm{arg}_1,\; M_2.\mathrm{arg}_1,\; M_1.\mathrm{arg}_2,\; M_1.s_f,\; M_2.e_f} ( \\
+  &\qquad \sigma_{\,M_1.\mathrm{arg}_1 \neq M_2.\mathrm{arg}_1 \;\land\; M_1.\mathrm{arg}_2 = M_2.\mathrm{arg}_2} ( \\
   &\qquad \sigma_{\textit{pred}=\text{`carrying'}}(M_1)
      \ \textit{Bef}_{240}\ 
      \sigma_{\textit{pred}=\text{`carrying'}}(M_2) ) )
@@ -109,7 +109,7 @@ Below, $M_i.\texttt{arg}_j$ denotes the $j$-th argument of interval $M_i$, and $
 \[
 \small
 \begin{aligned}
-\text{Loitering}_A \equiv\; &\pi_{M_1.\textit{arg}_1,\; M_1.\textit{arg}_2,\; M_1.s_f,\; M_1.e_f}(
+\text{Loitering}_A \equiv\; &\pi_{M_1.\mathrm{arg}_1,\; M_1.\mathrm{arg}_2,\; M_1.s_f,\; M_1.e_f}(
   \sigma_{\textit{pred}=\text{`suspicious\_near\_vehicle'}}(M_1) \\
   &\quad \land\; (M_1.e_f - M_1.s_f) \ge 120 )
 \end{aligned}
@@ -120,8 +120,8 @@ Below, $M_i.\texttt{arg}_j$ denotes the $j$-th argument of interval $M_i$, and $
 \small
 \begin{aligned}
 \text{Escape}_A \equiv\;
-  &\pi_{\,M_1.\textit{arg}_1,\; M_2.\textit{arg}_2,\; M_1.s_f,\; M_2.e_f} ( \\
-  &\qquad \sigma_{\,M_1.\textit{arg}_1 = M_2.\textit{arg}_1} ( \\
+  &\pi_{\,M_1.\mathrm{arg}_1,\; M_2.\mathrm{arg}_2,\; M_1.s_f,\; M_2.e_f} ( \\
+  &\qquad \sigma_{\,M_1.\mathrm{arg}_1 = M_2.\mathrm{arg}_1} ( \\
   &\qquad \sigma_{\textit{pred}=\text{`running'}}(M_1)
      \ \textit{SP}\ 
      \sigma_{\textit{pred}=\text{`enter\_or\_exit\_vehicle'}}(M_2) ) ) \\[4pt]
@@ -138,7 +138,7 @@ Below, $M_i.\texttt{arg}_j$ denotes the $j$-th argument of interval $M_i$, and $
 \[
 \small
 \begin{aligned}
-\text{Collision}_A &\equiv \pi_{M_1.\textit{arg}_1,\; M_1.s_f,\; M_1.e_f}(
+\text{Collision}_A &\equiv \pi_{M_1.\mathrm{arg}_1,\; M_1.s_f,\; M_1.e_f}(
   \sigma_{\textit{pred}=\text{`vehicle\_collision'}}(M_1) ) \\[4pt]
 \text{Collision}_B &\equiv \pi_{M_1.s_f,\; M_2.e_f} ( \\
   &\qquad \sigma_{\textit{pred}\in\{\text{`horn'},\,\text{`skidding'}\}}(M_1)
@@ -152,7 +152,7 @@ Below, $M_i.\texttt{arg}_j$ denotes the $j$-th argument of interval $M_i$, and $
 \[
 \small
 \begin{aligned}
-\text{Gunshot}_A &\equiv \pi_{M_1.\textit{arg}_1,\; M_1.s_f,\; M_1.e_f}(
+\text{Gunshot}_A &\equiv \pi_{M_1.\mathrm{arg}_1,\; M_1.s_f,\; M_1.e_f}(
   \sigma_{\textit{pred}\in\{\text{`gunshot\_visible'},\,\text{`explosion\_visible'}\}}(M_1) ) \\[4pt]
 \text{Gunshot}_B &\equiv \pi_{M_1.s_f,\; M_1.e_f}(
   \sigma_{\textit{pred}=\text{`gunshot\_or\_explosion'}}(M_1) ) \\[4pt]
@@ -173,10 +173,10 @@ A vision-language model (VLM) is a multimodal neural network trained on image-te
 
 Environmental sound classification labels non-speech sounds such as footsteps, engine noises, sirens, and breaking glass. The field has progressed from supervised CNNs to Transformer-based architectures such as AST \citep{gong2021ast} and BEATs \citep{chen2023beats}, and to self-supervised methods including wav2vec 2.0 \citep{baevski2020wav2vec2} and HuBERT \citep{hsu2021hubert}.
 
-PANNs \citep{kong2020panns} are a family of CNN architectures trained on the 527-class AudioSet \citep{gemmeke2017audioset} dataset. The CNN14 variant uses 14 convolutional layers with 80 million parameters and runs on CPU. More recently, large audio-language models (LALMs) have emerged \citep{luo2026lalmsurvey}, extending language models to process audio input directly. Representative models include SALMONN \citep{tang2024salmonn} and Qwen2-Audio \citep{chu2024qwen2audio}. In this thesis, Qwen2-Audio-7B-Instruct serves as the LALM backend, while PANNs CNN14 serves as the traditional classifier baseline. The audio track is extracted at 16 kHz, resampled to 32 kHz, and processed in 2.5-second sliding windows with a 1.25-second hop.
+PANNs \citep{kong2020panns} are a family of CNN architectures trained on the 527-class AudioSet \citep{gemmeke2017audioset} dataset. The CNN14 variant uses 14 convolutional layers with 80 million parameters and runs on CPU. More recently, large audio-language models (LALMs) have emerged \citep{luo2026lalmsurvey}, extending language models to process audio input directly. Representative models include SALMONN \citep{tang2024salmonn} and Qwen2-Audio \citep{chu2024qwen2audio}. In this thesis, Qwen2-Audio-7B-Instruct serves as the LALM backend, while PANNs CNN14 serves as the traditional classifier baseline. The audio track is extracted at 16 kHz; Qwen2-Audio processes the native 16 kHz audio (its expected input rate), while PANNs is resampled to 32 kHz, its native rate. Both pipelines are processed in 2.5-second sliding windows with a 1.25-second hop.
 
 \subsection{Interval-Based Video Representation}
 
 A central design decision is the use of temporal intervals as the unified representation for both modalities. An interval is defined by a start frame, an end frame, a type label, and optional participant metadata. The frame index serves as the shared time axis, enabling temporal joins between visual and audio intervals without modality-specific alignment. The visual pipeline produces intervals by sampling frames, extracting relation triples, and collapsing adjacent observations of the same relation. The audio pipeline produces intervals by classifying sliding windows and persisting the window boundaries. Both pipelines write to the same SQLite database, using the tables \texttt{VisualPerInterval}, \texttt{VisualParticipant}, and \texttt{SoundPerInterval}.
 
-Efficient evaluation of temporal operators over large interval sets uses plane-sweeping algorithms \citep{piatov2021cache} that achieve $O(N \log N + k)$ complexity, where $k$ is the number of result pairs. A sweep line advances through sorted endpoints, maintaining active intervals in a cache-efficient hash map, and supports all thirteen Allen relations as well as parametrised variants.
+Efficient evaluation of temporal operators over large interval sets uses plane-sweeping algorithms \citep{piatov2021cache} that achieve $O(N \log N + k)$ complexity, where $k$ is the number of result pairs. A sweep line advances through sorted endpoints, maintaining active intervals in a cache-efficient hash map, and supports all thirteen Allen relations as well as parametrised variants. The ISEQL reference implementation evaluated the operators this way; the present thesis realizes the same operator semantics as standard SQL queries over the interval tables in SQLite, keeping the reasoning path fully auditable and re-runnable at the dataset scale considered here.

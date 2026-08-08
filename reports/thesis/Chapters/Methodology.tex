@@ -50,7 +50,7 @@ The WATCHOUT ISEQL system follows a four-layer architecture (Figure~\ref{fig:sys
 
 \subsection{Visual Pipeline with Object Re-Identification}
 
-The visual pipeline (Figure~\ref{fig:visual_pipeline}) samples video frames at a rate of one frame every 24 frames ($\approx$1.4 Hz at 24 fps). For each sampled frame, the VLM is applied in two phases.
+The visual pipeline (Figure~\ref{fig:visual_pipeline}) samples video frames at a rate of one frame every 24 frames ($\approx$1.1 Hz at 24 fps). For each sampled frame, the VLM is applied in two phases.
 
 \begin{figure}[h]
   \centering
@@ -72,15 +72,15 @@ The visual pipeline (Figure~\ref{fig:visual_pipeline}) samples video frames at a
   \item \texttt{explosion\_visible(VehicleID?, ObjectID?)} : visible explosion
 \end{itemize}
 
-\textbf{Phase 2: Object Re-Identification.} On subsequent frames, the VLM receives a tracking prompt containing the previous frame's object list with identifiers, classes, and grid-block coordinates. The VLM is instructed to: (i) reuse an identifier if the object has the same class and overlapping grid blocks; (ii) reuse an identifier if the object has the same class and adjacent blocks (the object moved); (iii) never reuse an identifier for a different-class object; (iv) assign \texttt{"new"} if no match is found. A post-processing step resolves remaining unmatched objects by class and block proximity, assigning the previous frame's identifier when an object matches an unmatched predecessor within one grid block.
+\textbf{Phase 2: Object Re-Identification.} On subsequent frames, the VLM receives a tracking prompt containing the previous frame's object list with identifiers, classes, and grid-block coordinates. The VLM is instructed to: (i) reuse an identifier if the object has the same class and overlapping grid blocks; (ii) reuse an identifier if the object has the same class and close blocks (the object moved); (iii) never reuse an identifier for a different-class object; (iv) assign \texttt{"new"} if no match is found. The VLM's proposals are then reconciled by a deterministic two-pass post-processing step over the objects of the previous frame not already matched. For each object proposed as \texttt{"new"}, the matcher first reuses the identifier of the first unmatched predecessor with the same class whose block sets intersect, skipping a candidate only when both block sets are non-empty and disjoint; if no block-overlapping candidate exists, it falls back to the first remaining unmatched predecessor of the same class. Only if no candidate matches is a fresh identifier allocated.
 
-Without this mechanism, the VLM assigns new identifiers on every frame, producing single-frame intervals that never satisfy duration thresholds. The re-identification mechanism, implemented entirely through prompt engineering, requires no additional training data or tracking model.
+Without this mechanism, the VLM assigns new identifiers on every frame, producing single-frame intervals that never satisfy duration thresholds. The re-identification mechanism, implemented entirely through prompt engineering, requires no additional training data or tracking model. All VLM inference runs at temperature zero with a fixed seed (42), making detection and re-identification deterministic and reproducible.
 
 Frame-level observations are written to the \texttt{VisualRelation} table. The interval builder collapses the frame-level stream by sorting each (relation, subject, object) group by frame number and merging adjacent frames separated by at most twice the sampling rate.
 
 \subsection{Audio Pipeline}
 
-The audio pipeline (Figure~\ref{fig:audio_pipeline}) extracts the video's audio track via FFmpeg into a 16 kHz mono PCM WAV file, resamples to 32 kHz, and processes it through a sliding window.
+The audio pipeline (Figure~\ref{fig:audio_pipeline}) extracts the video's audio track via FFmpeg into a 16 kHz mono PCM WAV file and processes it through a sliding window. Qwen2-Audio consumes the native 16 kHz audio (its expected input rate); PANNs resamples to 32 kHz, its native rate. All inference is deterministic: the visual VLM runs at temperature zero with seed 42, and Qwen2-Audio uses greedy decoding (\texttt{do\_sample=False}) with the same fixed seed.
 
 \begin{figure}[h]
   \centering
@@ -91,7 +91,7 @@ The audio pipeline (Figure~\ref{fig:audio_pipeline}) extracts the video's audio 
 
 Two alternative models are evaluated. \textbf{PANNs CNN14} \citep{kong2020panns}, an 80-million-parameter network pretrained on AudioSet, slides a 2.5 s window with a 1.25 s hop over the signal. \textbf{Qwen2-Audio-7B-Instruct} \citep{chu2024qwen2audio}, a 7-billion-parameter LALM, uses the same window configuration. Both models are evaluated across a full window/hop ablation (eight configurations per model).
 
-Unlike PANNs, which outputs logits over 527 AudioSet classes, Qwen2-Audio is a generative model that can produce arbitrary text. To constrain its output, the LALM is prompted with a closed vocabulary: \texttt{shout}, \texttt{impact}, \texttt{gunshot\_or\_explosion}, \texttt{engine}, \texttt{tire\_squeal}, \texttt{glass\_breaking}, \texttt{horn}, \texttt{skidding}, or \texttt{none()} if no class applies. This mirrors the closed-vocabulary approach used for VLM relation extraction. No automatic speech recognition or speech emotion recognition is used; prior evaluation confirmed that ASR finds zero utterances on surveillance audio.
+Unlike PANNs, which outputs logits over 527 AudioSet classes, Qwen2-Audio is a generative model that can produce arbitrary text. To constrain its output, the LALM is prompted with a closed vocabulary: \texttt{shout}, \texttt{impact}, \texttt{gunshot\_or\_explosion}, \texttt{engine}, \texttt{tire\_squeal}, \texttt{glass\_breaking}, \texttt{horn}, \texttt{skidding}, or \texttt{none()} if no class applies. This mirrors the closed-vocabulary approach used for VLM relation extraction. Both backends' outputs are mapped to this vocabulary by a normalization step that lowercases, strips punctuation, and stems tokens before matching against a hand-curated synonym table (e.g., AudioSet's \emph{Shout}, \emph{Yell}, and \emph{Screaming} all map to \texttt{shout}). No automatic speech recognition or speech emotion recognition is used; prior evaluation confirmed that ASR finds zero utterances on surveillance audio.
 
 Model outputs are persisted as temporal intervals in the \texttt{SoundPerInterval} table with an applied confidence threshold of 0.0 (no filtering), allowing the multimodal union to manage false positives.
 
@@ -108,11 +108,11 @@ Both perception pipelines write to a shared SQLite database with the schema show
     \toprule
     Table & Description \\
     \midrule
-    \texttt{VisualPerFrame} & Per-frame VLM object detections (Frame, ClassID, Class, Block) \\
-    \texttt{VisualRelation} & Frame-level relation triples (Frame, RelationID, RelationType, ClassID) \\
-    \texttt{VisualPerInterval} & Collapsed temporal intervals (RelationID PK, StartFrame, EndFrame, RelationType) \\
+    \texttt{VisualPerFrame} & Per-frame VLM object detections (AnalysisID, Frame, ClassID, Class, Block, Description) \\
+    \texttt{VisualRelation} & Frame-level relation triples (AnalysisID, Frame, RelationID, RelationType, ClassID) \\
+    \texttt{VisualPerInterval} & Collapsed temporal intervals (RelationID PK, AnalysisID, StartFrame, EndFrame, RelationType) \\
     \texttt{VisualParticipant} & Interval participants (RelationID, ClassID, Class) \\
-    \texttt{SoundPerInterval} & Audio-derived intervals (SoundIntervalID PK, StartFrame, EndFrame, SoundClass) \\
+    \texttt{SoundPerInterval} & Audio-derived intervals (SoundIntervalID PK, AnalysisID, StartFrame, EndFrame, SoundClass, Confidence) \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -122,7 +122,7 @@ The reasoning layer executes high-level event detection through SQL queries. The
 \section{Dataset}
 \label{sec:dataset}
 
-A dataset of 30 surveillance scenes was generated using Dreamina Seedance\footnote{\url{https://dreamina.capcut.com/}}, a text-to-video platform (ByteDance). Each scene is 10 s at 1280$\times$720, 24 fps, with a fixed camera angle. The 30 scenes span 6 event types with 5 positive instances each: \texttt{fight}, \texttt{gunshot\_or\_explosion}, \texttt{vehicle\_escape}, \texttt{vehicle\_collision}, \texttt{loitering}, and \texttt{handoff}. Each scene is annotated with per-frame ground truth for visual relations and sound classes, and event-level binary verdicts (TP, TN, FP, FN).
+A dataset of 30 surveillance scenes was generated using Dreamina Seedance 2.0\footnote{\url{https://dreamina.capcut.com/}} \citep{seedance2026}. Each scene is 10 s at 1280$\times$720, 24 fps, with a fixed camera angle. The 30 scenes span 6 event types with 5 positive instances each: \texttt{fight}, \texttt{gunshot\_or\_explosion}, \texttt{vehicle\_escape}, \texttt{vehicle\_collision}, \texttt{loitering}, and \texttt{handoff}. Each scene is annotated with per-frame ground truth for visual relations and sound classes, and event-level binary verdicts (TP, TN, FP, FN).
 
 \section{Evaluation Metrics}
 \label{sec:metrics}
@@ -139,4 +139,4 @@ F1 is preferred over accuracy because each event type has 5 positive and 25 nega
 
 \section{Implementation}
 
-The system is implemented in Python 3.11 with FastAPI (backend) and SvelteKit with TypeScript (front end). Four VLM models were evaluated: Pixtral 12B (Mistral API), Ministral 3-14B, Gemini 2.5 Flash, and Gemini 3.6 Flash. PANNs CNN14 runs on CPU; Qwen2-Audio-7B-Instruct runs via HuggingFace with 4-bit normal float quantization \citep{dettmers2024qlora}. The system was tested on a laptop with an Intel Core i9-13900H, NVIDIA RTX 4060 (8 GB VRAM), and 32 GB RAM. At default settings, a 30-second video processes in approximately 4.9 s (condition A), 4.7 s (condition B), and 9.0 s (condition C).
+The system is implemented in Python 3.11 with FastAPI (backend) and SvelteKit with TypeScript (front end). Four VLM models were evaluated: Pixtral 12B (Mistral API), Ministral 3-14B, Gemini 2.5 Flash, and Gemini 3.6 Flash. PANNs CNN14 runs on CPU; Qwen2-Audio-7B-Instruct runs via HuggingFace with 4-bit normal float quantization \citep{dettmers2024qlora}. The system was tested on a laptop with an Intel Core i9-13900H, NVIDIA RTX 4060 (8 GB VRAM), and 32 GB RAM.

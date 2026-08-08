@@ -82,8 +82,8 @@ RunEvents AS (
     WHERE VIP.RelationType = 'running' AND IP.Class = 'person'
 )
 SELECT EEE.RelationID,
-       MIN(EEE.StartFrame, RE.StartFrame) AS StartFrame,
-       MAX(EEE.EndFrame, RE.EndFrame) AS EndFrame,
+       RE.StartFrame AS StartFrame,
+       EEE.EndFrame AS EndFrame,
        EEE.PersonID, EEE.VehicleID
 FROM EnterExitEvents EEE
 JOIN RunEvents RE ON EEE.PersonID = RE.PersonID
@@ -107,7 +107,7 @@ WHERE VIP.RelationType = 'suspicious_near_vehicle'
 
 \subsubsection{Handoff (Visual)}
 
-Detects one person carrying an object, then another person carrying the same object, with intervals that may overlap or be within 240 frames of each other.
+Detects one person carrying an object, then another person carrying the same object, with the second carrying interval starting within 240 frames after the first ends.
 
 \begin{lstlisting}[language=SQL, caption=Handoff visual query.]
 WITH
@@ -124,8 +124,8 @@ CarryObject AS (
     WHERE VIP.RelationType = 'carrying' AND IP.Class = 'object'
 )
 SELECT CA.RelationID,
-       MIN(CA.StartFrame, CA2.StartFrame) AS StartFrame,
-       MAX(CA.EndFrame, CA2.EndFrame) AS EndFrame,
+       CA.StartFrame AS StartFrame,
+       CA2.EndFrame AS EndFrame,
        CA.PersonID AS GiverID, CA2.PersonID AS ReceiverID,
        COALESCE(CO.ObjectID, CO2.ObjectID) AS ObjectID
 FROM CarryAll CA
@@ -134,7 +134,6 @@ INNER JOIN CarryObject CO ON CA.RelationID = CO.RelationID
 INNER JOIN CarryObject CO2 ON CA2.RelationID = CO2.RelationID
   AND CO.ObjectID = CO2.ObjectID
 WHERE (iseql_before('CA', 'CA2', 240))
-   OR (iseql_before('CA2', 'CA', 240))
 \end{lstlisting}
 
 \subsubsection{Vehicle Collision (Visual)}
@@ -181,8 +180,8 @@ WITH ShoutSounds AS (
 )
 SELECT SS.SoundIntervalID,
        IMS.SoundIntervalID AS SoundIntervalID2,
-       MIN(SS.StartFrame, IMS.StartFrame) AS StartFrame,
-       MAX(SS.EndFrame, IMS.EndFrame) AS EndFrame
+       SS.StartFrame AS StartFrame,
+       IMS.EndFrame AS EndFrame
 FROM ShoutSounds SS
 JOIN ImpactSounds IMS ON iseql_before('SS', 'IMS', 120)
 \end{lstlisting}
@@ -214,8 +213,8 @@ WITH EngineSounds AS (
 )
 SELECT ES.SoundIntervalID,
        TS.SoundIntervalID AS SoundIntervalID2,
-       MIN(ES.StartFrame, TS.StartFrame) AS StartFrame,
-       MAX(ES.EndFrame, TS.EndFrame) AS EndFrame
+       ES.StartFrame AS StartFrame,
+       TS.EndFrame AS EndFrame
  FROM EngineSounds ES
  JOIN TireSounds TS ON (iseql_sp('ES', 'TS'))
  \end{lstlisting}
@@ -236,8 +235,8 @@ WITH PreImpact AS (
 )
 SELECT PI.SoundIntervalID,
        GS.SoundIntervalID AS SoundIntervalID2,
-       MIN(PI.StartFrame, GS.StartFrame) AS StartFrame,
-       MAX(PI.EndFrame, GS.EndFrame) AS EndFrame
+       PI.StartFrame AS StartFrame,
+       GS.EndFrame AS EndFrame
  FROM PreImpact PI
  JOIN GlassSounds GS ON (iseql_sp('PI', 'GS'))
  \end{lstlisting}
@@ -265,8 +264,8 @@ ImpactSounds AS (
 AudioFight AS (
     SELECT NULL AS VisualRelationID,
            SS.SoundIntervalID, IMS.SoundIntervalID AS SoundIntervalID2,
-           MIN(SS.StartFrame, IMS.StartFrame) AS StartFrame,
-           MAX(SS.EndFrame, IMS.EndFrame) AS EndFrame,
+           SS.StartFrame AS StartFrame,
+           IMS.EndFrame AS EndFrame,
            NULL AS PersonID, NULL AS PersonID2
     FROM ShoutSounds SS
     JOIN ImpactSounds IMS ON iseql_before('SS', 'IMS', 120)
@@ -355,8 +354,8 @@ RunEvents AS (
 AudioVehicleEscape AS (
     SELECT NULL AS VisualRelationID,
            ES.SoundIntervalID, TS.SoundIntervalID AS SoundIntervalID2,
-           MIN(ES.StartFrame, TS.StartFrame) AS StartFrame,
-           MAX(ES.EndFrame, TS.EndFrame) AS EndFrame,
+           ES.StartFrame AS StartFrame,
+           TS.EndFrame AS EndFrame,
            NULL AS PersonID, NULL AS VehicleID
     FROM EngineSounds ES
 JOIN TireSounds TS ON (iseql_sp('ES', 'TS'))
@@ -364,8 +363,8 @@ JOIN TireSounds TS ON (iseql_sp('ES', 'TS'))
 VisualVehicleEscape AS (
     SELECT EEE.RelationID AS VisualRelationID,
            NULL AS SoundIntervalID, NULL AS SoundIntervalID2,
-           MIN(EEE.StartFrame, RE.StartFrame) AS StartFrame,
-           MAX(EEE.EndFrame, RE.EndFrame) AS EndFrame,
+           RE.StartFrame AS StartFrame,
+           EEE.EndFrame AS EndFrame,
            EEE.PersonID, EEE.VehicleID
     FROM EnterExitEvents EEE
     JOIN RunEvents RE ON EEE.PersonID = RE.PersonID
@@ -399,8 +398,8 @@ GlassSounds AS (
 AudioVehicleCollision AS (
     SELECT NULL AS VisualRelationID,
            PI.SoundIntervalID, GS.SoundIntervalID AS SoundIntervalID2,
-           MIN(PI.StartFrame, GS.StartFrame) AS StartFrame,
-           MAX(PI.EndFrame, GS.EndFrame) AS EndFrame,
+           PI.StartFrame AS StartFrame,
+           GS.EndFrame AS EndFrame,
            NULL AS VehicleID
     FROM PreImpact PI
     JOIN GlassSounds GS ON (iseql_sp('PI', 'GS'))
@@ -438,10 +437,11 @@ The hand-curated ontology maps AudioSet labels to the event query SoundClass val
     AudioSet Label(s) & Ontology Class & Event Query \\
     \midrule
     Shout, Yell, Screaming & shout & fight \\
-    Impact, Bang, Slam, Smash & impact & fight \\
+    Impact, Bang, Slam, Smash & impact & fight, vehicle\_collision \\
     Gunshot, Gunfire, Explosion, Burst & gunshot\_or\_explosion & gunshot\_or\_explosion \\
-    Engine, Idling, Car, Truck, Bus & engine & vehicle\_escape \\
-    Tire squeal, Skid, Screech & tire\_squeal & vehicle\_escape \\
+    Engine, Idling, Car, Truck, Bus, Vehicle & engine, vehicle & vehicle\_escape \\
+    Tire squeal, Screech & tire\_squeal & vehicle\_escape \\
+    Skidding, Skid & skidding & vehicle\_collision \\
     Horn, Honk, Car horn & horn & vehicle\_collision \\
     Glass breaking, Shatter & glass\_breaking & vehicle\_collision \\
     \bottomrule
@@ -456,11 +456,11 @@ The hand-curated ontology maps AudioSet labels to the event query SoundClass val
 The shared SQLite database uses the following tables:
 
 \begin{itemize}
-  \item \texttt{VisualPerFrame}: Per-frame VLM output (Frame, ClassID, Class, Block, Description)
-  \item \texttt{VisualRelation}: Frame-level relation triples (Frame, RelationID, RelationType, ClassID)
-  \item \texttt{VisualPerInterval}: Collapsed temporal intervals (RelationID PK, StartFrame, EndFrame, RelationType)
+  \item \texttt{VisualPerFrame}: Per-frame VLM output (AnalysisID, Frame, ClassID, Class, Block, Description)
+  \item \texttt{VisualRelation}: Frame-level relation triples (AnalysisID, Frame, RelationID, RelationType, ClassID)
+  \item \texttt{VisualPerInterval}: Collapsed temporal intervals (RelationID PK, AnalysisID, StartFrame, EndFrame, RelationType)
   \item \texttt{VisualParticipant}: Interval participants (RelationID, ClassID, Class)
-  \item \texttt{SoundPerInterval}: Audio-derived intervals (SoundIntervalID PK, StartFrame, EndFrame, SoundClass, Confidence)
+  \item \texttt{SoundPerInterval}: Audio-derived intervals (SoundIntervalID PK, AnalysisID, StartFrame, EndFrame, SoundClass, Confidence)
 \end{itemize}
 
 \subsection{Per-Scene Evaluation Data}
