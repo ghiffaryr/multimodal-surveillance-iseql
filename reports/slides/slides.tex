@@ -61,19 +61,19 @@ Critical events go unnoticed. A missed event could mean a missed crime.
 % ── PROBLEM & GAP ──
 \section{Problem and Gap}
 \begin{frame}{Prior Work: VIS MODE and Its Limitations}
-\begin{block}{VIS MODE (Crescitelli et al., CIKM 2026)}
-First ISEQL-based event detector using VLM perception. Reported high precision/recall on surveillance footage.
+\begin{block}{VIS MODE (Crescitelli et al., ECCV 2026)}
+First ISEQL-based event detector using VLM perception.
 \end{block}
 \vspace{0.4em}
 \begin{alertblock}{Three problems identified}
 \begin{enumerate}
   \item \textbf{Missing re-identification:} VLM assigned new IDs every frame, intervals never spanned multiple frames, \alert{tracking-dependent events undetected}.
   \item \textbf{Unverifiable claims:} Evaluated on unlabeled ground truth.
-  \item \textbf{Non-deterministic:} Temperature $>0$, no fixed seed. The model freely writes descriptions, so results are \alert{not reproducible}: fresh person/object IDs every call mean \alert{handoff failed completely} (GATCHA project: 0 detections).
+  \item \textbf{Non-deterministic:} Temperature $>0$, no fixed seed. The model writes descriptions creatively, so results are \alert{not reproducible}: fresh person/object IDs every call mean \alert{handoff failed completely}, because handoff requires the object carried by person A to match the object carried by person B (VIS MODE: 0 detections).
 \end{enumerate}
 \end{alertblock}
 \vspace{0.3em}
-\textbf{Our fix:} Object re-identification unlocks tracking-dependent events; temperature $=0$, seed $=42$ make inference deterministic.\hspace{0.5em}\textbf{Our extension:} Audio modality via LALM.
+\textbf{Our fix:} Object re-identification unlocks tracking-dependent events; temperature $=0$, seed $=42$ make inference deterministic (audio uses greedy decoding, same seed).\hspace{0.5em}\textbf{Our extension:} Audio modality via LALM.
 \end{frame}
 
 % ── SYSTEM OVERVIEW ──
@@ -105,14 +105,14 @@ First ISEQL-based event detector using VLM perception. Reported high precision/r
 \begin{frame}{ISEQL: Formal Event Definitions (1/2)}
 \footnotesize
 \textbf{ISEQL (Helmer \& Persia, 2016; Persia et al., 2017):} Interval-based SQL Event Query Language.\\
-\textbf{Notation:} $M_i.\texttt{arg}_j$: $j$-th argument of interval $i$. $M_i.s_f$, $M_i.e_f$: start/end frame. $\mathrm{Bef}_{\delta}$: before operator with gap $\le\delta$. $\mathrm{SP}$: start preceding (overlap). $\cup$: set union. $\sigma_P$: select intervals satisfying $P$. $\pi_F$: project fields $F$.
+\textbf{Notation:} $M_i.\mathrm{arg}_j$: $j$-th argument of interval $i$. $M_i.s_f$, $M_i.e_f$: start/end frame. $\mathrm{Bef}_{\delta}$: before operator, $s$ starts strictly after $r$ ends with gap $0 < \text{gap} \le\delta$. $\mathrm{SP}$: start preceding (overlap). $\cup$: set union. $\sigma_P$: select intervals satisfying $P$. $\pi_F$: project fields $F$.
 \vspace{0.3em}
 
 \noindent\textbf{Fight} \textit{(visual + audio)}
 \[
 \begin{aligned}
-\text{Fight}_A &\equiv \pi_{M_1.\texttt{arg}_1, M_1.\texttt{arg}_2, M_1.s_f, M_1.e_f}(
-  \sigma_{M_1.\texttt{arg}_1 \neq M_1.\texttt{arg}_2}(
+\text{Fight}_A &\equiv \pi_{M_1.\mathrm{arg}_1, M_1.\mathrm{arg}_2, M_1.s_f, M_1.e_f}(
+  \sigma_{M_1.\mathrm{arg}_1 \neq M_1.\mathrm{arg}_2}(
   \sigma_{\texttt{pred}=\text{`physical\_altercation'}}(M_1) ) ) \\[2pt]
 \text{Fight}_B &\equiv \pi_{M_1.s_f, M_2.e_f}(
   \sigma_{\texttt{pred}=\text{`shout'}}(M_1) \ \mathrm{Bef}_{120}\ \sigma_{\texttt{pred}=\text{`impact'}}(M_2) ) \\[2pt]
@@ -123,8 +123,8 @@ First ISEQL-based event detector using VLM perception. Reported high precision/r
 \noindent\textbf{Handoff} \textit{(visual only, $\delta=240$)}
 \[
 \begin{aligned}
-\text{Handoff}_A &\equiv \pi_{M_1.\texttt{arg}_1, M_2.\texttt{arg}_1, M_1.\texttt{arg}_2, M_1.s_f, M_2.e_f}( \\
-&\qquad \sigma_{M_1.\texttt{arg}_1 \neq M_2.\texttt{arg}_1 \land M_1.\texttt{arg}_2 = M_2.\texttt{arg}_2}(
+\text{Handoff}_A &\equiv \pi_{M_1.\mathrm{arg}_1, M_2.\mathrm{arg}_1, M_1.\mathrm{arg}_2, M_1.s_f, M_2.e_f}( \\
+&\qquad \sigma_{M_1.\mathrm{arg}_1 \neq M_2.\mathrm{arg}_1 \land M_1.\mathrm{arg}_2 = M_2.\mathrm{arg}_2}(
   \sigma_{\texttt{pred}=\text{`carrying'}}(M_1) \ \mathrm{Bef}_{240}\ \sigma_{\texttt{pred}=\text{`carrying'}}(M_2) ) )
 \end{aligned}
 \]
@@ -132,7 +132,7 @@ First ISEQL-based event detector using VLM perception. Reported high precision/r
 \noindent\textbf{Loitering} \textit{(visual only, duration $\ge 120$ frames)}
 \[
 \begin{aligned}
-\text{Loitering}_A &\equiv \pi_{M_1.\texttt{arg}_1, M_1.\texttt{arg}_2, M_1.s_f, M_1.e_f}(
+\text{Loitering}_A &\equiv \pi_{M_1.\mathrm{arg}_1, M_1.\mathrm{arg}_2, M_1.s_f, M_1.e_f}(
   \sigma_{\texttt{pred}=\text{`suspicious\_near\_vehicle'}}(M_1) \land (M_1.e_f - M_1.s_f) \ge 120 )
 \end{aligned}
 \]
@@ -144,8 +144,8 @@ First ISEQL-based event detector using VLM perception. Reported high precision/r
 \noindent\textbf{Vehicle Escape} \textit{(visual + audio)}
 \[
 \begin{aligned}
-\text{Escape}_A &\equiv \pi_{M_1.\texttt{arg}_1, M_2.\texttt{arg}_2, M_1.s_f, M_2.e_f}( \\
-&\qquad \sigma_{M_1.\texttt{arg}_1 = M_2.\texttt{arg}_1}(
+\text{Escape}_A &\equiv \pi_{M_1.\mathrm{arg}_1, M_2.\mathrm{arg}_2, M_1.s_f, M_2.e_f}( \\
+&\qquad \sigma_{M_1.\mathrm{arg}_1 = M_2.\mathrm{arg}_1}(
   \sigma_{\texttt{pred}=\text{`running'}}(M_1) \ \mathrm{SP}\ \sigma_{\texttt{pred}=\text{`enter\_or\_exit\_vehicle'}}(M_2) ) ) \\[2pt]
 \text{Escape}_B &\equiv \pi_{M_1.s_f, M_2.e_f}(
   \sigma_{\texttt{pred}\in\{\text{`engine'},\text{`vehicle'}\}}(M_1) \ \mathrm{SP}\ \sigma_{\texttt{pred}=\text{`tire\_squeal'}}(M_2) ) \\[2pt]
@@ -153,10 +153,10 @@ First ISEQL-based event detector using VLM perception. Reported high precision/r
 \end{aligned}
 \]
 
-\noindent\textbf{Vehicle Collision} \textit{(visual + audio, $\delta=60$)}
+\noindent\textbf{Vehicle Collision} \textit{(visual + audio)}
 \[
 \begin{aligned}
-\text{Collision}_A &\equiv \pi_{M_1.\texttt{arg}_1, M_1.s_f, M_1.e_f}(
+\text{Collision}_A &\equiv \pi_{M_1.\mathrm{arg}_1, M_1.s_f, M_1.e_f}(
   \sigma_{\texttt{pred}=\text{`vehicle\_collision'}}(M_1) ) \\[2pt]
 \text{Collision}_B &\equiv \pi_{M_1.s_f, M_2.e_f}(
   \sigma_{\texttt{pred}\in\{\text{`horn'},\text{`skidding'}\}}(M_1) \ \mathrm{SP}\ \sigma_{\texttt{pred}\in\{\text{`impact'},\text{`glass\_breaking'}\}}(M_2) ) \\[2pt]
@@ -167,7 +167,7 @@ First ISEQL-based event detector using VLM perception. Reported high precision/r
 \noindent\textbf{Gunshot / Explosion} \textit{(visual + audio)}
 \[
 \begin{aligned}
-\text{Gunshot}_A &\equiv \pi_{M_1.\texttt{arg}_1, M_1.s_f, M_1.e_f}(
+\text{Gunshot}_A &\equiv \pi_{M_1.\mathrm{arg}_1, M_1.s_f, M_1.e_f}(
   \sigma_{\texttt{pred}\in\{\text{`gunshot\_visible'},\text{`explosion\_visible'}\}}(M_1) ) \\[2pt]
 \text{Gunshot}_B &\equiv \pi_{M_1.s_f, M_1.e_f}(
   \sigma_{\texttt{pred}=\text{`gunshot\_or\_explosion'}}(M_1) ) \\[2pt]
@@ -217,7 +217,8 @@ Frame $k$: match by class + block overlap.
 \vspace{0.9em}
 \footnotesize
 Re-ID mainly adds \alert{loitering, vehicle escape, handoff}:\\
-Gemini 3.6 Flash loitering 0/5$\to$5/5, escape 0/5$\to$1/5, handoff 4/5$\to$5/5.
+Gemini 3.6 Flash loitering 0/5$\to$5/5, escape 0/5$\to$1/5, handoff 4/5$\to$5/5.\\
+\alert{Handoff without re-ID fires spuriously} (same person, reused object ID) $\Rightarrow$ false positives.
 \end{frame}
 
 % ── RQ2: AUDIO ──
@@ -226,7 +227,7 @@ Gemini 3.6 Flash loitering 0/5$\to$5/5, escape 0/5$\to$1/5, handoff 4/5$\to$5/5.
 \centering
 \footnotesize
 \textbf{20 audio-relevant scenes. Qwen2-Audio (Chu et al., 2024) vs.\ PANNs (Kong et al., 2020). F1 = harmonic mean of precision and recall. Best config per model bolded.}
-\vspace{0.6em}
+\vspace{0.3em}
 
 \begin{tabular}{lcccccccc}
 \toprule
@@ -237,11 +238,11 @@ Qwen2-Audio & 2.5 & 1.25 & 0.750 & 1.000 & 0.600 & 12 & 0 & 8 \\
 Qwen2-Audio & 5.0 & 5.00 & 0.667 & 1.000 & 0.500 & 10 & 0 & 10 \\
 Qwen2-Audio & 2.5 & 2.50 & 0.621 & 1.000 & 0.450 & 9 & 0 & 11 \\
 Qwen2-Audio & 1.0 & 1.00 & 0.389 & 0.438 & 0.350 & 7 & 9 & 13 \\
-Qwen2-Audio & 1.0 & 0.50 & 0.350 & 0.350 & 0.350 & 7 & 13 & 13 \\
+Qwen2-Audio & 1.0 & 0.50 & 0.368 & 0.389 & 0.350 & 7 & 11 & 13 \\
 Qwen2-Audio & 10.0 & 10.00 & 0.320 & 0.800 & 0.200 & 4 & 1 & 16 \\
 Qwen2-Audio & 10.0 & 5.00 & 0.320 & 0.800 & 0.200 & 4 & 1 & 16 \\
 \midrule
-PANNs CNN14 & 2.5 & 1.25 & 0.429 & 0.750 & 0.300 & 6 & 2 & 14 \\
+\textbf{PANNs CNN14} & \textbf{2.5} & \textbf{1.25} & \textbf{0.429} & \textbf{0.750} & \textbf{0.300} & \textbf{6} & \textbf{2} & \textbf{14} \\
 PANNs CNN14 & 5.0 & 5.00 & 0.400 & 1.000 & 0.250 & 5 & 0 & 15 \\
 PANNs CNN14 & 1.0 & 0.50 & 0.385 & 0.833 & 0.250 & 5 & 1 & 15 \\
 PANNs CNN14 & 2.5 & 2.50 & 0.370 & 0.714 & 0.250 & 5 & 2 & 15 \\
@@ -252,9 +253,9 @@ PANNs CNN14 & 10.0 & 5.00 & 0.261 & 1.000 & 0.150 & 3 & 0 & 17 \\
 \bottomrule
 \end{tabular}
 
-\vspace{0.7em}
+\vspace{0.4em}
 \footnotesize
-\textbf{Qwen2-Audio: perfect precision (1.000) for all windows $\ge$ 2.5 s; best 5.0s/2.5s (F1=0.788).}
+\textbf{Qwen2-Audio: perfect precision (1.000) at 2.5s and 5.0s windows; best 5.0s/2.5s (F1=0.788).}
 \end{frame}
 
 % ── RQ3: MULTIMODAL ──
@@ -292,7 +293,7 @@ Visual-only best \textbf{0.847} (Gemini 3.6 Flash); Audio-only best \textbf{0.78
 \begin{frame}{Per-Event Breakdown (Best Combo)}
 \centering
 \footnotesize
-\textbf{Gemini 3.6 Flash + Qwen2-Audio \hspace{0.5em} 30/30 (F1 = 0.938)}
+\textbf{Gemini 3.6 Flash + Qwen2-Audio \hspace{0.5em} 30/30 (F1 = 0.938) at 2.5s/1.25s window/hop}
 \vspace{0.6em}
 
 \begin{tabular}{lcccc}
@@ -319,7 +320,7 @@ Union is most valuable when modalities are complementary: audio catches what vis
 \begin{frame}{Contributions}
 \begin{enumerate}
   \item \textbf{First LALM for surveillance forensics}\\
-  Qwen2-Audio-7B: perfect precision (1.000), micro F1 = 0.788 vs.\ PANNs 0.429
+  Qwen2-Audio-7B: perfect precision (1.000) at 2.5s/5.0s windows, micro F1 = 0.788 vs.\ PANNs 0.429
   \vspace{0.3em}
 
   \item \textbf{Object re-identification unlocks tracking-dependent events}\\
@@ -495,7 +496,7 @@ VLM + Audio Model & Window (s) & Hop (s) & F1 & Precision & Recall & TP & FP & F
 
 \item Y.~Chu et al. Qwen2-Audio Technical Report. \emph{arXiv preprint arXiv:2407.10759}, 2024.
 
-\item V.~Crescitelli et al. {VIS MODE}: Video Interval-based Surveillance using Complex Event Modeling and Detection. In \emph{Proc.\ CIKM (Demo Track)}. ACM, 2026.
+\item V.~Crescitelli et al. {VIS MODE}: Complex Event Detection from VLM-Based Video Observations. In \emph{Proc.\ ECCV (Demo Track)}. 2026.
 
 \item Y.~Tang et al. Video Understanding with Large Language Models: A Survey. \emph{IEEE Trans.\ Circuits Syst.\ Video Technol.}, 36(2):1355--1376, 2026.
 
