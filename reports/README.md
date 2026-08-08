@@ -14,9 +14,8 @@ Manuscripts and slide outlines for the WATCHOUT ISEQL multimodal forensic survei
 WATCHOUT ISEQL is the multimodal successor of the G.A.T.C.H.A. project and the
 VIS MODE framework.
 
-**VIS MODE: Video Interval-based Surveillance using complex event
-MOdeling and DEtection** - Crescitelli, Persia, Cipriani, Pea
-(CIKM '26 demo). Prior work lacked object re-identification (so tracking-dependent events went undetected) and had unverifiable precision/recall claims on unlabeled ground truth.
+**VIS MODE: Complex Event Detection from VLM-Based Video Observations** - Crescitelli, Persia, Cipriani, Pea
+(ECCV 2026 demo). Prior work lacked object re-identification (so tracking-dependent events went undetected) and had unverifiable precision/recall claims on unlabeled ground truth.
 This project addresses both through object re-identification and a 30-scene labeled evaluation benchmark.
 
 For the ISEQL interval-join kernel (the underlying temporal-reasoning machinery

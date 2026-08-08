@@ -96,8 +96,8 @@ operator needed.
 ## Handoff
 
 **Description:** One person carrying an object, then another person carrying
-the same object. Intervals must overlap or be within 240 frames. Requires
-different persons but same object.
+the same object. The second carrying interval starts within 240 frames after
+the first ends. Requires different persons but same object.
 
 ### Visual
 

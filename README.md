@@ -14,7 +14,7 @@ A multimodal forensic surveillance framework that detects events through a **thr
 ### Key innovations
 - **First application of Large Audio-Language Model (LALM) for surveillance forensics** - Qwen2-Audio-7B-Instruct
 - **Object re-identification** via VLM tracking prompt - enables tracking-dependent events (loitering, vehicle escape, handoff)
-- **First labeled multimodal forensic surveillance dataset** - 30 scenes generated with Dreamina Seedance (ByteDance), with per-frame ground truth
+- **First labeled multimodal forensic surveillance dataset** - 30 scenes generated with Dreamina Seedance (ByteDance) Seedance 2.0, with per-frame ground truth
 - **UNION-based multimodal** - C = A U B, no temporal cross-modal JOINs (which reduce recall)
 - **Auditable SQL pipeline** - every event is output of a SQL query; no black-box reasoning
 
@@ -80,11 +80,11 @@ Without re-ID, every VLM call assigns new IDs to the same person/vehicle. Short,
 
 ## Evaluation Dataset
 
-The first labeled multimodal forensic surveillance dataset, generated using Dreamina Seedance (ByteDance's text-to-video model).
+The first labeled multimodal forensic surveillance dataset, generated using Dreamina Seedance (ByteDance's text-to-video service, Seedance 2.0 model).
 
 | Property | Value |
 |----------|-------|
-| Source | Dreamina Seedance (ByteDance) |
+| Source | Dreamina Seedance (ByteDance), Seedance 2.0 |
 | Scenes | 30 curated surveillance scenarios (10s each, 24 fps, 1280x720) |
 | Event types | fight, gunshot_or_explosion, vehicle_escape, vehicle_collision, loitering, handoff |
 | Annotations | Per-frame visual relations, audio sound classes, event-level ground truth (TP/FN/FP/TN) |
@@ -237,7 +237,7 @@ OpenAPI docs are auto-generated at `/docs` and `/redoc` when the backend is runn
 
 - **Object re-identification** and **first LALM for surveillance**: Ghiffary R. (this thesis)
 - C++ interval engine (`interval_engine/`): Piatov, Helmer, Dignoes, Persia (2021), *Cache-efficient sweeping-based interval joins for extended Allen relation predicates*, VLDB Journal 30(3), 379-402.
-- VIS MODE framework (predecessor, 2026 CIKM demo paper): Crescitelli, Persia, Cipriani, Pea. Prior work suffered from zero-event bug (no re-ID, so tracking-dependent events were missed) and unverifiable claims (no labeled ground truth). This project fixes both.
+- VIS MODE framework (predecessor, ECCV 2026 demo): Crescitelli, Persia, Cipriani, Pea, *VIS MODE: Complex Event Detection from VLM-Based Video Observations*. Prior work suffered from zero-event bug (no re-ID, so tracking-dependent events were missed) and unverifiable claims (no labeled ground truth). This project fixes both.
 - PANNs CNN14: Kong et al., *PANNs: Large-scale Pretrained Audio Neural Networks for Audio Pattern Recognition*, IEEE/ACM TASLP 2020.
 - Qwen2-Audio-7B-Instruct: Chu et al., *Qwen2-Audio Technical Report*, 2024.
 

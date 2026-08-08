@@ -6,7 +6,7 @@ on modality-capable scenes only.
 
 ## Setup
 
-- **Model**: Dreamina Seedance, single generation per scene, 10 seconds each
+- **Model**: Dreamina Seedance 2.0, single generation per scene, 10 seconds each
 - **Camera**: Fixed, surveillance angle (slightly elevated), no zoom, no pan
 - **Resolution**: 1280×720, 24 fps
 - **Each scene**: generated once with ALL detail in the prompt, no post-production edits
