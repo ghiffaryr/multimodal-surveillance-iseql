@@ -19,8 +19,13 @@ def iseql_loj(
     epsilon: Optional[int | str] = None,
 ) -> str:
     """ISEQL Left Overlap Join (LOJ): 0 <= s.Ts - r.Ts <= delta and 0 <= s.Te - r.Te <= epsilon.
-    s lags r in both start and end; unbounded when delta/epsilon omitted."""
-    parts = [f"{s}.StartFrame >= {r}.StartFrame", f"{s}.EndFrame >= {r}.EndFrame"]
+    s lags r in both start and end; the intervals must overlap (s.StartFrame <= r.EndFrame);
+    unbounded when delta/epsilon omitted."""
+    parts = [
+        f"{s}.StartFrame >= {r}.StartFrame",
+        f"{s}.StartFrame <= {r}.EndFrame",
+        f"{s}.EndFrame >= {r}.EndFrame",
+    ]
     if delta is not None:
         delta = int(delta)
         parts.append(f"({s}.StartFrame - {r}.StartFrame) <= {delta}")

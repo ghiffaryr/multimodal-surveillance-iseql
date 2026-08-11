@@ -85,7 +85,7 @@ class AnalysisStatusResponse(BaseModel):
 
 class AnalysisDetectRequest(BaseModel):
     event_type: str
-    deltas: Dict[str, int] = Field(default_factory=dict)
+    deltas: Dict[str, int]
 
 class EventResult(BaseModel):
     event_type: str

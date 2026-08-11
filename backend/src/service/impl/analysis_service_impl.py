@@ -197,7 +197,7 @@ class AnalysisServiceImpl(AnalysisService):
             log.warning("Failed to list Analyses: %s", e)
             return []
 
-    def detect_event(self, *, analysis_id: str, event_type: str, condition: str) -> dict:
+    def detect_event(self, *, analysis_id: str, event_type: str, condition: str, deltas: dict) -> dict:
         run = self.get_run(analysis_id)
         cfg = Config.get()
 
@@ -216,7 +216,7 @@ class AnalysisServiceImpl(AnalysisService):
         try:
             conn = _get_db_conn(cfg)
             try:
-                for line in run_sql_detection(conn, event_type, {}, analysis_id=run.id, condition=condition):
+                for line in run_sql_detection(conn, event_type, deltas, analysis_id=run.id, condition=condition):
                     if line.startswith("__RESULT__:"):
                         payload = line[len("__RESULT__:"):]
                         try:
@@ -225,6 +225,9 @@ class AnalysisServiceImpl(AnalysisService):
                             rows = []
             finally:
                 conn.close()
+        except ValueError as e:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=400, detail=str(e))
         except Exception as e:
             from fastapi import HTTPException
             raise HTTPException(status_code=500, detail=f"detection failed: {e}")

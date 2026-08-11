@@ -39,11 +39,12 @@ MULTIMODAL_EVENTS: list[EventSpec] = [
 ]
 
 
-def _build_visual_queries(deltas: dict, analysis_id: str = "") -> dict[str, str]:
-    delta_visual_loitering = int(deltas.get("delta_visual_loitering", 120))
-    delta_visual_handoff = int(deltas.get("delta_visual_handoff", 240))
+def _build_visual_queries(deltas: dict, analysis_id: str) -> dict[str, str]:
+    d = _resolve_deltas("A", deltas)
+    delta_visual_loitering = d["delta_visual_loitering"]
+    delta_visual_handoff = d["delta_visual_handoff"]
 
-    a = f"AND VIP.AnalysisID = '{analysis_id}'" if analysis_id else ""
+    a = f"AND VIP.AnalysisID = '{analysis_id}'"
     ip_person = "IP.Class = 'person'"
     ip_vehicle = "IP.Class IN ('car', 'vehicle')"
 
@@ -143,9 +144,10 @@ def _build_visual_queries(deltas: dict, analysis_id: str = "") -> dict[str, str]
     }
 
 
-def _build_sound_queries(deltas: dict, analysis_id: str = "") -> dict[str, str]:
-    a = f"AND AnalysisID = '{analysis_id}'" if analysis_id else ""
-    delta_sound_fight = int(deltas.get("delta_sound_fight", 120))
+def _build_sound_queries(deltas: dict, analysis_id: str) -> dict[str, str]:
+    a = f"AND AnalysisID = '{analysis_id}'"
+    d = _resolve_deltas("B", deltas)
+    delta_sound_fight = d["delta_sound_fight"]
     confidence_threshold = 0.0
 
     return {
@@ -220,12 +222,13 @@ def _build_sound_queries(deltas: dict, analysis_id: str = "") -> dict[str, str]:
     }
 
 
-def _build_multimodal_queries(deltas: dict, analysis_id: str = "") -> dict[str, str]:
-    a = f"AND VIP.AnalysisID = '{analysis_id}'" if analysis_id else ""
-    a_sound = f"AND SI.AnalysisID = '{analysis_id}'" if analysis_id else ""
-    delta_visual_loitering = int(deltas.get("delta_visual_loitering", 120))
-    delta_visual_handoff = int(deltas.get("delta_visual_handoff", 240))
-    delta_sound_fight = int(deltas.get("delta_sound_fight", 120))
+def _build_multimodal_queries(deltas: dict, analysis_id: str) -> dict[str, str]:
+    a = f"AND VIP.AnalysisID = '{analysis_id}'"
+    a_sound = f"AND SI.AnalysisID = '{analysis_id}'"
+    d = _resolve_deltas("C", deltas)
+    delta_visual_loitering = d["delta_visual_loitering"]
+    delta_visual_handoff = d["delta_visual_handoff"]
+    delta_sound_fight = d["delta_sound_fight"]
     confidence_threshold = 0.0
 
     ip_person = "IP.Class = 'person'"
@@ -440,14 +443,40 @@ def _build_multimodal_queries(deltas: dict, analysis_id: str = "") -> dict[str, 
     }
 
 
-def queries_for_condition(condition: str, deltas: dict, analysis_id: str = "") -> dict[str, str]:
+def _required_deltas(events: list[EventSpec]) -> set[str]:
+    return {p for e in events for p in (e.delta_param, e.delta_param2) if p}
+
+
+CONDITION_REQUIRED_DELTAS: dict[str, set[str]] = {
+    "A": _required_deltas(VISUAL_EVENTS),
+    "B": _required_deltas(SOUND_EVENTS),
+    "C": _required_deltas(MULTIMODAL_EVENTS),
+}
+
+
+def _require_deltas(condition: str, deltas: dict) -> None:
+    missing = CONDITION_REQUIRED_DELTAS[condition] - set(deltas)
+    if missing:
+        raise ValueError(
+            f"missing required delta parameter(s) for condition {condition}: "
+            + ", ".join(sorted(missing))
+        )
+
+
+def _resolve_deltas(condition: str, deltas: dict) -> dict[str, int]:
+    _require_deltas(condition, deltas)
+    return {key: int(deltas[key]) for key in CONDITION_REQUIRED_DELTAS[condition]}
+
+
+def queries_for_condition(condition: str, deltas: dict, analysis_id: str) -> dict[str, str]:
+    if condition not in CONDITION_REQUIRED_DELTAS:
+        raise ValueError(f"unknown condition '{condition}'; expected A | B | C")
+    _require_deltas(condition, deltas)
     if condition == "A":
         return _build_visual_queries(deltas, analysis_id)
     if condition == "B":
         return _build_sound_queries(deltas, analysis_id)
-    if condition == "C":
-        return _build_multimodal_queries(deltas, analysis_id)
-    raise ValueError(f"unknown condition '{condition}'; expected A | B | C")
+    return _build_multimodal_queries(deltas, analysis_id)
 
 
 def events_for_condition(condition: str) -> list[EventSpec]:
@@ -464,7 +493,7 @@ def run_sql_detection(
     conn,
     event_type: str,
     deltas: dict,
-    analysis_id: str = "",
+    analysis_id: str,
     condition: str = "A",
     log: Callable[[str], None] = log.info,
 ) -> Iterator[str]:
@@ -486,8 +515,8 @@ def run_sql_detection(
 
 
 class EventsServiceImpl(EventsService):
-    def queries_for_condition(self, condition: str, deltas: dict) -> dict[str, str]:
-        return queries_for_condition(condition, deltas)
+    def queries_for_condition(self, condition: str, deltas: dict, analysis_id: str) -> dict[str, str]:
+        return queries_for_condition(condition, deltas, analysis_id)
 
     def events_for_condition(self, condition: str) -> list[EventSpec]:
         return events_for_condition(condition)
@@ -497,7 +526,7 @@ class EventsServiceImpl(EventsService):
         conn,
         event_type: str,
         deltas: dict,
-        analysis_id: str = "",
+        analysis_id: str,
         condition: str = "A",
         log: Callable[[str], None] = None,
     ) -> Iterator[str]:

@@ -9,7 +9,7 @@ from pathlib import Path
 from fastapi import File, Form, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 
-from models.analysis import AnalysisStage, AnalysisStartResponse, Condition
+from models.analysis import AnalysisDetectRequest, AnalysisStage, AnalysisStartResponse, Condition
 from utils.config import VALID_CONDITIONS, Config
 from utils.api_logger import get_logger
 from utils.sse import drain_queue_into_sse
@@ -145,12 +145,13 @@ class AnalysisDetectController:
     async def on_get(self, analysis_id: str, event_type: str) -> StreamingResponse:
         raise HTTPException(status_code=400, detail="GET /detect is deprecated. Use POST.")
 
-    async def on_post(self, analysis_id: str, event_type: str) -> dict:
+    async def on_post(self, analysis_id: str, request: AnalysisDetectRequest) -> dict:
         run = self._service.get_run(analysis_id)
         return self._service.detect_event(
             analysis_id=analysis_id,
-            event_type=event_type,
+            event_type=request.event_type,
             condition=run.condition,
+            deltas=request.deltas,
         )
 
 
