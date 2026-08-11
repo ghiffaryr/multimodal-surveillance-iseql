@@ -92,8 +92,4 @@ export interface AudioConfig {
   hop: number;
 }
 
-export interface Deltas {
-  delta_visual_loitering: number;
-   delta_visual_handoff: number;
-   delta_sound_fight: number;
-}
+export type Deltas = Record<string, number>;

@@ -10,6 +10,7 @@
     Condition,
     Deltas,
     DetectionResult,
+    EventTypeInfo,
     EventTypesResponse,
     LogEvent,
     SchemaResponse,
@@ -60,11 +61,12 @@
     window: 2.5,
     hop: 1.25,
   });
-  let deltas = $state<Deltas>({
-    delta_visual_loitering: 150,
+  const DEFAULT_DELTAS: Deltas = {
+    delta_visual_loitering: 120,
     delta_visual_handoff: 240,
     delta_sound_fight: 120,
-  });
+  };
+  let deltas = $state<Deltas>({ ...DEFAULT_DELTAS });
   let eventTypes = $state<EventTypesResponse>({ A_visual: [], B_sound_only: [], C_sound_visual: [] });
 
   let analysisId = $state<string | null>(null);
@@ -149,6 +151,12 @@
     if (condition === 'A') return eventTypes.A_visual.map(e => e.id);
     if (condition === 'B') return eventTypes.B_sound_only.map(e => e.id);
     return eventTypes.C_sound_visual.map(e => e.id);
+  }
+
+  function eventTypesForCondition(): EventTypeInfo[] {
+    if (condition === 'A') return eventTypes.A_visual;
+    if (condition === 'B') return eventTypes.B_sound_only;
+    return eventTypes.C_sound_visual;
   }
 
   function loadAnalysis(item: AnalysisRecord) {
@@ -254,8 +262,9 @@
     const allRows: Array<Record<string, unknown>> = [];
     for (const evt of events) {
       try {
-        const r = await api.post<DetectionResult>(
-          `/api/analysis/${analysisId}/detect?event_type=${encodeURIComponent(evt)}`
+        const r = await api.postJson<DetectionResult>(
+          `/api/analysis/${analysisId}/detect`,
+          { event_type: evt, deltas }
         );
         for (const row of r.rows) {
           allRows.push({ Event: evt, ...row });
@@ -358,6 +367,8 @@
             <EventPicker
               condition={condition}
               deltas={deltas}
+              eventTypes={eventTypesForCondition()}
+              defaultDeltas={DEFAULT_DELTAS}
               onChangeDeltas={(d) => (deltas = d)}
               disabled={busy}
             />

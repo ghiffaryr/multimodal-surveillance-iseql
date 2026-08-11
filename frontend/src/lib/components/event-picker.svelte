@@ -2,33 +2,50 @@
   import Input from '$lib/components/ui/input.svelte';
   import Label from '$lib/components/ui/label.svelte';
   import Field from '$lib/components/ui/field.svelte';
-  import type { Condition, Deltas } from '$lib/types';
+  import type { Condition, Deltas, EventTypeInfo } from '$lib/types';
   import { inputInt } from '$lib/dom-helpers';
   import { Database } from 'lucide-svelte';
-
-  const DELTA_FIELDS: Array<{ key: keyof Deltas; label: string; id: string; fallback: number }> = [
-    { key: 'delta_visual_loitering', label: 'delta_visual_loitering', id: 'd-visual-loitering', fallback: 120 },
-    { key: 'delta_visual_handoff', label: 'delta_visual_handoff', id: 'd-visual-handoff', fallback: 240 },
-    { key: 'delta_sound_fight', label: 'delta_sound_fight', id: 'd-s-fight', fallback: 120 },
-  ];
-
-  const visualFields = DELTA_FIELDS.filter(f => f.key.startsWith('delta_visual_'));
-  const soundFields = DELTA_FIELDS.filter(f => f.key.startsWith('delta_sound_'));
 
   type Props = {
     condition: Condition;
     deltas: Deltas;
+    eventTypes: EventTypeInfo[];
+    defaultDeltas: Deltas;
     onChangeDeltas: (d: Deltas) => void;
     disabled?: boolean;
   };
   let {
     condition,
     deltas = $bindable(),
+    eventTypes,
+    defaultDeltas,
     onChangeDeltas,
     disabled = false,
   }: Props = $props();
 
-  function patch(p: Partial<Deltas>) {
+  const deltaFields = $derived(
+    [...new Set(eventTypes.flatMap(e => [e.delta_param, e.delta_param2]).filter((k): k is string => !!k))]
+      .sort((a, b) => {
+        const va = a.startsWith('delta_visual_') ? 0 : 1;
+        const vb = b.startsWith('delta_visual_') ? 0 : 1;
+        return va - vb || a.localeCompare(b);
+      })
+      .map(key => ({
+        key,
+        label: key,
+        id: `d-${key.replace(/^delta_/, '')}`,
+      }))
+  );
+
+  const fieldsForCondition = $derived(
+    condition === 'A'
+      ? deltaFields.filter(f => f.key.startsWith('delta_visual_'))
+      : condition === 'B'
+        ? deltaFields.filter(f => f.key.startsWith('delta_sound_'))
+        : deltaFields
+  );
+
+  function patch(p: Deltas) {
     onChangeDeltas({ ...deltas, ...p });
   }
 </script>
@@ -39,37 +56,13 @@
   </p>
 </div>
 
-{#if condition === 'A'}
-  <div class="grid grid-cols-2 gap-3">
-    {#each visualFields as f}
-      <Field>
-        <Label for={f.id}>{f.label}</Label>
-        <Input id={f.id} type="number" min="0" value={deltas[f.key]}
-          onchange={(e) => patch({ [f.key]: inputInt(e, f.fallback) } as Partial<Deltas>)}
-          {disabled} />
-      </Field>
-    {/each}
-  </div>
-{:else if condition === 'B'}
-  <div class="grid grid-cols-2 gap-3">
-    {#each soundFields as f}
-      <Field>
-        <Label for={f.id}>{f.label}</Label>
-        <Input id={f.id} type="number" min="0" value={deltas[f.key]}
-          onchange={(e) => patch({ [f.key]: inputInt(e, f.fallback) } as Partial<Deltas>)}
-          {disabled} />
-      </Field>
-    {/each}
-  </div>
-{:else}
-  <div class="grid grid-cols-2 gap-3">
-    {#each DELTA_FIELDS as f}
-      <Field>
-        <Label for={f.id}>{f.label}</Label>
-        <Input id={f.id} type="number" min="0" value={deltas[f.key]}
-          onchange={(e) => patch({ [f.key]: inputInt(e, f.fallback) } as Partial<Deltas>)}
-          {disabled} />
-      </Field>
-    {/each}
-  </div>
-{/if}
+<div class="grid grid-cols-2 gap-3">
+  {#each fieldsForCondition as f}
+    <Field>
+      <Label for={f.id}>{f.label}</Label>
+      <Input id={f.id} type="number" min="0" value={deltas[f.key] ?? defaultDeltas[f.key] ?? 0}
+        onchange={(e) => patch({ [f.key]: inputInt(e, defaultDeltas[f.key] ?? 0) })}
+        {disabled} />
+    </Field>
+  {/each}
+</div>

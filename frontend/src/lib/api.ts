@@ -45,6 +45,8 @@ async function request<T>(
 export const api = {
   get: <T,>(path: string) => request<T>('GET', path),
   post: <T,>(path: string, body?: BodyInit | null) => request<T>('POST', path, body),
+  postJson: <T,>(path: string, data: unknown) =>
+    request<T>('POST', path, JSON.stringify(data), { 'Content-Type': 'application/json' }),
   postForm: <T,>(path: string, form: FormData) => request<T>('POST', path, form),
   sse: (path: string) => new EventSource(`${BASE}${path}`),
 };
