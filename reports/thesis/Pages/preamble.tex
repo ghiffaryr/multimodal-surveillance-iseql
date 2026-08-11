@@ -14,6 +14,70 @@
 \usepackage{amssymb} % Required for \mathbb and \checkmark
 \usepackage[backend=biber, sorting=none, natbib=true]{biblatex}\usepackage[autostyle=true]{csquotes} % Required for language-dependent quotes
 \usepackage{graphicx} % Required for images
+
+% Shrink a math block to fit \linewidth only when it is too wide (never enlarge).
+\newsavebox{\iseqlbox}
+\newcommand{\iseqlfit}[1]{%
+  \sbox{\iseqlbox}{#1}%
+  \ifdim\wd\iseqlbox>\linewidth
+    \resizebox{\linewidth}{!}{\usebox{\iseqlbox}}%
+  \else
+    \usebox{\iseqlbox}%
+  \fi}
+
+% --- TikZ for ISEQL interval diagrams
+\usepackage{tikz}
+\usetikzlibrary{arrows,shapes,arrows.meta,calc,math,positioning}
+
+\tikzstyle{interval}            = [line width = 1pt, > = {Circle[length = 3.4pt]}, shorten > = -0pt]
+\tikzstyle{interval label}      = [font = {\small}]
+
+\newcommand*{\Interval}[5][]{%
+    \draw[interval, #1] (#2, #4) -- (#3, #4);
+    \node[interval label] at (-0.5,#4) {#5};
+}
+
+\newcommand*{\RSIntervals}[6]{%
+    \Interval[#1]{#2}{#3}{1}{$r$}
+    \Interval[#4]{#5}{#6}{0}{$s$}
+}
+
+\newcommand*{\DoodleSP}{%
+    \begin{tikzpicture}[xscale=0.5, yscale=0.2, baseline={($(current bounding box.north)-(0,7.5pt)$)}]
+        \RSIntervals{<-}{0}{3}{<-}{1}{3}
+    \end{tikzpicture}%
+}
+
+\newcommand*{\DoodleBef}{%
+    \begin{tikzpicture}[xscale=0.5, yscale=0.2, baseline={($(current bounding box.north)-(0,7.5pt)$)}]
+        \RSIntervals{->}{0}{1}{<-}{2}{3}
+    \end{tikzpicture}%
+}
+
+\newcommand*{\DoodleLOJ}{%
+    \begin{tikzpicture}[xscale=0.5, yscale=0.2, baseline={($(current bounding box.north)-(0,7.5pt)$)}]
+        \RSIntervals{<->}{0}{2}{<->}{1}{3}
+    \end{tikzpicture}%
+}
+
+\newcommand*{\DoodleDJ}{%
+    \begin{tikzpicture}[xscale=0.5, yscale=0.2, baseline={($(current bounding box.north)-(0,7.5pt)$)}]
+        \RSIntervals{<->}{1}{2}{<->}{0}{3}
+    \end{tikzpicture}%
+}
+
+\newcommand*{\DoodleEF}{%
+    \begin{tikzpicture}[xscale=0.5, yscale=0.2, baseline={($(current bounding box.north)-(0,7.5pt)$)}]
+        \RSIntervals{->}{0}{3}{->}{0}{2}
+    \end{tikzpicture}%
+}
+
+% --- ISEQL temporal operators
+\newcommand*{\Bef}{\mathrm{Bef}}
+\newcommand*{\SP}{\mathrm{SP}}
+\newcommand*{\LOJ}{\mathrm{LOJ}}
+\newcommand*{\DJoin}{\mathrm{DJ}}
+\newcommand*{\EF}{\mathrm{EF}}
 \usepackage{siunitx} % Required for SI units
 \usepackage{xurl} % Allow better URL line breaks (especially in bibliography)
 \emergencystretch=2em % Relax line-breaking slightly to avoid overfull \hbox warnings

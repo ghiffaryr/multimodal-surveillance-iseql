@@ -117,7 +117,116 @@ Both perception pipelines write to a shared SQLite database with the schema show
   \end{tabular}
 \end{table}
 
-The reasoning layer executes high-level event detection through SQL queries. The formal ISEQL definitions were given in Chapter~\ref{Background}; the corresponding SQL implementations are provided in Appendix~\ref{AppendixA}. Each condition has its own query set: condition A runs six visual queries, condition B runs four sound-only queries, and condition C runs six multimodal union queries.
+The reasoning layer executes high-level event detection through SQL queries. Each event type has a formal ISEQL definition (Section~\ref{sec:event-definitions}) that is compiled to a SQL query; the corresponding SQL implementations are provided in Appendix~\ref{AppendixA}. Each condition has its own query set: condition A runs six visual queries, condition B runs four sound-only queries, and condition C runs six multimodal union queries.
+
+\section{Event Definitions}
+\label{sec:event-definitions}
+
+Each of the six event types is defined as a projection-selection expression over the interval labelings produced by the perception layer, following the general ISEQL forms given in Section~\ref{sec:iseql}. Every definition below states the event semantics, the predicate and interval arguments it selects, and the temporal operator and thresholds that connect the constituent intervals. Where the same event is detectable through both modalities, condition A (visual) and condition B (audio) are given separately, and condition C (multimodal) is their set union.
+
+\subsection{Fight}
+
+A fight is a physical altercation between two or more people. Visually, it is a single interval labeled \texttt{physical\_altercation} whose two participants are distinct persons; the cross-condition $M_1.\mathrm{arg}_1 \neq M_1.\mathrm{arg}_2$ enforces that the altercation involves two different people rather than a person interacting with an object. Audibly, a fight manifests as a shout immediately followed by an impact; the query joins the two intervals with the BEFORE operator ($\mathrm{Bef}_{120}$), requiring the impact to start within 120 frames after the shout ends. The multimodal condition is the union of the two detections, so a fight is reported if either modality fires.
+
+\begin{flushleft}
+$\begin{aligned}
+\mathrm{Fight}_A \equiv &\; \pi_{M_1.\mathrm{arg}_1,\; M_1.\mathrm{arg}_2,\; M_1.s_f,\; M_1.e_f} ( \\
+&\qquad \sigma_{\,M_1.\mathrm{arg}_1 \neq M_1.\mathrm{arg}_2} ( \\
+&\qquad\quad \sigma_{\textit{pred}=\text{`physical\_altercation'} \;\land\; \mathrm{arg}_1=\text{`person1'} \;\land\; \mathrm{arg}_2=\text{`person2'}}(M_1) ) )
+\end{aligned}$\\[6pt]
+$\begin{aligned}
+\mathrm{Fight}_B \equiv &\; \pi_{M_1.s_f,\; M_2.e_f} ( \\
+&\qquad \sigma_{\textit{pred}=\text{`shout'}}(M_1) \\
+&\qquad \mathrm{Bef}_{120} \\
+&\qquad \sigma_{\textit{pred}=\text{`impact'}}(M_2))
+\end{aligned}$\\[6pt]
+$\mathrm{Fight}_C \equiv \mathrm{Fight}_A \cup \mathrm{Fight}_B$
+\end{flushleft}
+
+\subsection{Handoff}
+
+A handoff occurs when one person carrying an object hands it to another person, who then carries the same object. The event is visual-only: the query joins two \texttt{carrying} intervals over the same object ($M_1.\mathrm{arg}_2 = M_2.\mathrm{arg}_2$) but different persons ($M_1.\mathrm{arg}_1 \neq M_2.\mathrm{arg}_1$), connected by BEFORE with a 240-frame tolerance so that the second carrying interval begins shortly after the first ends. Because handoff has no acoustic correlate, it is defined only under condition A, and condition C equals condition A.
+
+\begin{flushleft}
+$\begin{aligned}
+\mathrm{Handoff}_A \equiv &\; \pi_{\,M_1.\mathrm{arg}_1,\; M_2.\mathrm{arg}_1,\; M_1.\mathrm{arg}_2,\; M_1.s_f,\; M_2.e_f} ( \\
+&\qquad \sigma_{\,M_1.\mathrm{arg}_1 \neq M_2.\mathrm{arg}_1 \;\land\; M_1.\mathrm{arg}_2 = M_2.\mathrm{arg}_2} ( \\
+&\qquad\quad \sigma_{\textit{pred}=\text{`carrying'} \;\land\; \mathrm{arg}_1=\text{`person'} \;\land\; \mathrm{arg}_2=\text{`object'}}(M_1) \\
+&\qquad\quad \mathrm{Bef}_{240} \\
+&\qquad\quad \sigma_{\textit{pred}=\text{`carrying'} \;\land\; \mathrm{arg}_1=\text{`person'} \;\land\; \mathrm{arg}_2=\text{`object'}}(M_2) )
+\end{aligned}$
+\end{flushleft}
+
+\subsection{Loitering}
+
+Loitering is a person standing suspiciously near a vehicle for a prolonged period. It is visual-only and expressed as a single-interval query with a duration constraint: the interval labeled \texttt{suspicious\_near\_vehicle} must span at least 120 frames ($M_1.e_f - M_1.s_f \ge 120$). The duration condition is applied as a nested selection on the interval itself, so the projection returns only intervals that satisfy the minimum-duration requirement. Loitering has no acoustic correlate, so condition C equals condition A.
+
+\begin{flushleft}
+$\begin{aligned}
+\mathrm{Loitering}_A \equiv &\; \pi_{M_1.\mathrm{arg}_1,\; M_1.\mathrm{arg}_2,\; M_1.s_f,\; M_1.e_f} ( \\
+&\qquad \sigma_{(M_1.e_f - M_1.s_f) \ge 120} ( \\
+&\qquad\quad \sigma_{\textit{pred}=\text{`suspicious\_near\_vehicle'} \;\land\; \mathrm{arg}_1=\text{`person'} \;\land\; \mathrm{arg}_2=\text{`vehicle'}}(M_1) )
+\end{aligned}$
+\end{flushleft}
+
+\subsection{Vehicle Escape}
+
+A vehicle escape is a person running and then entering or exiting a vehicle. Visually, the query joins a \texttt{running} interval and an \texttt{enter\_or\_exit\_vehicle} interval with START PRECEDING (SP), which allows the two intervals to overlap while the person's activity shifts from running to entering; the cross-condition $M_1.\mathrm{arg}_1 = M_2.\mathrm{arg}_1$ requires that the same person performs both actions. Audibly, an escape manifests as engine sound followed by a tire squeal; the audio query joins these two intervals with SP. The multimodal condition is the union of the visual and audio detections.
+
+\begin{flushleft}
+$\begin{aligned}
+\mathrm{Vehicle\ Escape}_A \equiv &\; \pi_{\,M_1.\mathrm{arg}_1,\; M_2.\mathrm{arg}_2,\; M_1.s_f,\; M_2.e_f} ( \\
+&\qquad \sigma_{\,M_1.\mathrm{arg}_1 = M_2.\mathrm{arg}_1} ( \\
+&\qquad\quad \sigma_{\textit{pred}=\text{`running'} \;\land\; \mathrm{arg}_1=\text{`person'}}(M_1) \\
+&\qquad\quad \mathrm{SP} \\
+&\qquad\quad \sigma_{\textit{pred}=\text{`enter\_or\_exit\_vehicle'} \;\land\; \mathrm{arg}_1=\text{`person'} \;\land\; \mathrm{arg}_2=\text{`vehicle'}}(M_2) ) )
+\end{aligned}$\\[6pt]
+$\begin{aligned}
+\mathrm{Vehicle\ Escape}_B \equiv &\; \pi_{M_1.s_f,\; M_2.e_f} ( \\
+&\qquad \sigma_{\textit{pred}=\text{`engine'} \;\lor\; \textit{pred}=\text{`vehicle'}}(M_1) \\
+&\qquad \mathrm{SP} \\
+&\qquad \sigma_{\textit{pred}=\text{`tire\_squeal'}}(M_2) )
+\end{aligned}$\\[6pt]
+$\mathrm{Vehicle\ Escape}_C \equiv \mathrm{Vehicle\ Escape}_A \cup \mathrm{Vehicle\ Escape}_B$
+\end{flushleft}
+
+\subsection{Vehicle Collision}
+
+A vehicle collision is detected through either modality. Visually, it is a single interval labeled \texttt{vehicle\_collision} involving a vehicle. Audibly, it is the sound of a collision: a horn or skidding followed by an impact or glass breaking, joined with START PRECEDING (SP). The two acoustic alternatives are combined with a logical disjunction inside the selection predicates ($\textit{pred}=\text{`horn'} \lor \textit{pred}=\text{`skidding'}$ on the first interval, and $\textit{pred}=\text{`impact'} \lor \textit{pred}=\text{`glass\_breaking'}$ on the second). Condition C is the union of the visual and audio detections.
+
+\begin{flushleft}
+$\begin{aligned}
+\mathrm{Vehicle\ Collision}_A \equiv &\; \pi_{M_1.\mathrm{arg}_1,\; M_1.s_f,\; M_1.e_f} ( \\
+&\qquad \sigma_{\textit{pred}=\text{`vehicle\_collision'} \;\land\; \mathrm{arg}_1=\text{`vehicle'}}(M_1) )
+\end{aligned}$\\[6pt]
+$\begin{aligned}
+\mathrm{Vehicle\ Collision}_B \equiv &\; \pi_{M_1.s_f,\; M_2.e_f} ( \\
+&\qquad \sigma_{\textit{pred}=\text{`horn'} \;\lor\; \textit{pred}=\text{`skidding'}}(M_1) \\
+&\qquad \mathrm{SP} \\
+&\qquad \sigma_{\textit{pred}=\text{`impact'} \;\lor\; \textit{pred}=\text{`glass\_breaking'}}(M_2) )
+\end{aligned}$\\[6pt]
+$\mathrm{Vehicle\ Collision}_C \equiv \mathrm{Vehicle\ Collision}_A \cup \mathrm{Vehicle\ Collision}_B$
+\end{flushleft}
+
+\subsection{Gunshot / Explosion}
+
+A gunshot or explosion can be detected in either modality. Visually, the selection accepts a \texttt{gunshot\_visible} interval whose argument is a person, or an \texttt{explosion\_visible} interval whose argument is a vehicle or an object; the disjunction of the two alternatives is written inside the selection predicate. Audibly, the event is a single \texttt{gunshot\_or\_explosion} interval. Condition C is the union of the visual and audio detections.
+
+\begin{flushleft}
+$\begin{aligned}
+\mathrm{Gunshot\ /\ Explosion}_A \equiv &\; \pi_{M_1.\mathrm{arg}_1,\; M_1.s_f,\; M_1.e_f} ( \\
+&\qquad \sigma_{\begin{subarray}{l}
+  (\textit{pred}=\text{`gunshot\_visible'} \;\land\; \mathrm{arg}_1=\text{`person'}) \\
+  \;\lor\; \\
+  (\textit{pred}=\text{`explosion\_visible'} \;\land\; (\mathrm{arg}_1=\text{`vehicle'} \;\lor\; \mathrm{arg}_1=\text{`object'})) \displaystyle(M_1) )
+  \end{subarray}}
+\end{aligned}$\\[6pt]
+$\begin{aligned}
+\mathrm{Gunshot\ /\ Explosion}_B \equiv &\; \pi_{M_1.s_f,\; M_1.e_f} ( \\
+&\qquad \sigma_{\textit{pred}=\text{`gunshot\_or\_explosion'}}(M_1) )
+\end{aligned}$\\[6pt]
+$\mathrm{Gunshot\ /\ Explosion}_C \equiv \mathrm{Gunshot\ /\ Explosion}_A \cup \mathrm{Gunshot\ /\ Explosion}_B$
+\end{flushleft}
 
 \section{Dataset}
 \label{sec:dataset}

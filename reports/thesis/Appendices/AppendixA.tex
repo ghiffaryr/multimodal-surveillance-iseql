@@ -15,6 +15,7 @@ The SQL listings use the helper predicates below, which realize the formal ISEQL
 iseql_before(r, s, d)            =  s.StartFrame > r.EndFrame
                                      AND (s.StartFrame - r.EndFrame) <= d
 iseql_loj(r, s, d, e)            =  s.StartFrame >= r.StartFrame
+                                     AND s.StartFrame <= r.EndFrame
                                      AND s.EndFrame >= r.EndFrame
                                      AND (s.StartFrame - r.StartFrame) <= d
                                      AND (s.EndFrame - r.EndFrame) <= e
@@ -29,6 +30,7 @@ iseql_ef(r, s, e)                =  s.EndFrame <= r.EndFrame
                                      AND s.EndFrame >= r.StartFrame
                                      AND (r.EndFrame - s.EndFrame) <= e
 iseql_roj(r, s, d, e)            =  r.StartFrame >= s.StartFrame
+                                     AND r.StartFrame <= s.EndFrame
                                      AND r.EndFrame >= s.EndFrame
                                      AND (r.StartFrame - s.StartFrame) <= d
                                      AND (r.EndFrame - s.EndFrame) <= e
@@ -40,7 +42,7 @@ iseql_after(r, s, d)             =  r.StartFrame > s.EndFrame
                                      AND (r.StartFrame - s.EndFrame) <= d
 \end{lstlisting}
 
-\noindent The eight predicates realize the ISEQL interval operators defined in Section~\ref{sec:iseql}. \texttt{iseql\_before} corresponds to \textit{Before} (Bef), \texttt{iseql\_loj} to \textit{Left Overlap Join} (LOJ), \texttt{iseql\_sp} to \textit{Start Preceding} (SP), \texttt{iseql\_dj} to \textit{During Join} (DJ), \texttt{iseql\_ef} to \textit{End Following} (EF), \texttt{iseql\_roj} to \textit{Right Overlap Join} (ROJ), \texttt{iseql\_rdj} to \textit{Reverse During Join} (RDJ), and \texttt{iseql\_after} to \textit{After} (Aft). The reverse operators (ROJ, RDJ, After) are the corresponding forward operator with the interval arguments swapped. The event queries in this thesis use \texttt{iseql\_before} and \texttt{iseql\_sp}; the remaining six operators are provided by the implementation for completeness.
+\noindent The eight predicates realize the ISEQL interval operators defined in Section~\ref{sec:iseql}. \texttt{iseql\_before} corresponds to \textit{Before} (Bef), \texttt{iseql\_loj} to \textit{Left Overlap Join} (LOJ), \texttt{iseql\_sp} to \textit{Start Preceding} (SP), \texttt{iseql\_dj} to \textit{During Join} (DJ), \texttt{iseql\_ef} to \textit{End Following} (EF), \texttt{iseql\_roj} to \textit{Right Overlap Join} (ROJ), \texttt{iseql\_rdj} to \textit{Reverse During Join} (RDJ), and \texttt{iseql\_after} to \textit{After} (Aft). The reverse operators (ROJ, RDJ, After) are the corresponding forward operator with the interval arguments swapped. The event queries in this thesis use \texttt{iseql\_before} and \texttt{iseql\_sp}; the remaining six operators are provided by the implementation for completeness. Every query is built with a mandatory per-analysis \texttt{AnalysisID} filter and the required threshold parameters (the $\delta$ deltas), so a query can only ever be evaluated over the intervals of a single analysis.
 
 \subsection{Visual Queries (Condition A)}
 
