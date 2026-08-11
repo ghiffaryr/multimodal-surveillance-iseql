@@ -12,8 +12,60 @@
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{amssymb}
+\usepackage{graphicx}
 \usepackage{tikz}
-\usetikzlibrary{shapes,arrows,arrows.meta,positioning}
+\usetikzlibrary{shapes,arrows,arrows.meta,calc,math,positioning}
+
+\tikzstyle{interval}            = [line width = 1pt, > = {Circle[length = 3.4pt]}, shorten > = -0pt]
+\tikzstyle{interval label}      = [font = {\small}]
+
+\newcommand*{\Interval}[5][]{%
+    \draw[interval, #1] (#2, #4) -- (#3, #4);
+    \node[interval label] at (-0.5,#4) {#5};
+}
+
+\newcommand*{\RSIntervals}[6]{%
+    \Interval[#1]{#2}{#3}{1}{$r$}
+    \Interval[#4]{#5}{#6}{0}{$s$}
+}
+
+\newcommand*{\DoodleSP}{%
+    \begin{tikzpicture}[xscale=0.4, yscale=0.16, baseline={($(current bounding box.north)-(0,7.5pt)$)}]
+        \RSIntervals{<-}{0}{3}{<-}{1}{3}
+    \end{tikzpicture}%
+}
+
+\newcommand*{\DoodleBef}{%
+    \begin{tikzpicture}[xscale=0.4, yscale=0.16, baseline={($(current bounding box.north)-(0,7.5pt)$)}]
+        \RSIntervals{->}{0}{1}{<-}{2}{3}
+    \end{tikzpicture}%
+}
+
+\newcommand*{\DoodleLOJ}{%
+    \begin{tikzpicture}[xscale=0.4, yscale=0.16, baseline={($(current bounding box.north)-(0,7.5pt)$)}]
+        \RSIntervals{<->}{0}{2}{<->}{1}{3}
+    \end{tikzpicture}%
+}
+
+\newcommand*{\DoodleDJ}{%
+    \begin{tikzpicture}[xscale=0.4, yscale=0.16, baseline={($(current bounding box.north)-(0,7.5pt)$)}]
+        \RSIntervals{<->}{1}{2}{<->}{0}{3}
+    \end{tikzpicture}%
+}
+
+\newcommand*{\DoodleEF}{%
+    \begin{tikzpicture}[xscale=0.4, yscale=0.16, baseline={($(current bounding box.north)-(0,7.5pt)$)}]
+        \RSIntervals{->}{0}{3}{->}{0}{2}
+    \end{tikzpicture}%
+}
+
+% --- ISEQL temporal operators
+\newcommand*{\Bef}{\mathrm{Bef}}
+\newcommand*{\SP}{\mathrm{SP}}
+\newcommand*{\LOJ}{\mathrm{LOJ}}
+\newcommand*{\DJoin}{\mathrm{DJ}}
+\newcommand*{\EF}{\mathrm{EF}}
+\newcommand*{\size}{\mathrm{size}}
 
 \setbeamertemplate{navigation symbols}{}
 \setbeamertemplate{itemize item}{\scriptsize\raisebox{0.3ex}{$\blacktriangleright$}}
@@ -100,80 +152,117 @@ First ISEQL-based event detector using VLM perception.
 \end{tikzpicture}
 \end{frame}
 
-% ── ISEQL FORMAL EXPRESSIONS (1/2) ──
+% ── ISEQL FORMAL EXPRESSIONS ──
 \section{ISEQL}
-\begin{frame}{ISEQL: Formal Event Definitions (1/2)}
-\footnotesize
+\begin{frame}{ISEQL: Interval Operators}
+\scriptsize
 \textbf{ISEQL (Helmer \& Persia, 2016; Persia et al., 2017):} Interval-based SQL Event Query Language.\\
-\textbf{Notation:} $M_i.\mathrm{arg}_j$: $j$-th argument of interval $i$. $M_i.s_f$, $M_i.e_f$: start/end frame. $\mathrm{Bef}_{\delta}$: before operator, $s$ starts strictly after $r$ ends with gap $0 < \text{gap} \le\delta$. $\mathrm{SP}$: start preceding (overlap). $\cup$: set union. $\sigma_P$: select intervals satisfying $P$. $\pi_F$: project fields $F$.
+\textbf{Notation:} $M_i.\mathrm{arg}_j$: $j$-th argument of interval $i$. $M_i.s_f$, $M_i.e_f$: start/end frame. $\sigma_P$: select intervals satisfying $P$. $\pi_F$: project fields $F$. $\delta$, $\varepsilon$: frame-count tolerances.
 \vspace{0.3em}
-
-\noindent\textbf{Fight} \textit{(visual + audio)}
-\[
-\begin{aligned}
-\text{Fight}_A &\equiv \pi_{M_1.\mathrm{arg}_1, M_1.\mathrm{arg}_2, M_1.s_f, M_1.e_f}(
-  \sigma_{M_1.\mathrm{arg}_1 \neq M_1.\mathrm{arg}_2}(
-  \sigma_{\texttt{pred}=\text{`physical\_altercation'}}(M_1) ) ) \\[2pt]
-\text{Fight}_B &\equiv \pi_{M_1.s_f, M_2.e_f}(
-  \sigma_{\texttt{pred}=\text{`shout'}}(M_1) \ \mathrm{Bef}_{120}\ \sigma_{\texttt{pred}=\text{`impact'}}(M_2) ) \\[2pt]
-\text{Fight}_C &\equiv \text{Fight}_A \cup \text{Fight}_B
-\end{aligned}
-\]
-
-\noindent\textbf{Handoff} \textit{(visual only, $\delta=240$)}
-\[
-\begin{aligned}
-\text{Handoff}_A &\equiv \pi_{M_1.\mathrm{arg}_1, M_2.\mathrm{arg}_1, M_1.\mathrm{arg}_2, M_1.s_f, M_2.e_f}( \\
-&\qquad \sigma_{M_1.\mathrm{arg}_1 \neq M_2.\mathrm{arg}_1 \land M_1.\mathrm{arg}_2 = M_2.\mathrm{arg}_2}(
-  \sigma_{\texttt{pred}=\text{`carrying'}}(M_1) \ \mathrm{Bef}_{240}\ \sigma_{\texttt{pred}=\text{`carrying'}}(M_2) ) )
-\end{aligned}
-\]
-
-\noindent\textbf{Loitering} \textit{(visual only, duration $\ge 120$ frames)}
-\[
-\begin{aligned}
-\text{Loitering}_A &\equiv \pi_{M_1.\mathrm{arg}_1, M_1.\mathrm{arg}_2, M_1.s_f, M_1.e_f}(
-  \sigma_{\texttt{pred}=\text{`suspicious\_near\_vehicle'}}(M_1) \land (M_1.e_f - M_1.s_f) \ge 120 )
-\end{aligned}
-\]
+\setlength{\abovedisplayskip}{3pt}
+\setlength{\belowdisplayskip}{3pt}
+\begin{center}
+\begin{tabular}{@{}p{7.5em}p{6.5em}p{14em}@{}}
+  \toprule
+  Operator & Diagram & Definition \\
+  \midrule
+  \textsc{Before} ($\Bef_\delta$) & \DoodleBef & $0 < s.T_s - r.T_e \le \delta$ \\
+  \addlinespace
+  \textsc{Start Preceding} ($\SP_\delta$) & \DoodleSP & $0 \le s.T_s - r.T_s \le \delta$\newline $r.T_e - s.T_s \ge 0$ \\
+  \addlinespace
+  \textsc{Left Overlap Join} ($\LOJ_{\delta,\varepsilon}$) & \DoodleLOJ & $0 \le s.T_s - r.T_s \le \delta$\newline $0 \le s.T_e - r.T_e \le \varepsilon$\newline $0 \le \delta < \mathrm{size}(r)$\newline $0 \le \varepsilon < \mathrm{size}(s)$ \\
+  \addlinespace
+  \textsc{During Join} ($\DJoin_{\delta,\varepsilon}$) & \DoodleDJ & $0 \le r.T_s - s.T_s \le \delta$\newline $0 \le s.T_e - r.T_e \le \varepsilon$\newline $0 \le \delta \le \mathrm{size}(r) + \varepsilon$\newline $0 \le \varepsilon \le \mathrm{size}(r) + \delta$ \\
+  \addlinespace
+  \textsc{End Following} ($\EF_\varepsilon$) & \DoodleEF & $0 \le r.T_e - s.T_e \le \varepsilon$\newline $s.T_e - r.T_s \ge 0$ \\
+  \bottomrule
+\end{tabular}
+\end{center}
+\vspace{0.3em}
+This thesis uses primarily \textbf{Bef} and \textbf{SP}.
 \end{frame}
 
-% ── ISEQL FORMAL EXPRESSIONS (2/2) ──
-\begin{frame}{ISEQL: Formal Event Definitions (2/2)}
-\footnotesize
-\noindent\textbf{Vehicle Escape} \textit{(visual + audio)}
-\[
-\begin{aligned}
-\text{Escape}_A &\equiv \pi_{M_1.\mathrm{arg}_1, M_2.\mathrm{arg}_2, M_1.s_f, M_2.e_f}( \\
-&\qquad \sigma_{M_1.\mathrm{arg}_1 = M_2.\mathrm{arg}_1}(
-  \sigma_{\texttt{pred}=\text{`running'}}(M_1) \ \mathrm{SP}\ \sigma_{\texttt{pred}=\text{`enter\_or\_exit\_vehicle'}}(M_2) ) ) \\[2pt]
-\text{Escape}_B &\equiv \pi_{M_1.s_f, M_2.e_f}(
-  \sigma_{\texttt{pred}\in\{\text{`engine'},\text{`vehicle'}\}}(M_1) \ \mathrm{SP}\ \sigma_{\texttt{pred}=\text{`tire\_squeal'}}(M_2) ) \\[2pt]
-\text{Escape}_C &\equiv \text{Escape}_A \cup \text{Escape}_B
-\end{aligned}
-\]
+\begin{frame}{ISEQL: Event Definitions (1/2)}
+\scriptsize
+\setlength{\jot}{2pt}
+\setlength{\abovedisplayskip}{4pt}
+\setlength{\belowdisplayskip}{4pt}
+\setlength{\abovedisplayshortskip}{0pt}
+\setlength{\belowdisplayshortskip}{0pt}
 
-\noindent\textbf{Vehicle Collision} \textit{(visual + audio)}
-\[
-\begin{aligned}
-\text{Collision}_A &\equiv \pi_{M_1.\mathrm{arg}_1, M_1.s_f, M_1.e_f}(
-  \sigma_{\texttt{pred}=\text{`vehicle\_collision'}}(M_1) ) \\[2pt]
-\text{Collision}_B &\equiv \pi_{M_1.s_f, M_2.e_f}(
-  \sigma_{\texttt{pred}\in\{\text{`horn'},\text{`skidding'}\}}(M_1) \ \mathrm{SP}\ \sigma_{\texttt{pred}\in\{\text{`impact'},\text{`glass\_breaking'}\}}(M_2) ) \\[2pt]
-\text{Collision}_C &\equiv \text{Collision}_A \cup \text{Collision}_B
-\end{aligned}
-\]
+\par\vspace{0.4em}
+\noindent\textbf{Fight}\par\vspace{2pt}
+\noindent$\mathrm{Fight}_A$ $\equiv \begin{aligned}[t]
+&\pi_{M_1.\mathrm{arg}_1, M_1.\mathrm{arg}_2, M_1.s_f, M_1.e_f} ( \\
+&\quad \sigma_{M_1.\mathrm{arg}_1 \neq M_1.\mathrm{arg}_2} ( \\
+&\qquad \sigma_{\texttt{pred}=\text{`physical\_altercation'} \land \mathrm{arg}_1=\text{`person1'} \land \mathrm{arg}_2=\text{`person2'}}(M_1) ) )
+\end{aligned}$\par\vspace{2pt}
+\noindent$\mathrm{Fight}_B$ $\equiv \begin{aligned}[t]
+&\pi_{M_1.s_f, M_2.e_f} ( \\
+&\quad \sigma_{\texttt{pred}=\text{`shout'}}(M_1) \;\Bef_{120}\; \sigma_{\texttt{pred}=\text{`impact'}}(M_2) )
+\end{aligned}$\par\vspace{2pt}
+\noindent$\mathrm{Fight}_C$ $= \mathrm{Fight}_A \cup \mathrm{Fight}_B$\par\vspace{4pt}
 
-\noindent\textbf{Gunshot / Explosion} \textit{(visual + audio)}
-\[
-\begin{aligned}
-\text{Gunshot}_A &\equiv \pi_{M_1.\mathrm{arg}_1, M_1.s_f, M_1.e_f}(
-  \sigma_{\texttt{pred}\in\{\text{`gunshot\_visible'},\text{`explosion\_visible'}\}}(M_1) ) \\[2pt]
-\text{Gunshot}_B &\equiv \pi_{M_1.s_f, M_1.e_f}(
-  \sigma_{\texttt{pred}=\text{`gunshot\_or\_explosion'}}(M_1) ) \\[2pt]
-\text{Gunshot}_C &\equiv \text{Gunshot}_A \cup \text{Gunshot}_B
-\end{aligned}
-\]
+\par\vspace{0.4em}
+\noindent\textbf{Handoff}\par\vspace{2pt}
+\noindent$\mathrm{Handoff}_A$ $\equiv \begin{aligned}[t]
+&\pi_{M_1.\mathrm{arg}_1, M_2.\mathrm{arg}_1, M_1.\mathrm{arg}_2, M_1.s_f, M_2.e_f} ( \\
+&\quad \sigma_{M_1.\mathrm{arg}_1 \neq M_2.\mathrm{arg}_1 \land M_1.\mathrm{arg}_2 = M_2.\mathrm{arg}_2} ( \\
+&\qquad \sigma_{\texttt{pred}=\text{`carrying'} \land \mathrm{arg}_1=\text{`person'} \land \mathrm{arg}_2=\text{`object'}}(M_1) \;\Bef_{240}\; \sigma_{\texttt{pred}=\text{`carrying'} \land \mathrm{arg}_1=\text{`person'} \land \mathrm{arg}_2=\text{`object'}}(M_2) ) )
+\end{aligned}$\par\vspace{4pt}
+
+\par\vspace{0.4em}
+\noindent\textbf{Loitering}\par\vspace{2pt}
+\noindent$\mathrm{Loitering}_A$ $\equiv \begin{aligned}[t]
+&\pi_{M_1.\mathrm{arg}_1, M_1.\mathrm{arg}_2, M_1.s_f, M_1.e_f} ( \\
+&\quad \sigma_{(M_1.e_f - M_1.s_f) \ge 120} ( \\
+&\qquad \sigma_{\texttt{pred}=\text{`suspicious\_near\_vehicle'} \land \mathrm{arg}_1=\text{`person'} \land \mathrm{arg}_2=\text{`vehicle'}}(M_1) )
+\end{aligned}$
+\end{frame}
+
+\begin{frame}{ISEQL: Event Definitions (2/2)}
+\scriptsize
+\setlength{\jot}{2pt}
+\setlength{\abovedisplayskip}{4pt}
+\setlength{\belowdisplayskip}{4pt}
+\setlength{\abovedisplayshortskip}{0pt}
+\setlength{\belowdisplayshortskip}{0pt}
+
+\par\vspace{0.25em}
+\noindent\textbf{Vehicle Escape}\par\vspace{2pt}
+\noindent$\mathrm{Vehicle\ Escape}_A$ $\equiv \begin{aligned}[t]
+&\pi_{M_1.\mathrm{arg}_1, M_2.\mathrm{arg}_2, M_1.s_f, M_2.e_f} ( \\
+&\quad \sigma_{M_1.\mathrm{arg}_1 = M_2.\mathrm{arg}_1} ( \sigma_{\texttt{pred}=\text{`running'} \land \mathrm{arg}_1=\text{`person'}}(M_1) \;\SP\; \sigma_{\texttt{pred}=\text{`enter\_or\_exit\_vehicle'} \land \mathrm{arg}_1=\text{`person'} \land \mathrm{arg}_2=\text{`vehicle'}}(M_2) ) )
+\end{aligned}$\par\vspace{2pt}
+\noindent$\mathrm{Vehicle\ Escape}_B$ $\equiv \begin{aligned}[t]
+&\pi_{M_1.s_f, M_2.e_f} ( \\
+&\quad \sigma_{\texttt{pred}=\text{`engine'} \lor \texttt{pred}=\text{`vehicle'}}(M_1) \;\SP\; \sigma_{\texttt{pred}=\text{`tire\_squeal'}}(M_2) )
+\end{aligned}$\par\vspace{2pt}
+\noindent$\mathrm{Vehicle\ Escape}_C$ $= \mathrm{Vehicle\ Escape}_A \cup \mathrm{Vehicle\ Escape}_B$\par\vspace{2pt}
+
+\par\vspace{0.25em}
+\noindent\textbf{Vehicle Collision}\par\vspace{2pt}
+\noindent$\mathrm{Vehicle\ Collision}_A$ $\equiv \begin{aligned}[t]
+&\pi_{M_1.\mathrm{arg}_1, M_1.s_f, M_1.e_f} ( \\
+&\quad \sigma_{\texttt{pred}=\text{`vehicle\_collision'} \land \mathrm{arg}_1=\text{`vehicle'}}(M_1) )
+\end{aligned}$\par\vspace{2pt}
+\noindent$\mathrm{Vehicle\ Collision}_B$ $\equiv \begin{aligned}[t]
+&\pi_{M_1.s_f, M_2.e_f} ( \\
+&\quad \sigma_{\texttt{pred}=\text{`horn'} \lor \texttt{pred}=\text{`skidding'}}(M_1) \;\SP\; \sigma_{\texttt{pred}=\text{`impact'} \lor \texttt{pred}=\text{`glass\_breaking'}}(M_2) )
+\end{aligned}$\par\vspace{2pt}
+\noindent$\mathrm{Vehicle\ Collision}_C$ $= \mathrm{Vehicle\ Collision}_A \cup \mathrm{Vehicle\ Collision}_B$\par\vspace{2pt}
+
+\par\vspace{0.25em}
+\noindent\textbf{Gunshot / Explosion}\par\vspace{2pt}
+\noindent$\mathrm{Gunshot\ /\ Explosion}_A$ $\equiv \begin{aligned}[t]
+&\pi_{M_1.\mathrm{arg}_1, M_1.s_f, M_1.e_f} ( \\
+&\quad \sigma_{( \texttt{pred}=\text{`gunshot\_visible'} \land \mathrm{arg}_1=\text{`person'} ) \lor ( \texttt{pred}=\text{`explosion\_visible'} \land ( \mathrm{arg}_1=\text{`vehicle'} \lor \mathrm{arg}_1=\text{`object'} ) )}(M_1) )
+\end{aligned}$\par\vspace{2pt}
+\noindent$\mathrm{Gunshot\ /\ Explosion}_B$ $\equiv \begin{aligned}[t]
+&\pi_{M_1.s_f, M_1.e_f} ( \\
+&\quad \sigma_{\texttt{pred}=\text{`gunshot\_or\_explosion'}}(M_1) )
+\end{aligned}$\par\vspace{2pt}
+\noindent$\mathrm{Gunshot\ /\ Explosion}_C$ $= \mathrm{Gunshot\ /\ Explosion}_A \cup \mathrm{Gunshot\ /\ Explosion}_B$
 \end{frame}
 
 % ── RQ1: RE-ID ──
