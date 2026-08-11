@@ -11,6 +11,7 @@ from api.analysis_controller import (
 from api.database_controller import (
     DatabaseUploadController,
     DatabaseDownloadController,
+    DatabaseResetController,
 )
 from api.events_controller import EventsDetectController
 from api.schema_controller import (
@@ -32,6 +33,7 @@ ROUTES = {
     '/vlm/models': VLMModelsController(),
     '/db/upload': DatabaseUploadController(),
     '/db/download': DatabaseDownloadController(),
+    '/db/reset': DatabaseResetController(_analysis_service),
     '/events/detect': EventsDetectController(),
     '/schema': SchemaController(),
     '/events/types': EventTypesController(),

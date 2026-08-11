@@ -64,3 +64,7 @@ class AnalysisService(ABC):
     @abstractmethod
     def delete_analysis(self, analysis_id: str) -> None:
         pass
+
+    @abstractmethod
+    def reset_database(self) -> None:
+        pass

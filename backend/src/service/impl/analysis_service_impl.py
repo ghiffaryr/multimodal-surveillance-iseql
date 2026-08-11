@@ -119,6 +119,25 @@ class AnalysisServiceImpl(AnalysisService):
         except Exception:
             pass
 
+    def reset_database(self) -> None:
+        for run in list(self._runs.values()):
+            if run.stage not in (AnalysisStage.DONE, AnalysisStage.FAILED, AnalysisStage.STOPPED):
+                run.stop_event.set()
+                run.stage = AnalysisStage.STOPPED
+        self._runs.clear()
+        cfg = Config.get()
+        try:
+            conn = _get_db_conn(cfg)
+            for table in ("VisualParticipant", "VisualPerFrame", "VisualRelation",
+                          "VisualPerInterval", "SoundPerInterval", "Analyses"):
+                conn.execute(f"DELETE FROM {table}")
+            conn.execute("DELETE FROM sqlite_sequence")
+            conn.commit()
+            conn.close()
+            log.info("Reset database: cleared all analysis data")
+        except Exception as e:
+            log.warning("Failed to reset database: %s", e)
+
     def start_analysis(
         self,
         *,

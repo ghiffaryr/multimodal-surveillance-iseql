@@ -33,6 +33,7 @@
     loadAnalysis?: (item: AnalysisRecord) => void;
     onDeleteAnalysis?: (id: string) => void;
     onResetDb?: () => void;
+    resetDisabled?: boolean;
   };
   let {
     class: className = '',
@@ -42,6 +43,7 @@
     loadAnalysis,
     onDeleteAnalysis,
     onResetDb,
+    resetDisabled = false,
   }: Props = $props();
 
   function formatDate(iso: string): string {
@@ -123,6 +125,7 @@
         size="sm"
         class="w-full justify-start text-xs text-muted-foreground hover:text-destructive"
         onclick={onResetDb}
+        disabled={resetDisabled}
       >
         <Database class="size-3 mr-1.5" /> Reset database
       </Button>

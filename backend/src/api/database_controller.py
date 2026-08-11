@@ -47,3 +47,12 @@ class DatabaseDownloadController:
             filename="analysis.db",
             media_type="application/octet-stream",
         )
+
+
+class DatabaseResetController:
+    def __init__(self, analysis_service) -> None:
+        self._service = analysis_service
+
+    async def on_post(self) -> dict:
+        self._service.reset_database()
+        return {"status": "reset"}

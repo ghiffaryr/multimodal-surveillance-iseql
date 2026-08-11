@@ -119,6 +119,20 @@
     await refreshAnalysisList();
   }
 
+  const RESET_ACTIVE_STAGES = ['queued', 'vlm', 'interval', 'sound', 'sound_interval', 'detection'];
+  const resetDisabled = $derived(busy || RESET_ACTIVE_STAGES.includes(stage));
+
+  async function resetDatabase() {
+    if (!confirm('Reset database? This deletes all analyses and detections.')) return;
+    try {
+      await api.post('/api/db/reset');
+      reset();
+      await refreshAnalysisList();
+    } catch (e) {
+      error = `Failed to reset database: ${(e as Error).message}`;
+    }
+  }
+
   onMount(async () => {
     try {
       eventTypes = await api.get<EventTypesResponse>('/api/events/types');
@@ -303,7 +317,7 @@
 
 <div class="flex h-screen w-screen overflow-hidden bg-background text-foreground">
   <AppSidebar currentStage={stage} {previousAnalyses} {analysisId} {loadAnalysis}
-    onDeleteAnalysis={deleteAnalysis} onResetDb={reset} />
+    onDeleteAnalysis={deleteAnalysis} onResetDb={resetDatabase} {resetDisabled} />
 
   <main class="flex flex-1 flex-col gap-4 overflow-hidden p-4">
     <div class="grid flex-1 grid-cols-12 gap-4 overflow-hidden">
