@@ -34,7 +34,7 @@ followed by impact sounds within 120 frames.
 -- Generated ISEQL query for fight_visual
 π_{M1.arg1, M1.arg2, M1.sf, M1.ef} (
   σ_{M1.arg1≠M1.arg2} (
-  σ_{pred="physical_altercation" ∧ arg1="person1" ∧ arg2="person2"}(M1) ) )
+  σ_{pred="physical_altercation" ∧ arg1="person1" ∧ arg2="person2"}(M1)))
 ```
 
 ### Audio
@@ -44,17 +44,21 @@ followed by impact sounds within 120 frames.
 π_{M1.sf, M2.ef} (
   σ_{pred="shout"}(M1)
   Bef_{δ=120}
-  σ_{pred="impact"}(M2)
-)
+  σ_{pred="impact"}(M2))
 ```
 
 ### Multimodal
 
 ```iseql
 -- Generated ISEQL query for fight_multimodal
-σ_{pred="shout"}(M1) Bef_{δ=120} σ_{pred="impact"}(M2)
+π_{M1.sf, M2.ef} (
+  σ_{pred="shout"}(M1)
+  Bef_{δ=120}
+  σ_{pred="impact"}(M2))
 ∪
-σ_{pred="physical_altercation"}(M3)
+π_{M1.arg1, M1.arg2, M1.sf, M1.ef} (
+  σ_{M1.arg1≠M1.arg2} (
+  σ_{pred="physical_altercation" ∧ arg1="person1" ∧ arg2="person2"}(M1)))
 ```
 
 ---
@@ -69,8 +73,10 @@ operator needed.
 ```iseql
 -- Generated ISEQL query for gunshot_or_explosion_visual
 π_{M1.arg1, M1.sf, M1.ef} (
-  σ_{pred="gunshot_visible" ∨ pred="explosion_visible"}(M1)
-)
+  σ_{
+    (pred="gunshot_visible" ∧ arg1="person")
+    ∨
+    (pred="explosion_visible" ∧ (arg1="vehicle" ∨ arg1="object"))}(M1))
 ```
 
 ### Audio
@@ -78,17 +84,21 @@ operator needed.
 ```iseql
 -- Generated ISEQL query for gunshot_or_explosion_audio
 π_{M1.sf, M1.ef} (
-  σ_{pred="gunshot_or_explosion"}(M1)
-)
+  σ_{pred="gunshot_or_explosion"}(M1))
 ```
 
 ### Multimodal
 
 ```iseql
 -- Generated ISEQL query for gunshot_or_explosion_multimodal
-σ_{pred="gunshot_or_explosion"}(M1)
+π_{M1.sf, M1.ef} (
+  σ_{pred="gunshot_or_explosion"}(M1))
 ∪
-σ_{pred="gunshot_visible" ∨ pred="explosion_visible"}(M2)
+π_{M1.arg1, M1.sf, M1.ef} (
+  σ_{
+    (pred="gunshot_visible" ∧ arg1="person")
+    ∨
+    (pred="explosion_visible" ∧ (arg1="vehicle" ∨ arg1="object"))}(M1))
 ```
 
 ---
@@ -107,9 +117,7 @@ the first ends. Requires different persons but same object.
   σ_{M1.arg1≠M2.arg1 ∧ M1.arg2=M2.arg2} (
       σ_{pred="carrying" ∧ arg1="person" ∧ arg2="object"}(M1)
       Bef_{δ=240}
-      σ_{pred="carrying" ∧ arg1="person" ∧ arg2="object"}(M2)
-  )
-)
+      σ_{pred="carrying" ∧ arg1="person" ∧ arg2="object"}(M2)))
 ```
 
 ### Audio
@@ -132,12 +140,13 @@ prolonged duration (≥ 120 frames).
 ```iseql
 -- Generated ISEQL query for loitering
 π_{M1.arg1, M1.arg2, M1.sf, M1.ef} (
-  σ_{pred="suspicious_near_vehicle" ∧ arg1="person" ∧ arg2="vehicle"}(M1)
-)
+  σ_{(M1.ef - M1.sf) ≥ 120} (
+  σ_{pred="suspicious_near_vehicle" ∧ arg1="person" ∧ arg2="vehicle"}(M1)))
 ```
 
-The duration constraint (EndFrame − StartFrame ≥ 120) is applied as a
-cross-condition on the interval itself.
+The duration constraint (EndFrame − StartFrame ≥ 120) is applied as a nested
+selection on the interval itself, consistent with Fight's argument-condition
+selection.
 
 ### Audio
 
@@ -159,8 +168,7 @@ a collision (horn/skid followed by impact/glass breaking within 60 frames).
 ```iseql
 -- Generated ISEQL query for vehicle_collision_visual
 π_{M1.arg1, M1.sf, M1.ef} (
-  σ_{pred="vehicle_collision"}(M1)
-)
+  σ_{pred="vehicle_collision" ∧ arg1="vehicle"}(M1))
 ```
 
 ### Audio
@@ -170,17 +178,20 @@ a collision (horn/skid followed by impact/glass breaking within 60 frames).
 π_{M1.sf, M2.ef} (
   σ_{pred="horn" ∨ pred="skidding"}(M1)
   SP
-  σ_{pred="impact" ∨ pred="glass_breaking"}(M2)
-)
+  σ_{pred="impact" ∨ pred="glass_breaking"}(M2))
 ```
 
 ### Multimodal
 
 ```iseql
 -- Generated ISEQL query for vehicle_collision_multimodal
-σ_{pred="horn" ∨ pred="skidding"}(M1) SP σ_{pred="impact" ∨ pred="glass_breaking"}(M2)
+π_{M1.sf, M2.ef} (
+  σ_{pred="horn" ∨ pred="skidding"}(M1)
+  SP
+  σ_{pred="impact" ∨ pred="glass_breaking"}(M2))
 ∪
-σ_{pred="vehicle_collision"}(M3)
+π_{M1.arg1, M1.sf, M1.ef} (
+  σ_{pred="vehicle_collision" ∧ arg1="vehicle"}(M1))
 ```
 
 ---
@@ -197,11 +208,9 @@ entering/exiting must be the same person.
 -- Generated ISEQL query for vehicle_escape_visual
 π_{M1.arg1, M2.arg2, M1.sf, M2.ef} (
   σ_{M1.arg1=M2.arg1} (
-      σ_{pred="running" ∧ arg1="person"}(M1)
-     SP
-      σ_{pred="enter_or_exit_vehicle" ∧ arg1="person" ∧ arg2="vehicle"}(M2)
-  )
-)
+    σ_{pred="running" ∧ arg1="person"}(M1)
+    SP
+    σ_{pred="enter_or_exit_vehicle" ∧ arg1="person" ∧ arg2="vehicle"}(M2)))
 ```
 
 ### Audio
@@ -211,20 +220,23 @@ entering/exiting must be the same person.
 π_{M1.sf, M2.ef} (
   σ_{pred="engine" ∨ pred="vehicle"}(M1)
   SP
-  σ_{pred="tire_squeal"}(M2)
-)
+  σ_{pred="tire_squeal"}(M2))
 ```
 
 ### Multimodal
 
 ```iseql
 -- Generated ISEQL query for vehicle_escape_multimodal
-σ_{pred="engine" ∨ pred="vehicle"}(M1) SP σ_{pred="tire_squeal"}(M2)
+π_{M1.sf, M2.ef} (
+  σ_{pred="engine" ∨ pred="vehicle"}(M1)
+  SP
+  σ_{pred="tire_squeal"}(M2))
 ∪
-σ_{M1.arg1=M2.arg1} (
-  σ_{pred="running" ∧ arg1="person"}(M3) SP
-  σ_{pred="enter_or_exit_vehicle" ∧ arg1="person" ∧ arg2="vehicle"}(M4)
-)
+π_{M1.arg1, M2.arg2, M1.sf, M2.ef} (
+  σ_{M1.arg1=M2.arg1} (
+    σ_{pred="running" ∧ arg1="person"}(M1)
+    SP
+    σ_{pred="enter_or_exit_vehicle" ∧ arg1="person" ∧ arg2="vehicle"}(M2)))
 ```
 
 ---
