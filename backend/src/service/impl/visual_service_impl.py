@@ -80,33 +80,57 @@ def _make_vlm_call(client: VLMClient, prompt: str, image_pil: Image.Image, min_i
     log("VLM API error: max retries reached")
     return VlmResponse()
 
-RELATION_VOCABULARY: list[tuple[str, str]] = [
-    ("enter_or_exit_vehicle", "(PersonID, VehicleID)"),
+RELATION_CLASSIDS: list[tuple[str, str]] = [
     ("running", "(PersonID)"),
+    ("enter_or_exit_vehicle", "(PersonID, VehicleID)"),
     ("carrying", "(PersonID, ObjectID)"),
     ("suspicious_near_vehicle", "(PersonID, VehicleID)"),
-    ("physical_altercation", "(PersonID1, PersonID2, ...)"),
+    ("physical_altercation", "(PersonID1, PersonID2)"),
     ("vehicle_collision", "(VehicleID)"),
     ("gunshot_visible", "(PersonID)"),
     ("explosion_visible", "(VehicleID?, ObjectID?)"),
 ]
 
-def _format_relation_vocabulary() -> str:
-    descriptions = {
-        "enter_or_exit_vehicle": "A person is entering or exiting any vehicle: car, motorcycle, truck, or van.",
-        "running": "A person is running. To better determine if they are running, look at the position of legs and arms; if they are more extended or farther from the body compared to walking, especially the arms which are only extended when walking.",
-        "carrying": "A person is transporting an object of class 'object' (package, suitcase, bag) while walking or moving with it. A person can carry an object AND perform other actions (gesturing, running) simultaneously.",
-        "suspicious_near_vehicle": "A person is very close to a vehicle that is not theirs, observing it carefully or touching it suspiciously. Do NOT use for simple passersby.",
-        "physical_altercation": "Two or more people are involved in aggressive behavior: fighting, pushing, hitting, punching, aggressive gestures, or throwing objects. Include IDs of all people involved.",
-        "vehicle_collision": "A vehicle has visible damage from a collision: broken windshield, dented hood, deployed airbags, smoke from engine compartment, or another object embedded in the vehicle.",
-        "gunshot_visible": "A person is holding or firing a gun: visible muzzle flash, gun in hand, recoil motion, or smoke from the barrel.",
-        "explosion_visible": "A visible explosion: fireball, large smoke cloud, debris flying through the air, or shattered windows. Report the VehicleID or nearest object ID.",
-    }
-    lines = []
-    for name, sig in RELATION_VOCABULARY:
-        desc = descriptions.get(name, "")
-        lines.append(f"- {name}{sig}: {desc}")
-    return "\n".join(lines)
+RELATION_DESCRIPTIONS: dict[str, str] = {
+    "running": (
+        "The person's body is in a running posture: legs visibly apart, arms "
+        "extended away from the body, or the person is clearly moving fast. "
+        "WALKING is NOT running. Look at leg and arm positions carefully."
+    ),
+    "enter_or_exit_vehicle": (
+        "The person is opening a car door, getting into or out of a car, "
+        "motorcycle, truck, or any vehicle. If a person is very close to a "
+        "vehicle door or seat, report this."
+    ),
+    "carrying": (
+        "The person is holding, carrying, or transporting any object of class "
+        "'object' (package, suitcase, bag, backpack). Report for ANY person "
+        "touching or holding a transportable item, even briefly."
+    ),
+    "suspicious_near_vehicle": (
+        "The person is standing right next to a vehicle, inspecting it, or "
+        "positioned very close to it in a way that draws attention."
+    ),
+    "physical_altercation": (
+        "Two or more people are involved in aggressive behavior: fighting, "
+        "pushing, hitting, punching, making aggressive gestures, or throwing "
+        "objects at each other. Include IDs of all people involved."
+    ),
+    "vehicle_collision": (
+        "A vehicle has visible collision damage: broken windshield, dented "
+        "hood or doors, deployed airbags, smoke from the hood, or another "
+        "object embedded in the vehicle."
+    ),
+    "gunshot_visible": (
+        "A person is holding or firing a gun: visible muzzle flash, gun in "
+        "hand, recoil motion, or smoke from the barrel."
+    ),
+    "explosion_visible": (
+        "A visible explosion: fireball, large smoke cloud, debris flying "
+        "through the air, or shattered windows. Report the VehicleID or "
+        "nearest object ID."
+    ),
+}
 
 def _build_object_prompt_first_frame(grid_rows: int, grid_cols: int) -> str:
     return f"""Analyze the image with a {grid_rows}x{grid_cols} grid. Identify ALL people, vehicles, and objects.
@@ -170,7 +194,11 @@ ID reassignment rules:
 
 Provide ONLY the JSON list."""
 
-def _build_relation_prompt(relation_vocabulary: str, objects_ctx: str) -> str:
+def _build_relation_prompt(relation_classids, objects_ctx: str) -> str:
+    relations = "\n\n".join(
+        f"{i}. {name}{classid}\n   {RELATION_DESCRIPTIONS[name]}"
+        for i, (name, classid) in enumerate(relation_classids, start=1)
+    )
     return f"""Objects with their IDs and classes:
 {objects_ctx}
 
@@ -182,43 +210,7 @@ that apply:
 
 MANDATORY RELATIONS (output all that apply):
 
-1. running(PersonID)
-   The person's body is in a running posture: legs visibly apart, arms
-   extended away from the body, or the person is clearly moving fast.
-   WALKING is NOT running. Look at leg and arm positions carefully.
-
-2. enter_or_exit_vehicle(PersonID, VehicleID)
-   The person is opening a car door, getting into or out of a car,
-   motorcycle, truck, or any vehicle. If a person is very close to
-   a vehicle door or seat, report this.
-
-3. carrying(PersonID, ObjectID)
-   The person is holding, carrying, or transporting any object of class
-   'object' (package, suitcase, bag, backpack). Report for ANY person
-   touching or holding a transportable item, even briefly.
-
-4. suspicious_near_vehicle(PersonID, VehicleID)
-   The person is standing right next to a vehicle, inspecting it,
-   or positioned very close to it in a way that draws attention.
-
-5. physical_altercation(PersonID1, PersonID2)
-   Two or more people are involved in aggressive behavior: fighting,
-   pushing, hitting, punching, making aggressive gestures, or throwing
-   objects at each other. Include IDs of all people involved.
-
-6. vehicle_collision(VehicleID)
-   A vehicle has visible collision damage: broken windshield, dented
-   hood or doors, deployed airbags, smoke from the hood, or another
-   object embedded in the vehicle.
-
-7. gunshot_visible(PersonID)
-    A person is holding or firing a gun: visible muzzle flash, gun
-    in hand, recoil motion, or smoke from the barrel.
-
-8. explosion_visible(VehicleID?, ObjectID?)
-    A visible explosion: fireball, large smoke cloud, debris flying
-    through the air, or shattered windows. Report the VehicleID or
-    nearest object ID.
+{relations}
 
 --- FORMAT ---
 Output a single line with space-separated relations.
@@ -384,7 +376,7 @@ def _analyze_frame(
         for oid, o in new_state.objects.items()
     ]
     objects_ctx = "\n".join(objects_ctx_lines) if objects_ctx_lines else "(no objects)"
-    rel_prompt = _build_relation_prompt(_format_relation_vocabulary(), objects_ctx)
+    rel_prompt = _build_relation_prompt(RELATION_CLASSIDS, objects_ctx)
 
     rel_response = _make_vlm_call(client, rel_prompt, frame_orig, min_interval, log, max_retries)
 
