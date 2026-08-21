@@ -25,6 +25,7 @@
   import EventPicker from '$lib/components/event-picker.svelte';
   import LogConsole from '$lib/components/log-console.svelte';
   import ResultsTable from '$lib/components/results-table.svelte';
+  import ObjectMemoryViewer from '$lib/components/object-memory-viewer.svelte';
 
   import Card from '$lib/components/ui/card.svelte';
   import CardHeader from '$lib/components/ui/card-header.svelte';
@@ -33,11 +34,25 @@
   import Button from '$lib/components/ui/button.svelte';
   import { Play, AlertTriangle, Square } from 'lucide-svelte';
 
+  import UnitToggle from '$lib/components/unit-toggle.svelte';
+  import type { Unit } from '$lib/types';
+
+  function convertValues(values: Deltas, from: Unit, to: Unit, fps: number): Deltas {
+    if (from === to || fps <= 0) return values;
+    return Object.fromEntries(
+      Object.entries(values).map(([k, v]) => {
+        if (typeof v !== 'number') return [k, v];
+        return [k, to === 'frames' ? Math.round(v * fps) : Math.round((v / fps) * 100) / 100];
+      })
+    );
+  }
+
   type AnalysisRecord = {
     id: string;
     video_filename: string;
     condition: string;
     stage: string;
+    sampling_rate: number;
     created_at: string;
   };
 
@@ -47,12 +62,16 @@
   let availableAudioProviders = $state<string[]>(['panns', 'huggingface']);
   let vlmConfig = $state<VlmConfig>({
     provider: 'mistral',
-    model: 'ministral-3-14b',
+    model: 'ministral-14b-2512',
     grid_rows: 2,
     grid_cols: 4,
     vlm_delay: 3.0,
     quantization: 'none',
     max_retries: 10,
+    embed_provider: 'huggingface',
+    embed_model: 'google/siglip-base-patch16-224',
+    memory_n: 3,
+    memory_top_k: 5,
   });
   let audioConfig = $state<AudioConfig>({
     provider: 'panns',
@@ -61,15 +80,23 @@
     window: 2.5,
     hop: 1.25,
   });
-  const DEFAULT_DELTAS: Deltas = {
-    delta_visual_loitering: 120,
-    delta_visual_handoff: 240,
-    delta_sound_fight: 120,
-  };
-  let deltas = $state<Deltas>({ ...DEFAULT_DELTAS });
-  let eventTypes = $state<EventTypesResponse>({ A_visual: [], B_sound_only: [], C_sound_visual: [] });
+  let sidebarCollapsed = $state(false);
+  let deltas = $state<Deltas>({});
+  let eventTypes = $state<EventTypesResponse>({ A_visual: [], B_audio_only: [], C_audio_visual: [] });
+
+  function collectDefaultDeltas(et: EventTypesResponse): Deltas {
+    const out: Deltas = {};
+    for (const key of ['A_visual', 'B_audio_only', 'C_audio_visual'] as const) {
+      for (const e of et[key] ?? []) {
+        Object.assign(out, e.default_deltas ?? {});
+      }
+    }
+    return out;
+  }
+  const defaultDeltas = $derived(collectDefaultDeltas(eventTypes));
 
   let analysisId = $state<string | null>(null);
+  let showMemory = $state(false);
   let stage = $state<string>('idle');
   let logs = $state<LogEvent[]>([]);
   let result = $state<DetectionResult | null>(null);
@@ -81,8 +108,18 @@
   let detectedFps = $state(0);
   let analysisDone = $state(false);
   let lastConfigSnapshot = $state('');
+  let unit = $state<Unit>('seconds');
 
   let closeSse: (() => void) | null = null;
+
+  function convertDeltasUnit(from: Unit, to: Unit): void {
+    if (from === to) return;
+    deltas = convertValues(deltas, from, to, detectedFps);
+  }
+
+  const defaultDeltasForUnit = $derived(
+    convertValues(defaultDeltas, 'seconds', unit, detectedFps)
+  );
 
   function takeConfigSnapshot(): string {
     return JSON.stringify({
@@ -119,11 +156,11 @@
     await refreshAnalysisList();
   }
 
-  const RESET_ACTIVE_STAGES = ['queued', 'vlm', 'interval', 'sound', 'sound_interval', 'detection'];
+  const RESET_ACTIVE_STAGES = ['queued', 'vlm', 'interval', 'audio', 'audio_interval', 'detection'];
   const resetDisabled = $derived(busy || RESET_ACTIVE_STAGES.includes(stage));
 
   async function resetDatabase() {
-    if (!confirm('Reset database? This deletes all analyses and detections.')) return;
+    if (!confirm('Clear analysis data? This deletes all analyses and detections. Your settings and events are kept.')) return;
     try {
       await api.post('/api/db/reset');
       reset();
@@ -136,6 +173,7 @@
   onMount(async () => {
     try {
       eventTypes = await api.get<EventTypesResponse>('/api/events/types');
+      deltas = { ...collectDefaultDeltas(eventTypes) };
     } catch (e) {
       error = `Failed to load event types: ${(e as Error).message}`;
     }
@@ -143,6 +181,9 @@
       const schema = await api.get<SchemaResponse>('/api/schema');
       availableProviders = schema.available_providers || [];
       availableAudioProviders = schema.available_audio_providers || ['panns', 'huggingface'];
+    } catch { /* non-fatal */ }
+    try {
+      const cfg = await api.get<{ sections: Record<string, object> }>('/api/config');
     } catch { /* non-fatal */ }
     await refreshAnalysisList();
   });
@@ -161,16 +202,26 @@
     analysisDone = false;
   }
 
+  function handleVideoChange(f: File | null) {
+    if (f && f === video) return;
+    if (analysisId || analysisDone || stage !== 'idle' || detectedFps) {
+      reset();
+      lastConfigSnapshot = '';
+      detectedFps = 0;
+    }
+    video = f;
+  }
+
   function getAllEventIds(): string[] {
     if (condition === 'A') return eventTypes.A_visual.map(e => e.id);
-    if (condition === 'B') return eventTypes.B_sound_only.map(e => e.id);
-    return eventTypes.C_sound_visual.map(e => e.id);
+    if (condition === 'B') return eventTypes.B_audio_only.map(e => e.id);
+    return eventTypes.C_audio_visual.map(e => e.id);
   }
 
   function eventTypesForCondition(): EventTypeInfo[] {
     if (condition === 'A') return eventTypes.A_visual;
-    if (condition === 'B') return eventTypes.B_sound_only;
-    return eventTypes.C_sound_visual;
+    if (condition === 'B') return eventTypes.B_audio_only;
+    return eventTypes.C_audio_visual;
   }
 
   function loadAnalysis(item: AnalysisRecord) {
@@ -178,6 +229,7 @@
     analysisId = item.id;
     condition = item.condition as Condition;
     stage = item.stage;
+    detectedFps = item.sampling_rate ?? 0;
     appendLog('info', `>>> Loaded previous analysis ${item.id} (condition ${item.condition}, stage ${item.stage})`);
     if (item.stage === 'done') {
       lastConfigSnapshot = takeConfigSnapshot();
@@ -209,6 +261,10 @@
     form.append('vlm_delay', String(vlmConfig.vlm_delay));
     form.append('vlm_quantization', vlmConfig.quantization || 'none');
     form.append('max_retries', String(vlmConfig.max_retries));
+    form.append('embed_provider', vlmConfig.embed_provider);
+    form.append('embed_model', vlmConfig.embed_model);
+    form.append('memory_n', String(vlmConfig.memory_n));
+    form.append('memory_top_k', String(vlmConfig.memory_top_k));
     form.append('audio_provider', audioConfig.provider);
     form.append('audio_model', audioConfig.model);
     form.append('audio_quantization', audioConfig.quantization);
@@ -278,7 +334,7 @@
       try {
         const r = await api.postJson<DetectionResult>(
           `/api/analysis/${analysisId}/detect`,
-          { event_type: evt, deltas }
+          { event_type: evt, deltas, unit }
         );
         for (const row of r.rows) {
           allRows.push({ Event: evt, ...row });
@@ -316,16 +372,29 @@
 </script>
 
 <div class="flex h-screen w-screen overflow-hidden bg-background text-foreground">
-  <AppSidebar currentStage={stage} {previousAnalyses} {analysisId} {loadAnalysis}
-    onDeleteAnalysis={deleteAnalysis} onResetDb={resetDatabase} {resetDisabled} />
+  <AppSidebar
+    currentStage={stage}
+    {previousAnalyses}
+    {analysisId}
+    {loadAnalysis}
+    onDeleteAnalysis={deleteAnalysis}
+    onResetDb={resetDatabase}
+    {resetDisabled}
+    collapsed={sidebarCollapsed}
+    onToggle={() => (sidebarCollapsed = !sidebarCollapsed)}
+  />
 
-  <main class="flex flex-1 flex-col gap-4 overflow-hidden p-4">
-    <div class="grid flex-1 grid-cols-12 gap-4 overflow-hidden">
-      <section class="col-span-5 flex flex-col gap-4 overflow-y-auto pr-1">
+  <main class="flex flex-1 flex-col gap-4 overflow-y-auto p-4 lg:overflow-hidden">
+    <div class="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-12 lg:grid-rows-[minmax(0,1fr)]">
+      <section class="col-span-12 flex flex-col gap-4 overflow-y-auto pr-1 lg:col-span-5">
+        <Button href="/events-config" variant="outline" class="w-full">
+          Events Configuration →
+        </Button>
+
         <Card>
           <CardHeader><CardTitle>1. Video</CardTitle></CardHeader>
           <CardContent>
-            <VideoUploader file={video} onChange={(f) => (video = f)} disabled={busy} />
+            <VideoUploader file={video} onChange={handleVideoChange} disabled={busy} />
           </CardContent>
         </Card>
 
@@ -342,7 +411,7 @@
 
         <Card>
           <CardHeader><CardTitle>3. VLM (conditions A and C)</CardTitle></CardHeader>
-          <CardContent>
+          <CardContent class="space-y-4">
             <VlmConfigForm
               value={vlmConfig}
               onChange={(v) => (vlmConfig = v)}
@@ -351,7 +420,7 @@
               {detectedFps}
             />
             {#if condition === 'B'}
-              <p class="mt-2 text-xs text-muted-foreground">
+              <p class="text-xs text-muted-foreground">
                 Condition B does not use the VLM. These settings are ignored.
               </p>
             {/if}
@@ -368,7 +437,7 @@
               availableProviders={availableAudioProviders}
             />
             {#if condition === 'A'}
-              <p class="mt-2 text-xs text-muted-foreground">
+              <p class="text-xs text-muted-foreground">
                 Condition A does not use audio. These settings are ignored.
               </p>
             {/if}
@@ -376,15 +445,20 @@
         </Card>
 
         <Card>
-          <CardHeader><CardTitle>5. Deltas</CardTitle></CardHeader>
+          <CardHeader class="flex flex-row items-center justify-between">
+            <CardTitle>5. Deltas</CardTitle>
+            <UnitToggle {unit} onUnitChange={(u) => { convertDeltasUnit(unit, u); unit = u; }} />
+          </CardHeader>
           <CardContent>
             <EventPicker
               condition={condition}
               deltas={deltas}
               eventTypes={eventTypesForCondition()}
-              defaultDeltas={DEFAULT_DELTAS}
+              defaultDeltas={defaultDeltasForUnit}
               onChangeDeltas={(d) => (deltas = d)}
               disabled={busy}
+              unit={unit}
+              fps={detectedFps}
             />
           </CardContent>
         </Card>
@@ -417,14 +491,54 @@
         {/if}
       </section>
 
-      <section class="col-span-7 flex min-h-0 flex-col gap-4">
+      <section class="col-span-12 flex min-h-0 flex-col gap-4 lg:col-span-7">
         <div class="min-h-0 flex-1">
           <LogConsole entries={logs} onClear={clearLogs} />
         </div>
         <div class="min-h-0 flex-1">
-          <ResultsTable result={result} running={detecting} error={null} />
+          <ResultsTable result={result} running={detecting} error={null}
+            unit={unit}
+            onMemory={() => (showMemory = true)}
+            onUnitChange={(u) => { convertDeltasUnit(unit, u); unit = u; }} />
         </div>
       </section>
     </div>
   </main>
+
+  {#if showMemory && analysisId}
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      role="presentation"
+      onclick={(e) => { if (e.target === e.currentTarget) showMemory = false; }}
+      onkeydown={(e) => { if (e.key === 'Escape') showMemory = false; }}
+    >
+      <div class="flex h-[85vh] w-full max-w-4xl flex-col rounded-lg border bg-background shadow-xl">
+        <header class="flex items-center justify-between border-b px-4 py-3">
+          <div>
+            <h2 class="text-sm font-semibold">Object Memory</h2>
+            <p class="text-xs text-muted-foreground">Analysis <span class="font-mono">{analysisId}</span></p>
+          </div>
+          <div class="flex items-center gap-2">
+            <a
+              href={`/memory/${analysisId}`}
+              class="rounded border border-input bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              Open full page
+            </a>
+            <button
+              type="button"
+              title="Close"
+              class="rounded border border-input bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground"
+              onclick={() => (showMemory = false)}
+            >
+              ✕
+            </button>
+          </div>
+        </header>
+        <div class="flex min-h-0 flex-1 flex-col p-4">
+          <ObjectMemoryViewer analysisId={analysisId} />
+        </div>
+      </div>
+    </div>
+  {/if}
 </div>

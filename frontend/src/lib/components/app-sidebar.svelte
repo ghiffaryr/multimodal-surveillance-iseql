@@ -5,13 +5,14 @@
   import Button from '$lib/components/ui/button.svelte';
   import type { BadgeVariant } from '$lib/components/ui/badge';
   import { cn } from '$lib/utils';
-  import { Clock, FileVideo, Trash2, Database } from 'lucide-svelte';
+  import { Clock, FileVideo, Trash2, Database, DatabaseZap, PanelLeftClose, PanelLeftOpen } from 'lucide-svelte';
 
   type AnalysisRecord = {
     id: string;
     video_filename: string;
     condition: string;
     stage: string;
+    sampling_rate: number;
     created_at: string;
   };
 
@@ -34,6 +35,8 @@
     onDeleteAnalysis?: (id: string) => void;
     onResetDb?: () => void;
     resetDisabled?: boolean;
+    collapsed?: boolean;
+    onToggle?: () => void;
   };
   let {
     class: className = '',
@@ -44,6 +47,8 @@
     onDeleteAnalysis,
     onResetDb,
     resetDisabled = false,
+    collapsed = false,
+    onToggle = () => undefined,
   }: Props = $props();
 
   function formatDate(iso: string): string {
@@ -53,10 +58,39 @@
   }
 </script>
 
+{#if collapsed}
+  <aside class="flex h-full w-12 shrink-0 flex-col items-center border-r border-border bg-card py-3 text-card-foreground">
+    <button
+      class="group flex size-8 items-center justify-center rounded-md transition-colors hover:bg-accent"
+      title="Show sidebar"
+      onclick={onToggle}
+    >
+      <span class="text-xl font-bold tracking-tight group-hover:hidden">
+        {APP_NAME.split(' ').map((w) => w[0]).join('').slice(0, 2)}
+      </span>
+      <PanelLeftOpen class="hidden size-4 text-muted-foreground group-hover:block group-hover:text-foreground" />
+    </button>
+    <div class="mt-auto flex w-full flex-col items-center gap-1.5 px-1" title={`Status: ${currentStage}`}>
+      <span class="text-xs tracking-wide text-muted-foreground">Status</span>
+      <Badge variant={STAGE_VARIANT[currentStage] || 'secondary'} class="max-w-10 truncate text-[10px]">
+        {currentStage}
+      </Badge>
+    </div>
+  </aside>
+{:else}
 <aside class={cn('flex h-full w-72 shrink-0 flex-col border-r border-border bg-card text-card-foreground', className)}>
-  <div class="flex flex-col gap-1 px-5 py-3">
-    <h1 class="text-xl font-bold tracking-tight">{APP_NAME}</h1>
-    <p class="text-xs text-muted-foreground">{APP_TAGLINE}</p>
+  <div class="flex items-start justify-between gap-2 px-5 py-3">
+    <div class="flex flex-col gap-1">
+      <h1 class="text-xl font-bold tracking-tight">{APP_NAME}</h1>
+      <p class="text-xs text-muted-foreground">{APP_TAGLINE}</p>
+    </div>
+    <button
+      class="flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+      title="Hide sidebar"
+      onclick={onToggle}
+    >
+      <PanelLeftClose class="size-4" />
+    </button>
   </div>
   <Separator />
   <div class="flex-1 overflow-y-auto px-3 py-3">
@@ -102,6 +136,13 @@
                   {/if}
                 </div>
               </button>
+              <a
+                class="shrink-0 p-1.5 text-muted-foreground/50 hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                href={`/memory/${item.id}`}
+                title="Object memory"
+              >
+                <DatabaseZap class="size-3" />
+              </a>
               <button
                 class="shrink-0 p-1.5 text-muted-foreground/50 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
                 onclick={(e: MouseEvent) => { e.stopPropagation(); onDeleteAnalysis?.(item.id); }}
@@ -127,7 +168,7 @@
         onclick={onResetDb}
         disabled={resetDisabled}
       >
-        <Database class="size-3 mr-1.5" /> Reset database
+        <Database class="size-3 mr-1.5" /> Clear analysis data
       </Button>
     </div>
   {/if}
@@ -144,3 +185,4 @@
     </p>
   </div>
 </aside>
+{/if}

@@ -4,7 +4,7 @@
   import Select from '$lib/components/ui/select.svelte';
   import Field from '$lib/components/ui/field.svelte';
   import type { AudioConfig } from '$lib/types';
-  import { selectValue } from '$lib/dom-helpers';
+  import { inputFloat, selectValue } from '$lib/dom-helpers';
 
   const DEFAULT_AUDIO_MODELS: Record<string, string> = {
     huggingface: 'Qwen/Qwen2-Audio-7B-Instruct',
@@ -18,17 +18,6 @@
     huggingface: { window: 5.0, hop: 2.5 },
     panns: { window: 2.5, hop: 1.25 },
   };
-  const WINDOW_HOP_OPTIONS = [
-    { window: 1.0, hop: 1.00, label: '1.0s / 1.00s' },
-    { window: 1.0, hop: 0.50, label: '1.0s / 0.50s' },
-    { window: 2.5, hop: 2.50, label: '2.5s / 2.50s' },
-    { window: 2.5, hop: 1.25, label: '2.5s / 1.25s' },
-    { window: 5.0, hop: 5.00, label: '5.0s / 5.00s' },
-    { window: 5.0, hop: 2.50, label: '5.0s / 2.50s' },
-    { window: 10.0, hop: 10.00, label: '10.0s / 10.00s' },
-    { window: 10.0, hop: 5.00, label: '10.0s / 5.00s' },
-  ];
-
   const QUANTIZATION_OPTIONS = [
     { value: 'none', label: 'None (full precision)' },
     { value: '8bit', label: '8-bit' },
@@ -78,23 +67,9 @@
     }))
   );
 
-  let windowHopOptions = $derived(
-    WINDOW_HOP_OPTIONS.map(c => ({ value: c.label, label: c.label }))
-  );
-
-  let windowHopLabel = $derived(
-    WINDOW_HOP_OPTIONS.find(c => c.window === value.window && c.hop === value.hop)?.label ?? '2.5s / 1.25s'
-  );
-
-  function handleWindowHopChange(e: Event) {
-    const label = selectValue(e);
-    const cfg = WINDOW_HOP_OPTIONS.find(c => c.label === label);
-    if (cfg) patch({ window: cfg.window, hop: cfg.hop });
-  }
-
 </script>
 
-<div class="grid grid-cols-2 gap-4">
+<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
   <Field>
     <Label for="audio-provider">Audio Provider</Label>
     <Select
@@ -125,12 +100,19 @@
   </Field>
 
   <Field>
-    <Label for="audio-window-hop">Window / Hop</Label>
-    <Select
-      id="audio-window-hop"
-      options={windowHopOptions}
-      value={windowHopLabel}
-      onchange={handleWindowHopChange}
+    <Label for="audio-window">Window (seconds)</Label>
+    <Input id="audio-window" type="number" min="0.1" step="0.1"
+      value={value.window}
+      onchange={(e) => patch({ window: inputFloat(e, 2.5) })}
+      {disabled}
+    />
+  </Field>
+
+  <Field>
+    <Label for="audio-hop">Hop (seconds)</Label>
+    <Input id="audio-hop" type="number" min="0.1" step="0.05"
+      value={value.hop}
+      onchange={(e) => patch({ hop: inputFloat(e, 1.25) })}
       {disabled}
     />
   </Field>

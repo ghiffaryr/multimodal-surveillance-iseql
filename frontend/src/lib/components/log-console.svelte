@@ -26,7 +26,7 @@
     ['failed', 'text-red-400'],
     ['vlm', 'text-sky-400'],
     ['interval', 'text-violet-400'],
-    ['sound', 'text-amber-400'],
+    ['audio', 'text-amber-400'],
     ['detection', 'text-pink-400'],
   ];
 

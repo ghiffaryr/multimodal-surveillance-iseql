@@ -22,13 +22,13 @@
   const CONDITIONS = $derived([{
       id: 'A' as Condition,
       label: 'Visual only',
-      description: 'VLM + ISEQL, no sound. The VIS MODE baseline.',
+      description: 'VLM + ISEQL, no audio.',
       icon: Eye,
       badge: 'A',
       badgeClass: 'bg-sky-500/15 text-sky-300 border-sky-500/40',
     }, {
       id: 'B' as Condition,
-      label: 'Sound only',
+      label: 'Audio only',
       description: `${audioLabel} + ISEQL, no VLM.`,
       icon: Ear,
       badge: 'B',

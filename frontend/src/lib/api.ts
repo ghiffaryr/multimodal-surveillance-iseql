@@ -37,7 +37,14 @@ async function request<T>(
     parsed = text;
   }
   if (!res.ok) {
-    throw new ApiError(res.status, parsed, `${method} ${path} -> ${res.status}`);
+    const detail =
+      parsed && typeof parsed === 'object' && 'detail' in parsed
+        ? String((parsed as { detail: unknown }).detail)
+        : '';
+    const message = detail
+      ? `${method} ${path} -> ${res.status}: ${detail}`
+      : `${method} ${path} -> ${res.status}`;
+    throw new ApiError(res.status, parsed, message);
   }
   return parsed as T;
 }
@@ -48,5 +55,10 @@ export const api = {
   postJson: <T,>(path: string, data: unknown) =>
     request<T>('POST', path, JSON.stringify(data), { 'Content-Type': 'application/json' }),
   postForm: <T,>(path: string, form: FormData) => request<T>('POST', path, form),
+  putJson: <T,>(path: string, data: unknown) =>
+    request<T>('PUT', path, JSON.stringify(data), { 'Content-Type': 'application/json' }),
+  patchJson: <T,>(path: string, data: unknown) =>
+    request<T>('PATCH', path, JSON.stringify(data), { 'Content-Type': 'application/json' }),
+  del: <T,>(path: string) => request<T>('DELETE', path),
   sse: (path: string) => new EventSource(`${BASE}${path}`),
 };
