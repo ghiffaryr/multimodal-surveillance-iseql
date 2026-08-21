@@ -1,12 +1,12 @@
 \chapter{Background}
 \label{Background}
 
-This chapter introduces the foundational concepts required for the thesis. Section~\ref{sec:domain} describes the surveillance domain and the challenge of detecting temporally extended events. Section~\ref{sec:allen} presents Allen's interval algebra, the formal calculus that underpins temporal reasoning in this work. Section~\ref{sec:iseql} defines the ISEQL operators and the general form of ISEQL query expressions; the concrete queries for the six event types evaluated in this thesis are given in the Methodology chapter. Section~\ref{sec:tech} covers the technical components: vision-language models, environmental sound classification, and interval-based video representation.
+This chapter introduces the foundational concepts required for the thesis. Section~\ref{sec:domain} describes the surveillance domain and the challenge of detecting temporally extended events. Section~\ref{sec:allen} presents Allen's interval algebra, the formal calculus that underpins temporal reasoning in this work. Section~\ref{sec:iseql} defines the ISEQL operators and the general form of ISEQL query expressions; the concrete queries for the six event types evaluated in this thesis are given in the Methodology chapter. Section~\ref{sec:tech} covers the technical components: vision-language models, environmental audio classification, and interval-based video representation.
 
 \section{The Surveillance Domain}
 \label{sec:domain}
 
-Video surveillance is the practice of monitoring behaviour and activities in a physical space using cameras. Traditional surveillance relies on human operators, but this approach suffers from well-documented scalability limitations: performance degrades after approximately twenty minutes of continuous attention, and detection probability decreases with the number of assigned cameras. Automated surveillance aims to detect security-relevant events without continuous human attention. An \textit{event} in this context is a temporally extended occurrence meaningful to an operator ,  a person handing over a package, loitering near a vehicle, or a vehicle collision.
+Video surveillance is the practice of monitoring behaviour and activities in a physical space using cameras. Traditional surveillance relies on human operators, but this approach suffers from well-documented scalability limitations: performance degrades after approximately twenty minutes of continuous attention, and detection probability decreases with the number of assigned cameras. Automated surveillance aims to detect security-relevant events without continuous human attention. An \textit{event} in this context is a temporally extended occurrence meaningful to an operator ,  a person handing over a package, inspecting a parked vehicle, or a vehicle collision.
 
 Traditional automated approaches used hand-crafted pipelines: background subtraction, object detection \citep{redmon2016yolo, ren2015fasterrcnn}, tracking algorithms, and rule-based reasoning. These worked in controlled environments but required per-scene calibration and failed to generalise. Deep learning improved object detection through CNNs and Transformer-based architectures \citep{carion2020detr}, and vision-language models (VLMs) now make it possible to extract rich semantic descriptions from video frames. However, VLMs introduce new challenges: they can hallucinate objects, operate at lower frame rates than traditional detectors, and their outputs require post-processing for temporal reasoning.
 
@@ -36,7 +36,7 @@ The algebra supports composition: given the relation between $A$ and $B$ and bet
 \section{ISEQL: Interval-based Surveillance Event Query Language}
 \label{sec:iseql}
 
-ISEQL \citep{helmer2016highlevel, persia2017interactive} extends relational algebra with parametrised temporal operators derived from Allen's relations.
+ISEQL \citep{helmer2016highlevel, persia2017interactive} extends relational algebra with parametrised temporal operators derived from Allen's relations. This thesis adopts its extension \textbf{ISEQL+} \citep{persia2026iseqlplus}; the resulting operator set is defined in Table~\ref{tab:iseql_ops}.
 
 \subsection{Interval Relations and Operators}
 
@@ -44,45 +44,46 @@ An interval relation $R$ is a relation where each tuple
 \[
  r = (A_1, \ldots, A_n, T_s, T_e)
 \]
-includes $n$ explicit attributes $A_i$ and two temporal attributes $T_s, T_e \in \mathbb{N}$ denoting the interval endpoints. The size of an interval is $\mathrm{size}(r) = r.T_e - r.T_s + 1$. An interval labeling $M$ is an interval relation whose attributes correspond to predicate arguments. Throughout this thesis, $M_i.\mathrm{arg}_j$ denotes the $j$-th argument of interval $M_i$, and $M_i.s_f$, $M_i.e_f$ denote its start and end frames.
+includes $n$ explicit attributes $A_i$ and two temporal attributes $T_s, T_e \in \mathbb{N}$ denoting the interval endpoints. The size of an interval is $\mathrm{size}(r) = r.T_e - r.T_s + 1$. An interval labeling $M$ is an interval relation whose attributes correspond to predicate arguments. Throughout this thesis, $M_i.\mathrm{arg}_j$ denotes the $j$-th argument of interval $M_i$, and $M_i.s_t$, $M_i.e_t$ denote its start and end time (in seconds).
 
-The eight ISEQL operators are parametrised by distance thresholds $\delta$ (start offset) and $\varepsilon$ (end offset). Table~\ref{tab:iseql_ops} defines the operators used in the event models of this thesis, each with an inline interval diagram and its formal constraint; $\delta$ and $\varepsilon$ are frame-count tolerances. This thesis uses primarily \textbf{BEFORE} (Bef) and \textbf{SP} (Start Preceding). When thresholds are omitted, maximum allowed values are used.
+The \textbf{ISEQL+} operators are parametrised by distance thresholds $\delta$ (start offset) and $\varepsilon$ (end offset), together with strictness operators $\zeta, \eta \in \{\le, <\}$ (default non-strict $\le$, which makes touching intervals valid) and a robustness parameter $\rho \ge 0$ (default 0). Table~\ref{tab:iseql_ops} defines the operators used in the event models of this thesis, each with an inline interval diagram and its formal constraint; the thresholds and the interval endpoints are expressed in a common temporal domain, so the operator notation is unit-agnostic (the unit is stated in prose where needed). Throughout the formal event definitions the time domain is seconds ($s_t$/$e_t$); the backend stores frame indices and, through the frontend ISEQL configurator, exposes thresholds in seconds or frames via a global unit toggle, converting seconds to frames using the video's auto-detected frame rate before running detection. This thesis uses primarily \textbf{BEFORE} (Bef) and \textbf{SP} (Start Preceding); Aft, ROJ, and RDJ are their reverse counterparts. When a threshold is omitted it is unbounded.
 
 \begin{table}[h]
   \centering
   \caption{ISEQL operators used for event detection.}
   \label{tab:iseql_ops}
-  \begin{tabular}{@{}p{9.5em}p{6.2em}p{11em}@{}}
+  \begin{tabular}{@{}>{\raggedright\arraybackslash}p{11em}p{5.5em}p{13em}@{}}
     \toprule
     Operator & Diagram & Definition \\
     \midrule
-    \textsc{Before} ($\Bef_\delta$) &
+    \textsc{Before} $\Bef(\delta;\,\zeta,\rho)$ &
     \DoodleBef &
-    $0 < s.T_s - r.T_e \le \delta$ \\
+    $r.T_e\;\zeta\;(s.T_s+\rho)$\newline
+    $(s.T_s-r.T_e) \le \delta+\rho$ \\
     \addlinespace
-    \textsc{Start Preceding} ($\SP_\delta$) &
+    \textsc{Start Preceding} $\SP(\delta;\,\zeta,\rho)$ &
     \DoodleSP &
-    $0 \le s.T_s - r.T_s \le \delta$\newline
-    $r.T_e - s.T_s \ge 0$ \\
+    $(r.T_s-\rho)\;\zeta\; s.T_s < r.T_e+\rho$\newline
+    $(s.T_s-r.T_s) \le \delta+\rho$ \\
     \addlinespace
-    \textsc{Left Overlap Join} ($\LOJ_{\delta,\varepsilon}$) &
+    \textsc{Left Overlap Join} $\LOJ(\delta,\varepsilon;\,\zeta,\eta,\rho)$ &
     \DoodleLOJ &
-    $0 \le s.T_s - r.T_s \le \delta$\newline
-    $0 \le s.T_e - r.T_e \le \varepsilon$\newline
-    $0 \le \delta < \mathrm{size}(r)$\newline
-    $0 \le \varepsilon < \mathrm{size}(s)$ \\
+    $(r.T_s-\rho)\;\zeta\; s.T_s < r.T_e+\rho$\newline
+    $(s.T_s-\rho) < r.T_e\;\eta\;(s.T_e+\rho)$\newline
+    $(s.T_s-r.T_s) \le \delta+\rho$\newline
+    $(s.T_e-r.T_e) \le \varepsilon+\rho$ \\
     \addlinespace
-    \textsc{During Join} ($\DJoin_{\delta,\varepsilon}$) &
+    \textsc{During Join} $\DJoin(\delta,\varepsilon;\,\zeta,\eta,\rho)$ &
     \DoodleDJ &
-    $0 \le r.T_s - s.T_s \le \delta$\newline
-    $0 \le s.T_e - r.T_e \le \varepsilon$\newline
-    $0 \le \delta \le \mathrm{size}(r) + \varepsilon$\newline
-    $0 \le \varepsilon \le \mathrm{size}(r) + \delta$ \\
+    $(s.T_s-\rho)\;\zeta\; r.T_s \le s.T_e+\rho$\newline
+    $(s.T_s-\rho) \le r.T_e\;\eta\;(s.T_e+\rho)$\newline
+    $(r.T_s-s.T_s) \le \delta+\rho$\newline
+    $(s.T_e-r.T_e) \le \varepsilon+\rho$ \\
     \addlinespace
-    \textsc{End Following} ($\EF_\varepsilon$) &
+    \textsc{End Following} $\EF(\varepsilon;\,\eta,\rho)$ &
     \DoodleEF &
-    $0 \le r.T_e - s.T_e \le \varepsilon$\newline
-    $s.T_e - r.T_s \ge 0$ \\
+    $(r.T_s-\rho) < s.T_e\;\eta\;(r.T_e+\rho)$\newline
+    $(r.T_e-s.T_e) \le \varepsilon+\rho$ \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -100,7 +101,7 @@ High-level events are defined as projection-selection expressions. The general f
 \]
 where $\pi_F$ projects fields, $\sigma_P$ selects intervals satisfying predicate $P$, $\mathrm{op}$ is a temporal operator written directly between the two expressions, and cross-conditions relate the arguments of the two joined intervals, for example the requirement that the two persons in a handoff differ ($M_1.\mathrm{arg}_1 \neq M_2.\mathrm{arg}_1$); they are written as an additional $\sigma$ around the temporal join. In the multimodal condition, events combine via set union: $\text{Event}_C \equiv \text{Event}_A \cup \text{Event}_B$.
 
-The subscripts follow the three-condition design used throughout this thesis: condition \textbf{A} (visual-only) evaluates the visual interval labeling, condition \textbf{B} (audio-only) evaluates the audio interval labeling, and condition \textbf{C} (multimodal) is the set union of A and B. Events without an acoustic correlate (handoff, loitering) are defined only under condition A and are unchanged in C. The concrete query definitions for the six event types evaluated in this thesis are given in Section~\ref{sec:event-definitions}.
+The subscripts follow the three-condition design used throughout this thesis: condition \textbf{A} (visual-only) evaluates the visual interval labeling, condition \textbf{B} (audio-only) evaluates the audio interval labeling, and condition \textbf{C} (multimodal) is the set union of A and B. Events without an acoustic correlate (handoff, suspicious near vehicle) are defined only under condition A and are unchanged in C. The concrete query definitions for the six event types evaluated in this thesis are given in Section~\ref{sec:event-definitions}.
 
 \section{Technical Foundations}
 \label{sec:tech}
@@ -109,14 +110,14 @@ The subscripts follow the three-condition design used throughout this thesis: co
 
 A vision-language model (VLM) is a multimodal neural network trained on image-text pairs that can generate natural language descriptions, answer questions about images, and reason about spatial relationships. Modern VLMs combine a Vision Transformer encoder with a large language model backbone via a projection layer. This architecture was pioneered by CLIP \citep{radford2021clip} and Flamingo \citep{alayrac2022flamingo}, refined by BLIP-2 \citep{li2023blip2} and LLaVA \citep{liu2024llava}, and extended to video via Video-LLaMA \citep{zhang2023videollama}. In this thesis, four VLMs are evaluated: Pixtral 12B, Ministral 3-14B, Gemini 2.5 Flash, and Gemini 3.6 Flash.
 
-\subsection{Environmental Sound Classification}
+\subsection{Environmental Audio Classification}
 
-Environmental sound classification labels non-speech sounds such as footsteps, engine noises, sirens, and breaking glass. The field has progressed from supervised CNNs to Transformer-based architectures such as AST \citep{gong2021ast} and BEATs \citep{chen2023beats}, and to self-supervised methods including wav2vec 2.0 \citep{baevski2020wav2vec2} and HuBERT \citep{hsu2021hubert}.
+Environmental audio classification labels non-speech audio such as footsteps, engine noises, sirens, and breaking glass. The field has progressed from supervised CNNs to Transformer-based architectures such as AST \citep{gong2021ast} and BEATs \citep{chen2023beats}, and to self-supervised methods including wav2vec 2.0 \citep{baevski2020wav2vec2} and HuBERT \citep{hsu2021hubert}.
 
-PANNs \citep{kong2020panns} are a family of CNN architectures trained on the 527-class AudioSet \citep{gemmeke2017audioset} dataset. The CNN14 variant uses 14 convolutional layers with 80 million parameters and runs on CPU. More recently, large audio-language models (LALMs) have emerged \citep{luo2026lalmsurvey}, extending language models to process audio input directly. Representative models include SALMONN \citep{tang2024salmonn} and Qwen2-Audio \citep{chu2024qwen2audio}. In this thesis, Qwen2-Audio-7B-Instruct serves as the LALM backend, while PANNs CNN14 serves as the traditional classifier baseline. The audio track is extracted at 16 kHz; Qwen2-Audio processes the native 16 kHz audio (its expected input rate), while PANNs is resampled to 32 kHz, its native rate. Both pipelines are processed in 2.5-second sliding windows with a 1.25-second hop.
+PANNs \citep{kong2020panns} are a family of CNN architectures trained on the 527-class AudioSet \citep{gemmeke2017audioset} dataset. The CNN14 variant uses 14 convolutional layers with 80 million parameters and runs on CPU. More recently, large audio-language models (LALMs) have emerged \citep{luo2026lalmsurvey}, extending language models to process audio input directly. Representative models include SALMONN \citep{tang2024salmonn} and Qwen2-Audio \citep{chu2024qwen2audio}. In this thesis, Qwen2-Audio-7B-Instruct serves as the LALM backend, while PANNs CNN14 serves as the traditional classifier baseline. The audio track is extracted at 16 kHz; Qwen2-Audio processes the native 16 kHz audio (its expected input rate), while PANNs is resampled to 32 kHz, its native rate. Both pipelines slide a window over the extracted waveform; the specific window/hop ablation is detailed in the evaluation chapter.
 
 \subsection{Interval-Based Video Representation}
 
-A central design decision is the use of temporal intervals as the unified representation for both modalities. An interval is defined by a start frame, an end frame, a type label, and optional participant metadata. The frame index serves as the shared time axis, enabling temporal joins between visual and audio intervals without modality-specific alignment. The visual pipeline produces intervals by sampling frames, extracting relation triples, and collapsing adjacent observations of the same relation. The audio pipeline produces intervals by classifying sliding windows and persisting the window boundaries. Both pipelines write to the same SQLite database, using the tables \texttt{VisualPerInterval}, \texttt{VisualParticipant}, and \texttt{SoundPerInterval}.
+A central design decision is the use of temporal intervals as the unified representation for both modalities. An interval is defined by a start frame, an end frame, a type label, and optional participant metadata. The frame index serves as the shared time axis, enabling temporal joins between visual and audio intervals without modality-specific alignment. The visual pipeline produces intervals by sampling frames, extracting relation triples, and collapsing adjacent observations of the same relation. The audio pipeline produces intervals by classifying sliding windows and persisting the window boundaries. Both pipelines write to the same SQLite database, using the tables \texttt{VisualPerInterval}, \texttt{VisualParticipant}, and \texttt{AudioPerInterval}.
 
 Efficient evaluation of temporal operators over large interval sets uses plane-sweeping algorithms \citep{piatov2021cache} that achieve $O(N \log N + k)$ complexity, where $k$ is the number of result pairs. A sweep line advances through sorted endpoints, maintaining active intervals in a cache-efficient hash map, and supports all thirteen Allen relations as well as parametrised variants. The ISEQL reference implementation evaluated the operators this way; the present thesis realizes the same operator semantics as standard SQL queries over the interval tables in SQLite, keeping the reasoning path fully auditable and re-runnable at the dataset scale considered here.

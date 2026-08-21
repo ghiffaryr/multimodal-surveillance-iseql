@@ -3,19 +3,21 @@
 
 \section{Conclusion}
 
-This thesis presented WATCHOUT ISEQL, a forensic multimodal surveillance framework that combines visual perception from a VLM with object re-identification and environmental sound analysis from a LALM through a shared interval-based temporal representation. The study was organised as a three-condition ablation: visual-only (A), audio-only (B), and multimodal union (C = A $\cup$ B).
+This thesis presented WATCHOUT ISEQL, a forensic multimodal surveillance framework that combines visual perception from a VLM with object re-identification and environmental audio analysis from a LALM through a shared interval-based temporal representation. The study was organised as a three-condition ablation: visual-only (A), audio-only (B), and multimodal union (C = A $\cup$ B).
 
 The evaluation on a 30-scene dataset across four VLM models and two audio providers yields three principal findings:
 
 \begin{enumerate}
-  \item \textbf{Object re-identification is essential for tracking-dependent events.} Without it, loitering and vehicle escape are largely missed and handoff detections are spurious, because per-frame ID assignment fragments intervals; for the best model (Gemini 3.6 Flash), loitering rises from 0/5 to 5/5, vehicle escape from 0/5 to 1/5, and handoff from 4/5 to 5/5, lifting visual F1 from 0.706 to 0.847.
-  \item \textbf{The LALM achieves perfect precision.} Qwen2-Audio-7B-Instruct attains precision of 1.000 at the optimal 5.0 s / 2.5 s configuration (F1 = 0.788) and an F1 of 0.750 at 2.5 s / 1.25 s (also with precision 1.000), substantially outperforming PANNs CNN14 (F1 = 0.429).
+  \item \textbf{Object re-identification is essential for tracking-dependent events.} Without it, suspicious near vehicle, vehicle escape, and handoff are all missed, because per-frame ID assignment fragments intervals; for the best model (Gemini 3.6 Flash), suspicious near vehicle rises from 0/5 to 5/5, vehicle escape from 0/5 to 3/5, and handoff from 0/5 to 5/5, lifting visual F1 from 0.622 to 0.885.
+  \item \textbf{The LALM achieves perfect precision.} Qwen2-Audio-7B-Instruct attains precision of 1.000 at the optimal 5.0 s / 2.5 s configuration (F1 = 0.788) and an F1 of 0.687 at 2.5 s / 1.25 s, substantially outperforming PANNs CNN14 (F1 = 0.400).
   \item \textbf{Multimodal union outperforms both unimodal baselines.} The best combination (Gemini 3.6 Flash + Qwen2-Audio) achieves 30/30 TP (F1 = 0.938, 4 FP, 0 FN), and the claim $C \ge \max(A, B)$ holds on all 30 scenes.
 \end{enumerate}
 
 The union approach, concatenating independent modality detections without temporal cross-modal joins ,  is shown to be more effective than fusion approaches that rely on temporal alignment, which reduce recall. Every detection is the output of a SQL query, providing a fully auditable pipeline suitable for forensic applications.
 
 \section{Future Work}
+
+The present work establishes the framework and a controlled benchmark, but several directions remain open. The most promising are outlined below.
 
 \textbf{Real CCTV evaluation.} The present dataset is synthetic. Applying the same three-condition methodology to operational CCTV footage would test the generalisability of the findings. The evaluation harness supports adding new ground truth files without code changes.
 

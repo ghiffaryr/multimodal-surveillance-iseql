@@ -10,8 +10,8 @@ The study is a three-condition ablation in which each condition isolates a diffe
 
 \begin{itemize}
   \item \textbf{Condition A (visual-only).} A VLM with object re-identification extracts spatial relation triples from sampled frames, constructs temporal intervals, and the event detector runs six visual SQL queries.
-  \item \textbf{Condition B (audio-only).} PANNs CNN14 or Qwen2-Audio-7B-Instruct extracts environmental sound events, persists them as temporal intervals, and the event detector runs four sound-only SQL queries.
-  \item \textbf{Condition C (multimodal).} Both pipelines run. The event detector runs six multimodal SQL queries that take the union of visual and audio results. Events with no acoustic correlate (handoff, loitering) reuse the visual queries from condition A.
+  \item \textbf{Condition B (audio-only).} PANNs CNN14 or Qwen2-Audio-7B-Instruct extracts environmental audio events, persists them as temporal intervals, and the event detector runs four audio-only SQL queries.
+  \item \textbf{Condition C (multimodal).} Both pipelines run. The event detector runs six multimodal SQL queries that take the union of visual and audio results. Events with no acoustic correlate (handoff, suspicious near vehicle) reuse the visual queries from condition A.
 \end{itemize}
 
 The design is summarised in Table~\ref{tab:three_conditions}.
@@ -25,7 +25,7 @@ The design is summarised in Table~\ref{tab:three_conditions}.
     Condition & Provider & Queries \\
     \midrule
     A (visual)  & Gemini 3.6 Flash (best of 4) & 6 visual SQL \\
-    B (audio)   & PANNs / Qwen2-Audio-7B & 4 sound-only SQL \\
+    B (audio)   & PANNs / Qwen2-Audio-7B & 4 audio-only SQL \\
     C (union)   & Gemini 3.6 Flash + audio & 6 multimodal SQL \\
     \bottomrule
   \end{tabular}
@@ -50,16 +50,16 @@ The WATCHOUT ISEQL system follows a four-layer architecture (Figure~\ref{fig:sys
 
 \subsection{Visual Pipeline with Object Re-Identification}
 
-The visual pipeline (Figure~\ref{fig:visual_pipeline}) samples video frames at a rate of one frame every 24 frames ($\approx$1.1 Hz at 24 fps). For each sampled frame, the VLM is applied in two phases.
+The visual pipeline (Figure~\ref{fig:visual_pipeline}) samples video frames at a fixed interval, configured per video through its frame rate; for the 24 fps evaluation dataset this is one frame every 24 frames ($\approx$1.1 Hz). For each sampled frame, the VLM re-identifies and tracks objects through a retrieval-augmented object memory before labeling relations.
 
 \begin{figure}[h]
   \centering
-  \includegraphics[width=0.40\textwidth]{Figures/visual_pipeline.pdf}
+  \includegraphics[width=0.55\textwidth]{Figures/visual_pipeline.pdf}
   \caption{Visual processing pipeline.}
   \label{fig:visual_pipeline}
 \end{figure}
 
-\textbf{Phase 1: Object Detection.} On the first frame, the VLM identifies all objects (people, vehicles, items), assigns each a numeric identifier, and records grid-block coordinates. The closed vocabulary of relation types is defined in Table~\ref{tab:visual_relations}:
+\textbf{Object Detection.} On the first frame, the VLM identifies all objects (people, vehicles, items), assigns each a numeric identifier, and records grid-block coordinates through grid-based spatial prompting, in the spirit of Set-of-Mark \citep{yang2023som} and grid-based visual prompting \citep{chowdhury2025gridlogat}. The closed vocabulary of relation types is defined in Table~\ref{tab:visual_relations}:
 
 \begin{table}[h]
   \centering\small
@@ -75,9 +75,7 @@ The visual pipeline (Figure~\ref{fig:visual_pipeline}) samples video frames at a
     \addlinespace
     \texttt{carrying} & \texttt{(PersonID, ObjectID)} & Person transporting an object (package, suitcase, bag) while moving; may act simultaneously \\
     \addlinespace
-    \texttt{suspicious\_near\_vehicle} & \texttt{(PersonID, VehicleID)} & Person very close to a vehicle that is not theirs, observing or touching it suspiciously; not a simple passerby \\
-    \addlinespace
-    \texttt{physical\_altercation} & \texttt{(PersonID1, PersonID2)} & Two or more people fighting: pushing, hitting, punching, aggressive gestures, or throwing objects \\
+    \texttt{physical\_altercation} & \texttt{(PersonID, PersonID)} & Two or more people fighting: pushing, hitting, punching, aggressive gestures, or throwing objects \\
     \addlinespace
     \texttt{vehicle\_collision} & \texttt{(VehicleID)} & Vehicle with visible collision damage: broken windshield, dented hood, deployed airbags, engine-compartment smoke, or an embedded object \\
     \addlinespace
@@ -88,9 +86,9 @@ The visual pipeline (Figure~\ref{fig:visual_pipeline}) samples video frames at a
   \end{tabular}
 \end{table}
 
-\textbf{Phase 2: Object Re-Identification.} On subsequent frames, the VLM receives a tracking prompt containing the previous frame's object list with identifiers, classes, and grid-block coordinates. The VLM is instructed to: (i) reuse an identifier if the object has the same class and overlapping grid blocks; (ii) reuse an identifier if the object has the same class and close blocks (the object moved); (iii) never reuse an identifier for a different-class object; (iv) assign \texttt{"new"} if no match is found. The VLM's proposals are then reconciled by a deterministic two-pass post-processing step over the objects of the previous frame not already matched. For each object proposed as \texttt{"new"}, the matcher first reuses the identifier of the first unmatched predecessor with the same class whose block sets intersect, skipping a candidate only when both block sets are non-empty and disjoint; if no block-overlapping candidate exists, it falls back to the first remaining unmatched predecessor of the same class. Only if no candidate matches is a fresh identifier allocated.
+\textbf{Object Re-Identification (RAG over a persistent object memory).} To maintain consistent identity across frames, the pipeline maintains a persistent, per-scene object memory in a ChromaDB vector database (cosine space, one collection per analysis). For every sampled frame, each detected object is embedded with a SigLIP image encoder\citep{zhai2023siglip} (\texttt{google/siglip-base-patch16-224}) from the crop of its grid-block bounding box and upserted into the collection with its class, grid blocks, description, and frame number. On subsequent frames, the VLM tracking prompt is built from a bounded retrieval context ("retrieval-augmented generation"): the objects of the last $N{=}3$ frames (a sliding recency buffer) plus the \texttt{top{-}k}{=}5 most similar objects retrieved from all earlier frames by embedding distance, deduplicated per class and capped at 30. The VLM is instructed to (i) reuse an identifier if the object has the same class and overlapping grid blocks; (ii) reuse an identifier if the object has the same class and close blocks (the object moved); (iii) never reuse an identifier for a different-class object; (iv) assign \texttt{"new"} if no match is found. The VLM's proposals are then reconciled by a deterministic post-processing pass over the objects of the previous frame not already matched: for each object proposed as \texttt{"new"}, the matcher first reuses the identifier of an unmatched predecessor with the same class whose block sets intersect, then falls back to a same-class candidate with close blocks, and finally to any remaining same-class predecessor; only if no candidate matches is a fresh identifier allocated. Because the per-frame state is rebuilt from the recency buffer and the ChromaDB memory each frame, a VLM-empty frame no longer wipes idle identity continuity.
 
-Without this mechanism, the VLM assigns new identifiers on every frame, producing single-frame intervals that never satisfy duration thresholds. The re-identification mechanism, implemented entirely through prompt engineering, requires no additional training data or tracking model. All VLM inference runs at temperature zero with a fixed seed (42), making detection and re-identification deterministic and reproducible.
+Without this mechanism, the VLM assigns new identifiers on every frame, producing single-frame intervals that never satisfy duration thresholds. The re-identification mechanism, implemented entirely through prompt engineering over an RAG memory, requires no separate tracking model or additional training data. All VLM inference runs at temperature zero with a fixed seed (42), making detection and re-identification deterministic and reproducible.
 
 Frame-level observations are written to the \texttt{VisualRelation} table. The interval builder collapses the frame-level stream by sorting each (relation, subject, object) group by frame number and merging adjacent frames separated by at most twice the sampling rate.
 
@@ -105,14 +103,14 @@ The audio pipeline (Figure~\ref{fig:audio_pipeline}) extracts the video's audio 
   \label{fig:audio_pipeline}
 \end{figure}
 
-Two alternative models are evaluated. \textbf{PANNs CNN14} \citep{kong2020panns}, an 80-million-parameter network pretrained on AudioSet, slides a 2.5 s window with a 1.25 s hop over the signal. \textbf{Qwen2-Audio-7B-Instruct} \citep{chu2024qwen2audio}, a 7-billion-parameter LALM, uses the same window configuration. Both models are evaluated across a full window/hop ablation (eight configurations per model).
+Two alternative models are evaluated. \textbf{PANNs CNN14} \citep{kong2020panns}, an 80-million-parameter network pretrained on AudioSet, and \textbf{Qwen2-Audio-7B-Instruct} \citep{chu2024qwen2audio}, a 7-billion-parameter LALM. Both models slide a temporal window over the signal and are evaluated across a full window/hop ablation of eight configurations per model.
 
-Unlike PANNs, which outputs logits over 527 AudioSet classes, Qwen2-Audio is a generative model that can produce arbitrary text. To constrain its output, the LALM is prompted with a closed vocabulary: \texttt{shout}, \texttt{impact}, \texttt{gunshot\_or\_explosion}, \texttt{engine}, \texttt{tire\_squeal}, \texttt{glass\_breaking}, \texttt{horn}, \texttt{skidding}, or \texttt{none()} if no class applies. This mirrors the closed-vocabulary approach used for VLM relation extraction. Both backends' outputs are mapped to this vocabulary by a normalization step that lowercases, strips punctuation, and stems tokens before matching against a hand-curated synonym table (e.g., AudioSet's \emph{Shout}, \emph{Yell}, and \emph{Screaming} all map to \texttt{shout}). No automatic speech recognition or speech emotion recognition is used; prior evaluation confirmed that ASR finds zero utterances on surveillance audio. The meaning of each class is given in Table~\ref{tab:sound_classes}.
+Unlike PANNs, which outputs logits over 527 AudioSet classes, Qwen2-Audio is a generative model that can produce arbitrary text. To constrain its output, the LALM is prompted with a closed vocabulary: \texttt{shout}, \texttt{impact}, \texttt{gunshot\_or\_explosion}, \texttt{engine}, \texttt{tire\_squeal}, \texttt{glass\_breaking}, \texttt{horn}, \texttt{skidding}, or \texttt{none()} if no class applies. This mirrors the closed-vocabulary approach used for VLM relation extraction. Both backends' outputs are mapped to this vocabulary by a normalization step that lowercases, strips punctuation, and stems tokens before matching against a hand-curated synonym table (e.g., AudioSet's \emph{Shout}, \emph{Yell}, and \emph{Screaming} all map to \texttt{shout}). No automatic speech recognition or speech emotion recognition is used; prior evaluation confirmed that ASR finds zero utterances on surveillance audio. The meaning of each class is given in Table~\ref{tab:audio_classes}.
 
 \begin{table}[h]
   \centering
-  \caption{Sound classes (low-level audio events) produced by the audio backends.}
-  \label{tab:sound_classes}
+  \caption{Audio classes (low-level audio events) produced by the audio backends.}
+  \label{tab:audio_classes}
   \begin{tabular}{@{}p{12em}p{16em}@{}}
     \toprule
     Class & Meaning \\
@@ -136,7 +134,7 @@ Unlike PANNs, which outputs logits over 527 AudioSet classes, Qwen2-Audio is a g
   \end{tabular}
 \end{table}
 
-Model outputs are persisted as temporal intervals in the \texttt{SoundPerInterval} table with an applied confidence threshold of 0.0 (no filtering), allowing the multimodal union to manage false positives.
+Model outputs are persisted as temporal intervals in the \texttt{AudioPerInterval} table with an applied confidence threshold of 0.0 (no filtering), allowing the multimodal union to manage false positives.
 
 \section{Storage and Reasoning Layers}
 \label{sec:storage-reasoning}
@@ -155,79 +153,79 @@ Both perception pipelines write to a shared SQLite database with the schema show
     \texttt{VisualRelation} & Frame-level relation triples (AnalysisID, Frame, RelationID, RelationType, ClassID) \\
     \texttt{VisualPerInterval} & Collapsed temporal intervals (RelationID PK, AnalysisID, StartFrame, EndFrame, RelationType) \\
     \texttt{VisualParticipant} & Interval participants (RelationID, ClassID, Class) \\
-    \texttt{SoundPerInterval} & Audio-derived intervals (SoundIntervalID PK, AnalysisID, StartFrame, EndFrame, SoundClass, Confidence) \\
+    \texttt{AudioPerInterval} & Audio-derived intervals (AudioIntervalID PK, AnalysisID, StartFrame, EndFrame, AudioClass, Confidence) \\
     \bottomrule
   \end{tabular}
 \end{table}
 
-The reasoning layer executes high-level event detection through SQL queries. Each event type has a formal ISEQL definition (Section~\ref{sec:event-definitions}) that is compiled to a SQL query; the corresponding SQL implementations are provided in Appendix~\ref{AppendixA}. Each condition has its own query set: condition A runs six visual queries, condition B runs four sound-only queries, and condition C runs six multimodal union queries.
+The reasoning layer executes high-level event detection through SQL queries. Each event type has a formal ISEQL definition (Section~\ref{sec:event-definitions}) that is compiled to a SQL query; the corresponding SQL implementations are provided in Appendix~\ref{AppendixA}. Each condition has its own query set: condition A runs six visual queries, condition B runs four audio-only queries, and condition C runs six multimodal union queries.
 
 \section{Event Definitions}
 \label{sec:event-definitions}
 
-Each of the six event types is defined as a projection-selection expression over the interval labelings produced by the perception layer, following the general ISEQL forms given in Section~\ref{sec:iseql}. Every definition below states the event semantics, the predicate and interval arguments it selects, and the temporal operator and thresholds that connect the constituent intervals. The low-level relation types and sound classes used as predicates are those defined in Section~\ref{sec:perception} (Tables~\ref{tab:visual_relations} and~\ref{tab:sound_classes}). Where the same event is detectable through both modalities, condition A (visual) and condition B (audio) are given separately, and condition C (multimodal) is their set union.
+Each of the six event types is defined as a projection-selection expression over the interval labelings produced by the perception layer, following the general ISEQL forms given in Section~\ref{sec:iseql}. Every definition below states the event semantics, the predicate and interval arguments it selects, and the temporal operator and thresholds that connect the constituent intervals. The low-level relation types and audio classes used as predicates are those defined in Section~\ref{sec:perception} (Tables~\ref{tab:visual_relations} and~\ref{tab:audio_classes}). Where the same event is detectable through both modalities, condition A (visual) and condition B (audio) are given separately, and condition C (multimodal) is their set union.
 
 \subsection{Fight}
 
-A fight is a physical altercation between two or more people. Visually, it is a single interval labeled \texttt{physical\_altercation} whose two participants are distinct persons; the cross-condition $M_1.\mathrm{arg}_1 \neq M_1.\mathrm{arg}_2$ enforces that the altercation involves two different people rather than a person interacting with an object. Audibly, a fight manifests as a shout immediately followed by an impact; the query joins the two intervals with the BEFORE operator ($\mathrm{Bef}_{120}$), requiring the impact to start within 120 frames after the shout ends. The multimodal condition is the union of the two detections, so a fight is reported if either modality fires.
+A fight is a physical altercation between two or more people. Visually, it is a single interval labeled \texttt{physical\_altercation} whose two participants are distinct persons; the cross-condition $M_1.\mathrm{arg}_1 \neq M_1.\mathrm{arg}_2$ enforces that the altercation involves two different people rather than a person interacting with an object. Audibly, a fight manifests as a shout immediately followed by an impact; the query joins the two intervals with the BEFORE operator at a threshold of 5 seconds ($\Bef(\delta:5;\,\zeta:\le,\,\rho:0)$). The multimodal condition is the union of the two detections, so a fight is reported if either modality fires.
 
 \begin{flushleft}
 $\begin{aligned}
-\mathrm{Fight}_A \equiv &\; \pi_{M_1.\mathrm{arg}_1,\; M_1.\mathrm{arg}_2,\; M_1.s_f,\; M_1.e_f} ( \\
+\mathrm{Fight}_A \equiv &\; \pi_{M_1.\mathrm{arg}_1,\; M_1.\mathrm{arg}_2,\; M_1.s_t,\; M_1.e_t} ( \\
 &\qquad \sigma_{\,M_1.\mathrm{arg}_1 \neq M_1.\mathrm{arg}_2} ( \\
-&\qquad\quad \sigma_{\textit{pred}=\text{`physical\_altercation'} \;\land\; \mathrm{arg}_1=\text{`person1'} \;\land\; \mathrm{arg}_2=\text{`person2'}}(M_1) ) )
+&\qquad\quad \sigma_{\textit{pred}=\text{`physical\_altercation'} \;\land\; \mathrm{arg}_1=\text{`person'} \;\land\; \mathrm{arg}_2=\text{`person'}}(M_1) ) )
 \end{aligned}$\\[6pt]
 $\begin{aligned}
-\mathrm{Fight}_B \equiv &\; \pi_{M_1.s_f,\; M_2.e_f} ( \\
+\mathrm{Fight}_B \equiv &\; \pi_{M_1.s_t,\; M_2.e_t} ( \\
 &\qquad \sigma_{\textit{pred}=\text{`shout'}}(M_1) \\
-&\qquad \mathrm{Bef}_{120} \\
-&\qquad \sigma_{\textit{pred}=\text{`impact'}}(M_2))
+          &\qquad \mathrm{Bef}(\delta:5;\,\zeta:\le,\,\rho:0) \\
+          &\qquad \sigma_{\textit{pred}=\text{`impact'}}(M_2))
 \end{aligned}$\\[6pt]
 $\mathrm{Fight}_C \equiv \mathrm{Fight}_A \cup \mathrm{Fight}_B$
 \end{flushleft}
 
 \subsection{Handoff}
 
-A handoff occurs when one person carrying an object hands it to another person, who then carries the same object. The event is visual-only: the query joins two \texttt{carrying} intervals over the same object ($M_1.\mathrm{arg}_2 = M_2.\mathrm{arg}_2$) but different persons ($M_1.\mathrm{arg}_1 \neq M_2.\mathrm{arg}_1$), connected by BEFORE with a 240-frame tolerance so that the second carrying interval begins shortly after the first ends. Because handoff has no acoustic correlate, it is defined only under condition A, and condition C equals condition A.
+A handoff occurs when one person carrying an object hands it to another person, who then carries the same object. The event is visual-only: the query joins two \texttt{carrying} intervals over the same object ($M_1.\mathrm{arg}_2 = M_2.\mathrm{arg}_2$) but different persons ($M_1.\mathrm{arg}_1 \neq M_2.\mathrm{arg}_1$), connected by BEFORE with an unbounded gap so that the second carrying interval can begin at any time after the first one ends. Because handoff has no acoustic correlate, it is defined only under condition A, and condition C equals condition A.
 
 \begin{flushleft}
 $\begin{aligned}
-\mathrm{Handoff}_A \equiv &\; \pi_{\,M_1.\mathrm{arg}_1,\; M_2.\mathrm{arg}_1,\; M_1.\mathrm{arg}_2,\; M_1.s_f,\; M_2.e_f} ( \\
+\mathrm{Handoff}_A \equiv &\; \pi_{\,M_1.\mathrm{arg}_1,\; M_2.\mathrm{arg}_1,\; M_1.\mathrm{arg}_2,\; M_1.s_t,\; M_2.e_t} ( \\
 &\qquad \sigma_{\,M_1.\mathrm{arg}_1 \neq M_2.\mathrm{arg}_1 \;\land\; M_1.\mathrm{arg}_2 = M_2.\mathrm{arg}_2} ( \\
 &\qquad\quad \sigma_{\textit{pred}=\text{`carrying'} \;\land\; \mathrm{arg}_1=\text{`person'} \;\land\; \mathrm{arg}_2=\text{`object'}}(M_1) \\
-&\qquad\quad \mathrm{Bef}_{240} \\
+          &\qquad\quad \mathrm{Bef}(\delta:\infty;\,\zeta:\le,\,\rho:0) \\
 &\qquad\quad \sigma_{\textit{pred}=\text{`carrying'} \;\land\; \mathrm{arg}_1=\text{`person'} \;\land\; \mathrm{arg}_2=\text{`object'}}(M_2) )
 \end{aligned}$
 \end{flushleft}
 
-\subsection{Loitering}
+\subsection{Suspicious Near Vehicle}
 
-Loitering is a person standing suspiciously near a vehicle for a prolonged period. It is visual-only and expressed as a single-interval query with a duration constraint: the interval labeled \texttt{suspicious\_near\_vehicle} must span at least 120 frames ($M_1.e_f - M_1.s_f \ge 120$). The duration condition is applied as a nested selection on the interval itself, so the projection returns only intervals that satisfy the minimum-duration requirement. Loitering has no acoustic correlate, so condition C equals condition A.
+A suspicious near-vehicle event occurs when a person remains suspiciously close to or inspects a parked vehicle for an extended duration. The event is visual-only: it is a single interval labeled \texttt{suspicious\_near\_vehicle} pairing a person ($M_1.\mathrm{arg}_1$) with a vehicle ($M_1.\mathrm{arg}_2$), subject to a duration cross-condition $(M_1.e_t - M_1.s_t) \ge 3$ seconds; the cross-condition projects the start/end times so the interval duration can be checked. Because suspicious near vehicle has no acoustic correlate, it is defined only under condition A, and condition C equals condition A.
 
 \begin{flushleft}
 $\begin{aligned}
-\mathrm{Loitering}_A \equiv &\; \pi_{M_1.\mathrm{arg}_1,\; M_1.\mathrm{arg}_2,\; M_1.s_f,\; M_1.e_f} ( \\
-&\qquad \sigma_{(M_1.e_f - M_1.s_f) \ge 120} ( \\
-&\qquad\quad \sigma_{\textit{pred}=\text{`suspicious\_near\_vehicle'} \;\land\; \mathrm{arg}_1=\text{`person'} \;\land\; \mathrm{arg}_2=\text{`vehicle'}}(M_1) )
-\end{aligned}$
+\mathrm{SuspiciousNearVehicle}_A \equiv &\; \pi_{\,M_1.\mathrm{arg}_1,\; M_1.\mathrm{arg}_2,\; M_1.s_t,\; M_1.e_t} ( \\
+&\; \sigma_{\,M_1.e_t - M_1.s_t \ge 3} ( \\
+&\; \sigma_{\textit{pred}=\text{`suspicious\_near\_vehicle'} \land \mathrm{arg}_1=\text{`person'} \land \mathrm{arg}_2=\text{`vehicle'}}(M_1) ) )
+\end{aligned}$\\
 \end{flushleft}
 
 \subsection{Vehicle Escape}
 
-A vehicle escape is a person running and then entering or exiting a vehicle. Visually, the query joins a \texttt{running} interval and an \texttt{enter\_or\_exit\_vehicle} interval with START PRECEDING (SP), which allows the two intervals to overlap while the person's activity shifts from running to entering; the cross-condition $M_1.\mathrm{arg}_1 = M_2.\mathrm{arg}_1$ requires that the same person performs both actions. Audibly, an escape manifests as engine sound followed by a tire squeal; the audio query joins these two intervals with SP. The multimodal condition is the union of the visual and audio detections.
+A vehicle escape is a person running and then entering or exiting a vehicle. Visually, the query joins a \texttt{running} interval and an \texttt{enter\_or\_exit\_vehicle} interval with BEFORE at a threshold of 2 seconds ($\mathrm{Bef}(\delta:2;\,\zeta:\le,\,\rho:0)$, the person stops running at most 2 s before beginning to enter/exit the vehicle); the cross-condition $M_1.\mathrm{arg}_1 = M_2.\mathrm{arg}_1$ requires that the same person performs both actions. Audibly, an escape manifests as engine audio followed by a tire squeal; the audio query joins these two intervals with SP. The multimodal condition is the union of the visual and audio detections.
 
 \begin{flushleft}
 $\begin{aligned}
-\mathrm{Vehicle\ Escape}_A \equiv &\; \pi_{\,M_1.\mathrm{arg}_1,\; M_2.\mathrm{arg}_2,\; M_1.s_f,\; M_2.e_f} ( \\
+\mathrm{Vehicle\ Escape}_A \equiv &\; \pi_{\,M_1.\mathrm{arg}_1,\; M_2.\mathrm{arg}_2,\; M_1.s_t,\; M_2.e_t} ( \\
 &\qquad \sigma_{\,M_1.\mathrm{arg}_1 = M_2.\mathrm{arg}_1} ( \\
 &\qquad\quad \sigma_{\textit{pred}=\text{`running'} \;\land\; \mathrm{arg}_1=\text{`person'}}(M_1) \\
-&\qquad\quad \mathrm{SP} \\
+          &\qquad\quad \mathrm{Bef}(\delta:2;\,\zeta:\le,\,\rho:0) \\
 &\qquad\quad \sigma_{\textit{pred}=\text{`enter\_or\_exit\_vehicle'} \;\land\; \mathrm{arg}_1=\text{`person'} \;\land\; \mathrm{arg}_2=\text{`vehicle'}}(M_2) ) )
 \end{aligned}$\\[6pt]
 $\begin{aligned}
-\mathrm{Vehicle\ Escape}_B \equiv &\; \pi_{M_1.s_f,\; M_2.e_f} ( \\
-&\qquad \sigma_{\textit{pred}=\text{`engine'} \;\lor\; \textit{pred}=\text{`vehicle'}}(M_1) \\
-&\qquad \mathrm{SP} \\
+\mathrm{Vehicle\ Escape}_B \equiv &\; \pi_{M_1.s_t,\; M_2.e_t} ( \\
+&\qquad \sigma_{\textit{pred}=\text{`engine'}}(M_1) \\
+&\qquad \mathrm{SP}(\delta:\infty;\,\zeta:\le,\,\rho:0) \\
 &\qquad \sigma_{\textit{pred}=\text{`tire\_squeal'}}(M_2) )
 \end{aligned}$\\[6pt]
 $\mathrm{Vehicle\ Escape}_C \equiv \mathrm{Vehicle\ Escape}_A \cup \mathrm{Vehicle\ Escape}_B$
@@ -235,17 +233,17 @@ $\mathrm{Vehicle\ Escape}_C \equiv \mathrm{Vehicle\ Escape}_A \cup \mathrm{Vehic
 
 \subsection{Vehicle Collision}
 
-A vehicle collision is detected through either modality. Visually, it is a single interval labeled \texttt{vehicle\_collision} involving a vehicle. Audibly, it is the sound of a collision: a horn or skidding followed by an impact or glass breaking, joined with START PRECEDING (SP). The two acoustic alternatives are combined with a logical disjunction inside the selection predicates ($\textit{pred}=\text{`horn'} \lor \textit{pred}=\text{`skidding'}$ on the first interval, and $\textit{pred}=\text{`impact'} \lor \textit{pred}=\text{`glass\_breaking'}$ on the second). Condition C is the union of the visual and audio detections.
+A vehicle collision is detected through either modality. Visually, it is a single interval labeled \texttt{vehicle\_collision} involving a vehicle. Audibly, it is the audio of a collision: a horn or skidding followed by an impact or glass breaking, joined with START PRECEDING (SP). The two acoustic alternatives are combined with a logical disjunction inside the selection predicates ($\textit{pred}=\text{`horn'} \lor \textit{pred}=\text{`skidding'}$ on the first interval, and $\textit{pred}=\text{`impact'} \lor \textit{pred}=\text{`glass\_breaking'}$ on the second). Condition C is the union of the visual and audio detections.
 
 \begin{flushleft}
 $\begin{aligned}
-\mathrm{Vehicle\ Collision}_A \equiv &\; \pi_{M_1.\mathrm{arg}_1,\; M_1.s_f,\; M_1.e_f} ( \\
+\mathrm{Vehicle\ Collision}_A \equiv &\; \pi_{M_1.\mathrm{arg}_1,\; M_1.s_t,\; M_1.e_t} ( \\
 &\qquad \sigma_{\textit{pred}=\text{`vehicle\_collision'} \;\land\; \mathrm{arg}_1=\text{`vehicle'}}(M_1) )
 \end{aligned}$\\[6pt]
 $\begin{aligned}
-\mathrm{Vehicle\ Collision}_B \equiv &\; \pi_{M_1.s_f,\; M_2.e_f} ( \\
+\mathrm{Vehicle\ Collision}_B \equiv &\; \pi_{M_1.s_t,\; M_2.e_t} ( \\
 &\qquad \sigma_{\textit{pred}=\text{`horn'} \;\lor\; \textit{pred}=\text{`skidding'}}(M_1) \\
-&\qquad \mathrm{SP} \\
+&\qquad \mathrm{SP}(\delta:\infty;\,\zeta:\le,\,\rho:0) \\
 &\qquad \sigma_{\textit{pred}=\text{`impact'} \;\lor\; \textit{pred}=\text{`glass\_breaking'}}(M_2) )
 \end{aligned}$\\[6pt]
 $\mathrm{Vehicle\ Collision}_C \equiv \mathrm{Vehicle\ Collision}_A \cup \mathrm{Vehicle\ Collision}_B$
@@ -257,7 +255,7 @@ A gunshot or explosion can be detected in either modality. Visually, the selecti
 
 \begin{flushleft}
 $\begin{aligned}
-\mathrm{Gunshot\ /\ Explosion}_A \equiv &\; \pi_{M_1.\mathrm{arg}_1,\; M_1.s_f,\; M_1.e_f} ( \\
+\mathrm{Gunshot\ /\ Explosion}_A \equiv &\; \pi_{M_1.\mathrm{arg}_1,\; M_1.s_t,\; M_1.e_t} ( \\
 &\qquad \sigma_{\begin{subarray}{l}
   (\textit{pred}=\text{`gunshot\_visible'} \;\land\; \mathrm{arg}_1=\text{`person'}) \\
   \;\lor\; \\
@@ -265,7 +263,7 @@ $\begin{aligned}
   \end{subarray}}
 \end{aligned}$\\[6pt]
 $\begin{aligned}
-\mathrm{Gunshot\ /\ Explosion}_B \equiv &\; \pi_{M_1.s_f,\; M_1.e_f} ( \\
+\mathrm{Gunshot\ /\ Explosion}_B \equiv &\; \pi_{M_1.s_t,\; M_1.e_t} ( \\
 &\qquad \sigma_{\textit{pred}=\text{`gunshot\_or\_explosion'}}(M_1) )
 \end{aligned}$\\[6pt]
 $\mathrm{Gunshot\ /\ Explosion}_C \equiv \mathrm{Gunshot\ /\ Explosion}_A \cup \mathrm{Gunshot\ /\ Explosion}_B$
@@ -274,7 +272,7 @@ $\mathrm{Gunshot\ /\ Explosion}_C \equiv \mathrm{Gunshot\ /\ Explosion}_A \cup \
 \section{Dataset}
 \label{sec:dataset}
 
-A dataset of 30 surveillance scenes was generated using Dreamina Seedance 2.0\footnote{\url{https://dreamina.capcut.com/}} \citep{seedance2026}. Each scene is 10 s at 1280$\times$720, 24 fps, with a fixed camera angle. The 30 scenes span 6 event types with 5 positive instances each: \texttt{fight}, \texttt{gunshot\_or\_explosion}, \texttt{vehicle\_escape}, \texttt{vehicle\_collision}, \texttt{loitering}, and \texttt{handoff}. Each scene is annotated with per-frame ground truth for visual relations and sound classes, and event-level binary verdicts (TP, TN, FP, FN).
+A dataset of 30 surveillance scenes was generated using Dreamina Seedance 2.0\footnote{\url{https://dreamina.capcut.com/}} \citep{seedance2026}. Each scene is 10 s at 1280$\times$720, 24 fps, with a fixed camera angle. The 30 scenes span 6 event types with 5 positive instances each: \texttt{fight}, \texttt{gunshot\_or\_explosion}, \texttt{vehicle\_escape}, \texttt{vehicle\_collision}, \texttt{suspicious\_near\_vehicle}, and \texttt{handoff}. Each scene is annotated with per-frame ground truth for visual relations and audio classes, and event-level binary verdicts (TP, TN, FP, FN).
 
 \section{Evaluation Metrics}
 \label{sec:metrics}
@@ -287,8 +285,8 @@ F1 = \frac{2 \cdot \mathrm{Precision} \cdot \mathrm{Recall}}{\mathrm{Precision} 
 
 F1 is preferred over accuracy because each event type has 5 positive and 25 negative instances per condition; accuracy would be dominated by true negatives. In forensic surveillance, both precision (avoiding false alarms that waste operator attention) and recall (avoiding missed events) are critical. Per-event TP/FP/FN counts are also reported. The evaluation follows the clip-level paradigm of the TRECVID Multimedia Event Detection (MED) task \citep{over2014trecvid}: each scene is treated as a whole clip, and the correctness measure asks whether the event occurs anywhere in the scene, without requiring temporal alignment of a detected interval against a ground-truth interval. This is appropriate because the events are compositional (spanning multiple intervals across modalities) and the ground truth does not define a single composite event interval.
 
-\textbf{Correctness criteria.} Under condition A (visual), an event is a true positive (TP) if the corresponding ISEQL SQL query returns at least one result interval on a scene annotated as positive for that event in the ground truth. The ISEQL operators enforce the internal temporal relationships between constituent intervals, so no additional interval-level matching against ground truth is applied. Under condition B (audio), a detected sound interval must temporally overlap the ground-truth sound interval with a matching sound class to be counted as TP; any non-zero overlap is accepted, and the interval with the highest overlap is selected when multiple detections coincide. Under condition C (multimodal), visual-only events (handoff, loitering) use the condition A criterion, and events with an audio component use the criterion of whichever modality produced the detection. False positives (FP) are detections on scenes not annotated as positive for the event; false negatives (FN) are missed events on positive scenes.
+\textbf{Correctness criteria.} Under condition A (visual), an event is a true positive (TP) if the corresponding ISEQL SQL query returns at least one result interval on a scene annotated as positive for that event in the ground truth. The ISEQL operators enforce the internal temporal relationships between constituent intervals, so no additional interval-level matching against ground truth is applied. Under condition B (audio), a detected audio interval must temporally overlap the ground-truth audio interval with a matching audio class to be counted as TP; any non-zero overlap is accepted, and the interval with the highest overlap is selected when multiple detections coincide. Under condition C (multimodal), visual-only events (handoff, suspicious near vehicle) use the condition A criterion, and events with an audio component use the criterion of whichever modality produced the detection. False positives (FP) are detections on scenes not annotated as positive for the event; false negatives (FN) are missed events on positive scenes.
 
 \section{Implementation}
 
-The system is implemented in Python 3.11 with FastAPI (backend) and SvelteKit with TypeScript (front end). Four VLM models were evaluated: Pixtral 12B (Mistral API), Ministral 3-14B, Gemini 2.5 Flash, and Gemini 3.6 Flash. PANNs CNN14 runs on CPU; Qwen2-Audio-7B-Instruct runs via HuggingFace with 4-bit normal float quantization \citep{dettmers2024qlora}. The system was tested on a laptop with an Intel Core i9-13900H, NVIDIA RTX 4060 (8 GB VRAM), and 32 GB RAM.
+The system is implemented in Python 3.10 with FastAPI (backend) and SvelteKit with TypeScript (front end). Four VLM models were evaluated: Pixtral 12B (Mistral API), Ministral 3-14B, Gemini 2.5 Flash, and Gemini 3.6 Flash. PANNs CNN14 runs on CPU; Qwen2-Audio-7B-Instruct runs via HuggingFace with 4-bit normal float quantization \citep{dettmers2024qlora}. The system was tested on a laptop with an Intel Core i9-13900H, NVIDIA RTX 4060 (8 GB VRAM), and 32 GB RAM.

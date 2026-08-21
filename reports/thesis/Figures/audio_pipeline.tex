@@ -22,17 +22,17 @@
 
 \node[box,fill=white] (s2) at (2.5,2.8) {
     \textbf{Model Inference}\\[2pt]
-    Qwen2-Audio / PANNs, 2.5s window
+    Qwen2-Audio / PANNs
 };
 
 \node[box,fill=white] (s3) at (2.5,0.8) {
     \textbf{Label to Event}\\[2pt]
-    AudioSet labels $\to$ 4 sound queries
+    AudioSet labels $\to$ 4 audio queries
 };
 
 \node[box,fill=white] (s4) at (2.5,-1.2) {
     \textbf{Interval Persistence}\\[2pt]
-    SoundPerInterval in SQLite
+    AudioPerInterval in SQLite
 };
 
 \draw[arrow] (s1.south) -- (s2.north);
