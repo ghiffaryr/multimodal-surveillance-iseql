@@ -25,32 +25,37 @@ A multimodal forensic surveillance framework that detects events through a **thr
 
 ## Architecture
 
-```
-                 ┌──────────────────┐
-    video.mp4 ──►│  ffmpeg extract  │──►  16 kHz mono wav
-                 └────────┬─────────┘
-                          │
-         ┌────────────────┴────────────────┐
-         │  PANNs CNN14 / Qwen2-Audio      │
-         │  → AudioIntervals (SQLite)       │
-         └────────────────┬─────────────────┘
-                          │           (condition B / C only)
-    video.mp4 ──► VLM (4 models)       (condition A / C only)
-                  + object re-ID
-                          │
-                          ▼
-               ┌─────────────────────┐
-               │  VisRelationIntervals│
-               │  (SQLite)            │
-               └────────┬─────────────┘
-                        │
-                        ▼
-        ┌───────────────┴──────────────────┐
-        │   High-level event detector       │
-         │   - 6 visual SQL queries          │   condition A
-         │   - 4 audio-only SQL queries      │   condition B
-         │   - 6 multimodal SQL queries      │   condition C (UNION)
-        └───────────────────────────────────┘
+```mermaid
+flowchart TB
+    VIDEO["video.mp4"]
+
+    VIDEO --> FF["ffmpeg extract<br/>16 kHz mono wav"]
+    FF --> AUD["audio detection<br/>PANNs CNN14 / Qwen2-Audio-7B"]
+    AUD -->|condition B / C| AINT[("AudioPerInterval<br/>(SQLite)")]
+
+    VIDEO --> VLM["VLM visual reasoning<br/>Gemini 3.6 Flash, Ministral 3-14B<br/>Pixtral 12B, Gemini 2.5 Flash"]
+
+    VLM -->|objects per frame| VPF[("VisualPerFrame<br/>(SQLite)")]
+    VLM -->|relations per frame| VREL[("VisualRelation<br/>(SQLite)")]
+
+    subgraph REID["Object Re-Identification (RAG object memory)"]
+        direction TB
+        EMB["SigLIP embedding<br/>of grid-block crops"]
+        CHROMA[("Chroma vector store<br/>per-scene collection")]
+        RET["top-5 similar retrieval<br/>+ last-3-frame recency"]
+        TRACK["tracking prompt<br/>ID reuse + reconciliation"]
+        EMB --> CHROMA --> RET --> TRACK
+    end
+
+    VPF --> EMB
+    TRACK --> VLM
+
+    VREL --> VINT[("VisualPerInterval<br/>+ VisualParticipant<br/>(SQLite)")]
+
+    AINT --> DET["High-level event detector<br/>ISEQL SQL queries"]
+    VINT -->|condition A / C| DET
+
+    DET --> COND["Events by condition<br/>A: 6 visual, B: 4 audio, C: 6 (UNION)"]
 ```
 
 - **Backend**: FastAPI + Pipenv (Python 3.10)
@@ -114,18 +119,18 @@ This is the **first application of a Large Audio-Language Model for surveillance
 
 ## Multimodal: Ablation Results (30 scenes)
 
-Best config per pair, ties shown (all 8 window/hop configs per pair are in `data/analysis_*/summary.xlsx`; the full ranked 64-combination ablation is in the thesis appendix):
+Best window/hop per pair — all tied configs shown (all 8 window/hop configs per pair are in `data/analysis_*/summary.xlsx`; the full ranked 64-combination ablation is in the thesis appendix):
 
-| VLM + Audio Model                        | Best audio config | F1     | TP | FP | FN |
-|------------------------------------|-------------------|--------|----|----|----|
-| **Gemini 3.6 Flash + Qwen2**       | 5.0/2.5           | **0.938** | 30 | 4  | 0  |
-| Gemini 3.6 Flash + PANNs           | 5.0/5.0           | 0.903  | 28 | 4  | 2  |
-| **Ministral 3-14B + Qwen2**        | 5.0/2.5           | **0.825** | 26 | 7  | 4  |
-| Gemini 2.5 Flash + Qwen2           | 5.0/2.5           | 0.820  | 25 | 6  | 5  |
-| Pixtral 12B + Qwen2                | 5.0/2.5           | 0.794  | 25 | 8  | 5  |
-| Ministral 3-14B + PANNs            | 5.0/5.0           | 0.767  | 23 | 7  | 7  |
-| Gemini 2.5 Flash + PANNs           | 5.0/5.0           | 0.759  | 22 | 6  | 8  |
-| Pixtral 12B + PANNs                | 5.0/5.0           | 0.712  | 21 | 8  | 9  |
+| VLM + Audio Model                     | Window/Hop (s)                | F1     | Precision | Recall | TP | FP | FN |
+|---------------------------------------|-------------------------------|--------|-----------|--------|----|----|----|
+| **Gemini 3.6 Flash + Qwen2-Audio**    | **5.0/2.5**                   | **0.938** | **0.882** | **1.000** | 30 | 4  | 0  |
+| Gemini 3.6 Flash + PANNs              | 5.0/5.0, 10.0/5.0, 10.0/10.0 | 0.903  | 0.875     | 0.933  | 28 | 4  | 2  |
+| **Ministral 3-14B + Qwen2-Audio**     | 5.0/2.5                       | **0.825** | 0.788     | 0.867  | 26 | 7  | 4  |
+| Gemini 2.5 Flash + Qwen2-Audio        | 5.0/2.5                       | 0.820  | 0.806     | 0.833  | 25 | 6  | 5  |
+| Pixtral 12B + Qwen2-Audio             | 5.0/2.5                       | 0.794  | 0.758     | 0.833  | 25 | 8  | 5  |
+| Ministral 3-14B + PANNs               | 5.0/5.0, 10.0/5.0, 10.0/10.0 | 0.767  | 0.767     | 0.767  | 23 | 7  | 7  |
+| Gemini 2.5 Flash + PANNs              | 5.0/5.0, 10.0/5.0, 10.0/10.0 | 0.759  | 0.786     | 0.733  | 22 | 6  | 8  |
+| Pixtral 12B + PANNs                   | 5.0/5.0                       | 0.712  | 0.724     | 0.700  | 21 | 8  | 9  |
 
 Thesis claim C >= max(A, B) holds on all scenes across all providers.
 
