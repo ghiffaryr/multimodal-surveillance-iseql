@@ -18,14 +18,6 @@ VIS MODE framework.
 (ECCV 2026 demo). Prior work lacked object re-identification (so tracking-dependent events went undetected) and had unverifiable precision/recall claims on unlabeled ground truth.
 This project addresses both through object re-identification and a 30-scene labeled evaluation benchmark.
 
-For the ISEQL interval-join kernel (the underlying temporal-reasoning machinery
-preserved in `interval_engine/`):
-
-> Piatov, D., Helmer, S., Dignoes, A., Persia, F. (2021). Cache-efficient
-> sweeping-based interval joins for extended Allen relation predicates.
-> The VLDB Journal 30(3), 379-402.
-> https://doi.org/10.1007/s00778-020-00650-5
-
 ## Reference files
 
 | File | Contents |

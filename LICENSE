@@ -20,15 +20,5 @@
 
    This product includes software developed at
    The University of L'Aquila, Hitachi Research & Development Group, and
-   elsewhere (the "ISEQL Authors"). The C++ interval-join engine under
-   `interval_engine/` is an adaptation of work originally published in:
-
-       Piatov, D., Helmer, S., Dignoes, A., Persia, F. (2021).
-       Cache-efficient sweeping-based interval joins for extended Allen
-       relation predicates. The VLDB Journal 30(3), 379-402.
-       https://doi.org/10.1007/s00778-020-00650-5
-
-   See `interval_engine/README.md` for full attribution. The original
-   authors retain copyright over the C++ source; the WATCHOUT ISEQL
-   authors add the surrounding multimodal framework under the same
-   Apache 2.0 license.
+   elsewhere (the "ISEQL Authors"). The WATCHOUT ISEQL authors add the
+   surrounding multimodal framework under the same Apache 2.0 license.
