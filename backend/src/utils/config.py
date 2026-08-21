@@ -20,8 +20,7 @@ class Config:
             
             # Resolve relative paths to the project root (backend/src/resources -> backend -> ..)
             project_root = Path(__file__).parents[2].resolve()
-            for section, keys in (('data', ('dir', 'db_path', 'upload_dir', 'handoff_r_csv', 'handoff_s_csv')),
-                                  ('engine', ('iseql_path',))):
+            for section, keys in (('data', ('dir', 'db_path', 'upload_dir')),):
                 if section in config:
                     for key in keys:
                         if key in config[section]:

@@ -1,12 +1,9 @@
-FROM python:3.11-slim
+FROM python:3.10-slim
 
-# System dependencies for OpenCV, audio I/O, and the C++ engine runtime.
+# System dependencies for OpenCV and audio I/O.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ffmpeg \
         libsndfile1 \
-        cmake \
-        g++ \
-        build-essential \
         libssl-dev \
         curl \
     && rm -rf /var/lib/apt/lists/*
@@ -21,9 +18,6 @@ RUN pip install --no-cache-dir pipenv \
 # Copy the application source.
 COPY src ./src
 
-# Make sure the interval engine binary is available. The compose file
-# bind-mounts ./interval_engine/build into the container, so the binary
-# is read-only at runtime.
 ENV PYTHONPATH=/app/src
 
 EXPOSE 8000

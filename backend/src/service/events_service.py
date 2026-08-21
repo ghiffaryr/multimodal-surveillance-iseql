@@ -6,11 +6,8 @@ import sqlite3
 @dataclass
 class EventSpec:
     id: str
-    label: str
-    delta_param: str | None
     condition: str = "A"
-    requires_cpp: bool = False
-    delta_param2: str | None = None
+    model_json: str | None = None
 
 class EventsService(ABC):
     @abstractmethod

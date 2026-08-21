@@ -1,14 +1,5 @@
 import os
 
-DEFAULT_MODELS = {
-    "openai": "gpt-4o-mini",
-    "gemini": "gemini-2.5-flash",
-    "claude": "claude-3-haiku-20240307",
-    "mistral": "pixtral-12b-2409",
-    "zhipu": "glm-4v-flash",
-    "ollama": "llava:7b"
-}
-
 ENV_KEYS = {
     "openai": "OPENAI_API_KEY",
     "gemini": "GOOGLE_API_KEY",
@@ -26,18 +17,22 @@ class VLMClient:
                  base_url: str = None,
                  max_tokens: int = 2048,
                  temperature: float = 0.0,
-                 seed: int | None = 42):
+                 seed: int | None = 42,
+                 timeout: float = 60.0):
         provider = provider.lower().strip()
-        if provider not in DEFAULT_MODELS:
+        if provider not in ENV_KEYS:
             raise ValueError(f"Unknown provider '{provider}'. "
-                             f"Choose from: {list(DEFAULT_MODELS.keys())}")
+                             f"Choose from: {list(ENV_KEYS.keys())}")
         
         self.provider = provider
-        self.model = model or DEFAULT_MODELS[provider]
+        if not model:
+            raise ValueError(f"No model provided for '{provider}'. Pass model= explicitly.")
+        self.model = model
         self.max_tokens = max_tokens
         self.temperature = temperature
         self.seed = seed
         self.base_url = base_url
+        self.timeout = timeout
 
         if provider == "ollama":
             self.api_key = "ollama"
@@ -53,23 +48,25 @@ class VLMClient:
     def _init_client(self):
         if self.provider == "openai":
             from openai import OpenAI
-            return OpenAI(api_key=self.api_key)
+            return OpenAI(api_key=self.api_key, timeout=self.timeout)
         
         elif self.provider == "gemini":
             from google import genai
-            return genai.Client(api_key=self.api_key)
+            from google.genai import types
+            return genai.Client(api_key=self.api_key,
+                                http_options=types.HttpOptions(timeout=int(self.timeout * 1000)))
         
         elif self.provider == "claude":
             import anthropic
-            return anthropic.Anthropic(api_key=self.api_key)
+            return anthropic.Anthropic(api_key=self.api_key, timeout=self.timeout)
 
         elif self.provider == "mistral":
             from mistralai.client.sdk import Mistral
-            return Mistral(api_key=self.api_key)
+            return Mistral(api_key=self.api_key, timeout_ms=int(self.timeout * 1000))
 
         elif self.provider == "zhipu":
             from zhipuai import ZhipuAI
-            return ZhipuAI(api_key=self.api_key)
+            return ZhipuAI(api_key=self.api_key, timeout=self.timeout)
 
         elif self.provider == "ollama":
             return self.base_url
@@ -103,6 +100,7 @@ class VLMClient:
             max_tokens=self.max_tokens,
             temperature=self.temperature,
             seed=self.seed,
+            timeout=self.timeout,
         )
         return response.choices[0].message.content
 
@@ -155,7 +153,8 @@ class VLMClient:
         response = self._client.messages.create(
             model=self.model,
             max_tokens=self.max_tokens,
-            messages=[{"role": "user", "content": content}]
+            messages=[{"role": "user", "content": content}],
+            timeout=self.timeout,
         )
         return response.content[0].text
 
@@ -174,6 +173,7 @@ class VLMClient:
             max_tokens=self.max_tokens,
             temperature=self.temperature,
             random_seed=self.seed,
+            timeout_ms=int(self.timeout * 1000),
         )
         return response.choices[0].message.content
 
@@ -192,6 +192,7 @@ class VLMClient:
             max_tokens=self.max_tokens,
             temperature=self.temperature,
             seed=self.seed,
+            timeout=self.timeout,
         )
         return response.choices[0].message.content
 
@@ -221,7 +222,7 @@ class VLMClient:
         response = requests.post(
             f"{self._client}/api/chat",
             json=payload,
-            timeout=600
+            timeout=self.timeout
         )
         response.raise_for_status()
         return json.loads(response.content.decode('utf-8'))["message"]["content"]

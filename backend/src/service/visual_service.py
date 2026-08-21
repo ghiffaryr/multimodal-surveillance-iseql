@@ -16,7 +16,7 @@ class VisualService(ABC):
         sampling_rate: int,
         min_interval: float = 0.0,
         analysis_id: str = "",
-        track_objects: bool = True,
+        track_objects: bool = False,
         log: Callable[[str], None] = print,
     ) -> None:
         pass

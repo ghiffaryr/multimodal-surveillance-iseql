@@ -18,8 +18,8 @@ class AnalysisStage(str, Enum):
     QUEUED = "queued"
     VLM = "vlm"
     INTERVAL = "interval"
-    SOUND = "sound"
-    SOUND_INTERVAL = "sound_interval"
+    AUDIO = "audio"
+    AUDIO_INTERVAL = "audio_interval"
     DETECTION = "detection"
     DONE = "done"
     FAILED = "failed"
@@ -39,11 +39,17 @@ class RunState:
     vlm_delay: float = 0.0
     vlm_quantization: str = "none"
     max_retries: int = 3
+    embed_provider: str = "huggingface"
+    embed_model: str = "google/siglip-base-patch16-224"
+    memory_n: int = 3
+    memory_top_k: int = 5
     audio_provider: str = "panns"
     audio_model: str = "cnn14"
     audio_quantization: str = "none"
     audio_window: float = 2.5
     audio_hop: float = 1.25
+    audio_classes: Optional[List[str]] = None
+    audio_keywords: Optional[Dict[str, List[str]]] = None
     stage: AnalysisStage = AnalysisStage.QUEUED
     counters: Dict[str, int] = field(default_factory=dict)
     log_queue: "asyncio.Queue" = field(default_factory=asyncio.Queue)
@@ -61,8 +67,8 @@ class AnalysisStartRequest(BaseModel):
     condition: Condition = Field(
         Condition.A,
         description=(
-            "Ablation condition. A=visual only (VIS MODE baseline), "
-            "B=sound only (PANNs CNN14), C=full multimodal."
+            "Ablation condition. A=visual only, "
+            "B=audio only (PANNs CNN14), C=full multimodal."
         ),
     )
     vlm_provider: str = Field(None, description="VLM provider name (auto-detected from available API keys)")
@@ -85,7 +91,8 @@ class AnalysisStatusResponse(BaseModel):
 
 class AnalysisDetectRequest(BaseModel):
     event_type: str
-    deltas: Dict[str, int]
+    deltas: Dict[str, int | float | str]
+    unit: str = "seconds"
 
 class EventResult(BaseModel):
     event_type: str
@@ -102,6 +109,12 @@ class SchemaResponse(BaseModel):
 class EventTypeInfo(BaseModel):
     id: str
     label: str
-    delta_param: Optional[str] = None
+    delta_visual: Optional[str] = None
+    delta_audio: Optional[str] = None
+    eta_visual: Optional[str] = None
+    eta_audio: Optional[str] = None
+    zeta_visual: Optional[str] = None
+    zeta_audio: Optional[str] = None
+    rho_visual: Optional[str] = None
+    rho_audio: Optional[str] = None
     condition: str
-    requires_cpp: bool = False

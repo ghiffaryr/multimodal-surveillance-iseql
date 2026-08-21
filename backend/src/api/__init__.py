@@ -18,6 +18,17 @@ from api.schema_controller import (
     SchemaController,
     EventTypesController,
 )
+from api.event_registry_controller import (
+    EventRegistryController,
+    EventRegistryItemController,
+)
+from api.iseql_compile_controller import IseqlCompileController
+from api.iseql_preview_controller import IseqlPreviewController
+from api.config_controller import ConfigController
+from api.object_memory_controller import (
+    ObjectMemoryStatsController,
+    ObjectMemoryObjectsController,
+)
 from service.impl.analysis_service_impl import AnalysisServiceImpl
 
 _analysis_service = AnalysisServiceImpl()
@@ -37,4 +48,12 @@ ROUTES = {
     '/events/detect': EventsDetectController(),
     '/schema': SchemaController(),
     '/events/types': EventTypesController(),
+    '/events': EventRegistryController(),
+    '/events/{event_id}': EventRegistryItemController(),
+    '/iseql/compile': IseqlCompileController(),
+    '/iseql/preview': IseqlPreviewController(),
+    '/analysis/{analysis_id}/memory/stats': ObjectMemoryStatsController(),
+    '/analysis/{analysis_id}/memory/objects': ObjectMemoryObjectsController(),
+    '/config': ConfigController(),
+    '/config/{key}': ConfigController(),
 }

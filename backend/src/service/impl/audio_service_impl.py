@@ -18,8 +18,6 @@ from service.audio_service import AudioService
 log = get_logger(__name__)
 
 SAMPLE_RATE = 32000
-WINDOW_SECONDS = 2.5
-HOP_SECONDS = 1.25
 
 AUDIO_PROVIDERS = {"panns": "PANNs CNN14 (local)", "huggingface": "HuggingFace LALM"}
 DEFAULT_AUDIO_MODELS = {"panns": "cnn14", "huggingface": "Qwen/Qwen2-Audio-7B-Instruct"}
@@ -49,67 +47,51 @@ def _stem(word: str) -> str:
             return w[: -len(suf)]
     return w
 
-_GT_KEYWORDS = {
-    "shout": {"shout", "yell", "scream"},
-    "impact": {"impact", "thump", "thud", "bang", "slam", "smash", "crash", "punch", "hit"},
-    "gunshot_or_explosion": {"gunshot", "gunfire", "artillery_fire", "artillery", "explosion", "explosive", "firework", "boom", "burst", "pop"},
-    "engine": {"engine", "vehicle", "car", "vroom"},
-    "tire_squeal": {"tire", "tyre", "tire_squeal", "screech", "squeal"},
-    "skidding": {"skidding", "skid"},
-    "glass_breaking": {"glass", "glass_breaking", "shatter", "shattering"},
-    "horn": {"horn", "honk", "honking"},
-}
+# The audio-event taxonomy (classes + keyword map) is user-configured and
+# persisted in the AppConfig store; it is passed in explicitly. There are no
+# hardcoded defaults in the backend.
 
-_SYNONYM_LOOKUP: dict[str, str] = {}
-for gt, kws in _GT_KEYWORDS.items():
-    for kw in kws:
-        _SYNONYM_LOOKUP[kw] = gt
-        _SYNONYM_LOOKUP[_stem(kw)] = gt
+def _build_synonym_lookup(keywords: dict[str, list[str]]) -> dict[str, str]:
+    """Build the class synonym map (keyword + stem -> class)."""
+    synonyms: dict[str, str] = {}
+    for gt, kws in keywords.items():
+        for kw in kws:
+            synonyms[kw] = gt
+            synonyms[_stem(kw)] = gt
+    return synonyms
 
-TIRE_SQUEAL_KWS = _GT_KEYWORDS["tire_squeal"]
-HORN_KWS = _GT_KEYWORDS["horn"]
 
-def normalize(text: str) -> str | None:
+def normalize(text: str, synonyms: dict[str, str]) -> str | None:
+    """Resolve a free-text model response to an audio class.
+
+    Resolves naturally: exact whole-string keyword, stemmed whole-string,
+    then token-by-token synonym matching.
+    """
     clean = _RE_KEEP.sub(" ", text or "").lower()
     clean = " ".join(clean.split())
     if not clean:
         return None
-    # Direct check: if the whole cleaned string (with underscores) is a known keyword
     under = clean.replace(" ", "_")
-    if under in _SYNONYM_LOOKUP:
-        return _SYNONYM_LOOKUP[under]
+    if under in synonyms:
+        return synonyms[under]
     s_under = _stem(under)
-    if s_under in _SYNONYM_LOOKUP:
-        return _SYNONYM_LOOKUP[s_under]
-    # Tokenize and check token-by-token
+    if s_under in synonyms:
+        return synonyms[s_under]
     tokens = [t.strip("_.,;:!?'\"") for t in re.split(r"[_ ,;:\-]+", clean)]
     tokens = [t for t in tokens if len(t) >= 2]
+    for token in tokens:
+        if token in synonyms:
+            return synonyms[token]
+        s = _stem(token)
+        if s in synonyms:
+            return synonyms[s]
     if not tokens:
         return under
-    # Priority: if any token is a tire_squeal keyword, resolve to tire_squeal
-    for token in tokens:
-        if token in TIRE_SQUEAL_KWS or _stem(token) in TIRE_SQUEAL_KWS:
-            return "tire_squeal"
-    # Priority: if any token is a horn keyword, resolve to horn
-    for token in tokens:
-        if token in HORN_KWS or _stem(token) in HORN_KWS:
-            return "horn"
-    fallback = tokens[0]
-    for token in tokens:
-        if token in _SYNONYM_LOOKUP:
-            return _SYNONYM_LOOKUP[token]
-        s = _stem(token)
-        if s in _SYNONYM_LOOKUP:
-            return _SYNONYM_LOOKUP[s]
     return None
 
-DEFAULT_QUERY_DELTA = {"fight": 120, "gunshot_or_explosion": 60, "vehicle_escape": 150, "loitering": 30, "vehicle_collision": 60}
-DEFAULT_QUERY_THRESHOLD = {"fight": 0.05, "gunshot_or_explosion": 0.05, "vehicle_escape": 0.05, "loitering": 0.05, "vehicle_collision": 0.05}
-
-
 def _sliding_windows(audio: np.ndarray, sr: int, fps: int,
-                     window_seconds: float = WINDOW_SECONDS,
-                     hop_seconds: float = HOP_SECONDS) -> list[tuple[int, int, np.ndarray]]:
+                     window_seconds: float,
+                     hop_seconds: float) -> list[tuple[int, int, np.ndarray]]:
     win_s = int(window_seconds * sr)
     hop_s = int(hop_seconds * sr)
     windows = []
@@ -124,11 +106,11 @@ def _sliding_windows(audio: np.ndarray, sr: int, fps: int,
 
 
 def _merge_predictions(predictions: list[dict], fps: int,
-                       hop_seconds: float = HOP_SECONDS) -> list[dict]:
+                       hop_seconds: float) -> list[dict]:
     gap = int(hop_seconds * fps)
     merged: dict[str, list] = {}
     for r in predictions:
-        merged.setdefault(r["sound_class"], []).append(r)
+        merged.setdefault(r["audio_class"], []).append(r)
     out = []
     for sc, evs in merged.items():
         evs.sort(key=lambda x: x["start_frame"])
@@ -189,15 +171,23 @@ def extract_wav(video_path: Path, out_wav_path: Path, sample_rate: int = 16000, 
 
 
 class AudioServiceImpl(AudioService):
-    def __init__(self, audio_provider: str = "panns", audio_model: str = None,
-                 quantization: str = "none", device: str = "cpu",
-                 audio_window: float = 2.5, audio_hop: float = 1.25):
+    def __init__(self, audio_provider: str, audio_model: str | None,
+                 quantization: str, audio_window: float, audio_hop: float,
+                 classes: list[str], keywords: dict[str, list[str]],
+                 device: str = "cpu"):
+        if not classes:
+            raise ValueError("audio taxonomy classes must not be empty")
+        if not keywords:
+            raise ValueError("audio taxonomy keywords must not be empty")
         self.audio_provider = audio_provider
         self.audio_model = audio_model
         self.quantization = quantization
         self.device = device
         self.window_seconds = audio_window
         self.hop_seconds = audio_hop
+        self.classes = list(classes)
+        self.keywords = {k: list(v) for k, v in keywords.items()}
+        self._synonyms = _build_synonym_lookup(self.keywords)
 
     def run_pipeline(self, video_path: Path, conn: sqlite3.Connection, out_dir: Path,
                      fps: int = 24, analysis_id: str = "",
@@ -221,19 +211,19 @@ class AudioServiceImpl(AudioService):
         cur = conn.cursor()
         count = 0
         for sc, sf, ef, cf in results:
-            csc = normalize(sc)
+            csc = normalize(sc, self._synonyms)
             if csc is not None:
                 cur.execute(
-                    "INSERT INTO SoundPerInterval (AnalysisID, SoundClass, StartFrame, EndFrame, Confidence) VALUES (?, ?, ?, ?, ?)",
+                    "INSERT INTO AudioPerInterval (AnalysisID, AudioClass, StartFrame, EndFrame, Confidence) VALUES (?, ?, ?, ?, ?)",
                     (analysis_id, csc, sf, ef, cf),
                 )
                 count += 1
 
         conn.commit()
-        log_fn(f"persisted {count} SoundPerInterval rows from {self.audio_provider}")
+        log_fn(f"persisted {count} AudioPerInterval rows from {self.audio_provider}")
 
         return {"wav_path": str(wav_path), "duration_s": float(duration),
-                "n_sound_events": len(results), "audio_provider": self.audio_provider}
+                "n_audio_events": len(results), "audio_provider": self.audio_provider}
 
     def _analyze_audio(self, audio_path: str, fps: int, log_fn) -> list:
         if self.audio_provider == "panns":
@@ -293,12 +283,12 @@ class AudioServiceImpl(AudioService):
                 log_fn(f"  window classify failed: {e}")
                 top = []
             for label, conf in top:
-                all_results.append({"sound_class": label, "start_frame": sf_,
+                all_results.append({"audio_class": label, "start_frame": sf_,
                                     "end_frame": ef_, "confidence": conf})
 
         out = _merge_predictions(all_results, fps, self.hop_seconds)
-        log_fn(f"PANNs: {len(out)} sound events detected")
-        return [(r["sound_class"], r["start_frame"], r["end_frame"], r["confidence"]) for r in out]
+        log_fn(f"PANNs: {len(out)} audio events detected")
+        return [(r["audio_class"], r["start_frame"], r["end_frame"], r["confidence"]) for r in out]
 
     def _analyze_huggingface(self, audio_path: str, fps: int, log_fn) -> list:
         import torch
@@ -325,9 +315,6 @@ class AudioServiceImpl(AudioService):
         all_results, window_idx = [], 0
         import os, tempfile
 
-        CLASSES = ['shout', 'impact', 'gunshot_or_explosion', 'engine',
-                   'tire_squeal', 'glass_breaking', 'horn', 'skidding']
-
         for sf_, ef_, clip in _sliding_windows(waveform, sr, fps,
                                                 self.window_seconds, self.hop_seconds):
             path = os.path.join(tempfile.gettempdir(), f"qwen2_window_{window_idx}.wav")
@@ -335,7 +322,7 @@ class AudioServiceImpl(AudioService):
 
             prompt = (
                 "Analyze the audio clip. What is the most prominent sound?\n"
-                "Choose exactly one category from: " + ", ".join(CLASSES) + "\n"
+                "Choose exactly one category from: " + ", ".join(self.classes) + "\n"
                 "\n"
                 "If NONE of the above categories apply, output: none()\n"
                 "\n"
@@ -354,9 +341,9 @@ class AudioServiceImpl(AudioService):
 
             resp = response.strip().rstrip(". ").replace(" ", "_")
             if resp and resp not in ('none', 'none()'):
-                csc = normalize(resp)
+                csc = normalize(resp, self._synonyms)
                 if csc:
-                    all_results.append({"sound_class": csc, "start_frame": sf_, "end_frame": ef_, "confidence": 1.0})
+                    all_results.append({"audio_class": csc, "start_frame": sf_, "end_frame": ef_, "confidence": 1.0})
                     log_fn(f"  Window {window_idx}: {csc}")
 
             window_idx += 1
@@ -368,8 +355,8 @@ class AudioServiceImpl(AudioService):
                 pass
 
         out = _merge_predictions(all_results, fps, self.hop_seconds)
-        log_fn(f"HuggingFace LALM: {len(out)} sound events detected")
-        return [(r["sound_class"], r["start_frame"], r["end_frame"], r["confidence"]) for r in out]
+        log_fn(f"HuggingFace LALM: {len(out)} audio events detected")
+        return [(r["audio_class"], r["start_frame"], r["end_frame"], r["confidence"]) for r in out]
 
 
 

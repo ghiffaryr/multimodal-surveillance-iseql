@@ -18,6 +18,46 @@ from utils.vlm_client import VLMClient
 log = get_logger(__name__)
 
 
+def _parse_json_field(raw: str | None) -> dict | None:
+    """Parse an optional JSON form field into a dict (None when empty/absent)."""
+    if not raw or not raw.strip():
+        return None
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=400, detail=f"invalid JSON field: {e}")
+    if not isinstance(parsed, dict):
+        raise HTTPException(status_code=400, detail="expected a JSON object")
+    return parsed
+
+
+def _parse_audio_classes(raw: dict | None) -> list[str] | None:
+    """Validate the audio classes payload ({"classes": [...]})."""
+    if raw is None:
+        return None
+    classes = raw.get("classes")
+    if not isinstance(classes, list) or not all(isinstance(c, str) and c for c in classes):
+        raise HTTPException(status_code=400, detail="audio classes must be a list of non-empty strings")
+    return classes
+
+
+def _parse_audio_keywords(raw: dict | None) -> dict[str, list[str]] | None:
+    """Validate the audio keywords payload ({"keywords": {class: [kw, ...]}})."""
+    if raw is None:
+        return None
+    keywords = raw.get("keywords")
+    if not isinstance(keywords, dict):
+        raise HTTPException(status_code=400, detail="audio keywords must be an object mapping class -> keywords")
+    out: dict[str, list[str]] = {}
+    for cls, kws in keywords.items():
+        if not isinstance(cls, str) or not cls:
+            raise HTTPException(status_code=400, detail="audio keyword class must be a non-empty string")
+        if not isinstance(kws, list) or not all(isinstance(k, str) and k for k in kws):
+            raise HTTPException(status_code=400, detail=f"audio keywords for '{cls}' must be a list of strings")
+        out[cls] = list(kws)
+    return out
+
+
 class AnalysisStartController:
     """Start a new analysis by uploading a video."""
     def __init__(self, analysis_service) -> None:
@@ -35,11 +75,17 @@ class AnalysisStartController:
         vlm_delay: float = Form(0.0),
         vlm_quantization: str = Form("none"),
         max_retries: int = Form(3),
+        embed_provider: str = Form(None),
+        embed_model: str = Form(""),
+        memory_n: int = Form(3),
+        memory_top_k: int = Form(5),
         audio_provider: str = Form("panns"),
         audio_model: str = Form("cnn14"),
         audio_quantization: str = Form("none"),
         audio_window: float = Form(2.5),
         audio_hop: float = Form(1.25),
+        audio_classes: str = Form(None),
+        audio_keywords: str = Form(None),
     ) -> AnalysisStartResponse:
         cfg = Config.get()
         available = Config.get_available_providers()
@@ -48,6 +94,10 @@ class AnalysisStartController:
             raise HTTPException(status_code=400, detail=f"unknown condition '{condition}'; expected A | B | C")
         if vlm_provider is None:
             vlm_provider = available[0] if available else "ollama"
+        if embed_provider is None:
+            embed_provider = "huggingface"
+        if not embed_model:
+            embed_model = "google/siglip-base-patch16-224"
         if condition in ("A", "C") and vlm_provider not in available:
             raise HTTPException(status_code=400, detail=f"Provider '{vlm_provider}' not available")
 
@@ -95,11 +145,17 @@ class AnalysisStartController:
             vlm_delay=vlm_delay,
             vlm_quantization=vlm_quantization,
             max_retries=max_retries,
+            embed_provider=embed_provider,
+            embed_model=embed_model,
+            memory_n=int(memory_n),
+            memory_top_k=int(memory_top_k),
             audio_provider=audio_provider,
             audio_model=audio_model,
             audio_quantization=audio_quantization,
             audio_window=audio_window,
             audio_hop=audio_hop,
+            audio_classes=_parse_audio_classes(_parse_json_field(audio_classes)),
+            audio_keywords=_parse_audio_keywords(_parse_json_field(audio_keywords)),
         )
         return AnalysisStartResponse(
             analysis_id=run.id,
@@ -152,6 +208,7 @@ class AnalysisDetectController:
             event_type=request.event_type,
             condition=run.condition,
             deltas=request.deltas,
+            unit=request.unit,
         )
 
 
@@ -179,7 +236,11 @@ class VLMModelsController:
         if provider not in available:
             raise HTTPException(status_code=400, detail=f"Provider '{provider}' not available")
         try:
-            client = VLMClient(provider=provider)
+            # Model listing is only meaningful for ollama (server-side tags);
+            # a client without an explicit model cannot be constructed.
+            if provider != "ollama":
+                return {"models": []}
+            client = VLMClient(provider=provider, model="_list_models_")
             return {"models": client.list_models()}
         except Exception as e:
             log.warning("Cannot list models for %s: %s", provider, e)

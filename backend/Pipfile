@@ -15,12 +15,15 @@ uvicorn = {extras = ["standard"], version = "==0.40.0"}
 sse-starlette = "==3.4.4"
 python-multipart = "==0.0.21"
 httpx = "==0.28.1"
+requests = "==2.34.2"
+chromadb = "==1.1.1"
 
 # --- Data validation / settings ---
 pydantic = "==2.12.5"
 pydantic-settings = "==2.10.1"
 pyyaml = "==6.0.2"
 munch = "==4.0.0"
+json_repair = "==0.25.3"
 
 # --- VLM providers ---
 openai = "==2.32.0"

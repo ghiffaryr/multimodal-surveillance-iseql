@@ -5,13 +5,32 @@ from fastapi import APIRouter
 from __init__ import __app_name__, __version__
 from utils.config import Config
 
-from service.impl.events_service_impl import events_for_condition
+from service.impl.events_service_impl import default_deltas_for, derive_delta_fields, events_for_condition
+from service.impl.event_registry_service_impl import _registry_conn
 
-def _event_specs(condition: str) -> list[tuple]:
-    return [
-        (e.id, e.label, e.delta_param, e.condition, e.requires_cpp, e.delta_param2)
-        for e in events_for_condition(condition)
-    ]
+_DELTA_FIELDS = (
+    "delta_visual", "delta_audio", "epsilon_visual", "epsilon_audio",
+    "eta_visual", "eta_audio", "zeta_visual", "zeta_audio", "rho_visual", "rho_audio",
+)
+
+
+def _event_specs(condition: str) -> list[dict]:
+    conn = _registry_conn()
+    try:
+        specs = events_for_condition(condition, conn=conn)
+    finally:
+        conn.close()
+    out = []
+    for e in specs:
+        delta = derive_delta_fields(e.model_json) if e.model_json else {}
+        fields = {f: delta.get(f) for f in _DELTA_FIELDS if delta.get(f)}
+        out.append({
+            "id": e.id,
+            **{f: delta.get(f) for f in _DELTA_FIELDS},
+            "default_deltas": default_deltas_for(e.model_json, e.id, fields),
+            "condition": e.condition,
+        })
+    return out
 
 class SchemaController:
     async def on_get(self) -> dict:
@@ -26,29 +45,20 @@ class SchemaController:
                 "VisualRelation": "Frame, RelationID, RelationType, ClassID",
                 "VisualPerInterval": "RelationID PK, StartFrame, EndFrame, RelationType",
                 "VisualParticipant": "RelationID, ClassID, Class",
-                "SoundPerInterval": "SoundIntervalID PK, StartFrame, EndFrame, SoundClass, Confidence",
+                "AudioPerInterval": "AudioIntervalID PK, StartFrame, EndFrame, AudioClass, Confidence",
 
             },
             "events": {
-                "A_visual": [e[0] for e in _event_specs("A")],
-                "B_sound_only": [e[0] for e in _event_specs("B")],
-                "C_sound_visual": [e[0] for e in _event_specs("C")],
+                "A_visual": [e["id"] for e in _event_specs("A")],
+                "B_audio_only": [e["id"] for e in _event_specs("B")],
+                "C_audio_visual": [e["id"] for e in _event_specs("C")],
             },
         }
 
 class EventTypesController:
     async def on_get(self) -> dict:
         return {
-            "A_visual": [
-                {"id": e[0], "label": e[1], "delta_param": e[2], "condition": e[3], "requires_cpp": e[4], "delta_param2": e[5]}
-                for e in _event_specs("A")
-            ],
-            "B_sound_only": [
-                {"id": e[0], "label": e[1], "delta_param": e[2], "condition": e[3], "requires_cpp": e[4], "delta_param2": e[5]}
-                for e in _event_specs("B")
-            ],
-            "C_sound_visual": [
-                {"id": e[0], "label": e[1], "delta_param": e[2], "condition": e[3], "requires_cpp": e[4], "delta_param2": e[5]}
-                for e in _event_specs("C")
-            ],
+            "A_visual": _event_specs("A"),
+            "B_audio_only": _event_specs("B"),
+            "C_audio_visual": _event_specs("C"),
         }

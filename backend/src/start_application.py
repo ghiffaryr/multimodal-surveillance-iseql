@@ -24,10 +24,17 @@ async def lifespan(app: FastAPI):
     upload_dir.mkdir(parents=True, exist_ok=True)
     data_dir.mkdir(parents=True, exist_ok=True)
     log.info("Upload dir: %s", upload_dir)
-    log.info("Database:    %s", cfg.data.db_path)
-    log.info("Engine:      %s", cfg.engine.iseql_path)
+    log.info("Database: %s", cfg.data.db_path)
     log.info("Available VLM providers: %s", Config.get_available_providers())
-    
+
+    # Ensure schema is present (events/config are user-defined, no auto-seed)
+    try:
+        from utils.database import setup_database
+        conn, _ = setup_database(Path(cfg.data.db_path))
+        conn.close()
+    except Exception as e:
+        log.warning("Failed to set up database at startup: %s", e)
+
     # Load previous runs from database
     restored = _analysis_service.load_from_db()
     if restored > 0:
@@ -43,8 +50,8 @@ def create_app() -> FastAPI:
         version=cfg.app.version,
         description=(
             "Three-condition ablation study for WATCHOUT ISEQL. "
-            "A = visual only (VIS MODE baseline), "
-            "B = PANNs CNN14 sound only, "
+            "A = visual only, "
+            "B = PANNs CNN14 audio only, "
             "C = full multimodal (VLM + PANNs + ISEQL)."
         ),
         lifespan=lifespan,
@@ -69,6 +76,12 @@ def create_app() -> FastAPI:
             app.add_api_route(full_path, controller.on_get, methods=["GET"])
         if hasattr(controller, 'on_post'):
             app.add_api_route(full_path, controller.on_post, methods=["POST"])
+        if hasattr(controller, 'on_put'):
+            app.add_api_route(full_path, controller.on_put, methods=["PUT"])
+        if hasattr(controller, 'on_delete'):
+            app.add_api_route(full_path, controller.on_delete, methods=["DELETE"])
+        if hasattr(controller, 'on_patch'):
+            app.add_api_route(full_path, controller.on_patch, methods=["PATCH"])
 
     @app.get(cfg.server.servlet.context_path + "/health")
     async def health() -> dict:

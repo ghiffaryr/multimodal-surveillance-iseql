@@ -26,6 +26,10 @@ SCHEMA_STATEMENTS: list[str] = [
         VLMDelay       REAL    DEFAULT 0.0,
         VLMQuantization TEXT   DEFAULT 'none',
         MaxRetries     INTEGER DEFAULT 3,
+        EmbedProvider  TEXT    DEFAULT 'huggingface',
+        EmbedModel     TEXT    DEFAULT 'google/siglip-base-patch16-224',
+        MemoryN        INTEGER DEFAULT 3,
+        MemoryTopK     INTEGER DEFAULT 5,
         AudioProvider  TEXT    DEFAULT 'panns',
         AudioModel     TEXT,
         AudioQuantization TEXT DEFAULT 'none',
@@ -75,18 +79,34 @@ SCHEMA_STATEMENTS: list[str] = [
         PRIMARY KEY (RelationID, ClassID)
     );""",
 
-    """CREATE TABLE IF NOT EXISTS SoundPerInterval (
-        SoundIntervalID INTEGER PRIMARY KEY AUTOINCREMENT,
+    """CREATE TABLE IF NOT EXISTS AudioPerInterval (
+        AudioIntervalID INTEGER PRIMARY KEY AUTOINCREMENT,
         AnalysisID      TEXT    NOT NULL,
         StartFrame      INTEGER NOT NULL,
         EndFrame        INTEGER NOT NULL,
-        SoundClass      TEXT    NOT NULL,
+        AudioClass      TEXT    NOT NULL,
         Confidence      REAL    DEFAULT 1.0
     );""",
-    "CREATE INDEX IF NOT EXISTS idx_SoundPerInterval_aid   ON SoundPerInterval (AnalysisID);",
-    "CREATE INDEX IF NOT EXISTS idx_SoundPerInterval_start ON SoundPerInterval (StartFrame);",
-    "CREATE INDEX IF NOT EXISTS idx_SoundPerInterval_end   ON SoundPerInterval (EndFrame);",
-    "CREATE INDEX IF NOT EXISTS idx_SoundPerInterval_class ON SoundPerInterval (SoundClass);",
+    "CREATE INDEX IF NOT EXISTS idx_AudioPerInterval_aid   ON AudioPerInterval (AnalysisID);",
+    "CREATE INDEX IF NOT EXISTS idx_AudioPerInterval_start ON AudioPerInterval (StartFrame);",
+    "CREATE INDEX IF NOT EXISTS idx_AudioPerInterval_end   ON AudioPerInterval (EndFrame);",
+    "CREATE INDEX IF NOT EXISTS idx_AudioPerInterval_class ON AudioPerInterval (AudioClass);",
+
+    """CREATE TABLE IF NOT EXISTS EventSpec (
+        id           TEXT    NOT NULL,
+        condition    TEXT    NOT NULL,
+        model_json   TEXT,
+        created_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+        updated_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (id, condition)
+    );""",
+    "CREATE INDEX IF NOT EXISTS idx_EventSpec_condition ON EventSpec (condition);",
+
+    """CREATE TABLE IF NOT EXISTS AppConfig (
+        key        TEXT PRIMARY KEY,
+        value_json TEXT    NOT NULL,
+        updated_at TEXT    NOT NULL DEFAULT (datetime('now'))
+    );""",
 ]
 
 
@@ -95,8 +115,62 @@ def setup_database(db_path: Path) -> Tuple[sqlite3.Connection, sqlite3.Cursor]:
     db_path.parent.mkdir(parents=True, exist_ok=True)
     log.info("Setting up database at %s", db_path)
     conn = sqlite3.connect(str(db_path), timeout=60.0)
+    conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
     for stmt in SCHEMA_STATEMENTS:
         cursor.execute(stmt)
+    _migrate_eventspec(conn)
+    _ensure_columns(conn, "Analyses", {
+        "EmbedProvider": "TEXT DEFAULT 'huggingface'",
+        "EmbedModel": "TEXT DEFAULT 'google/siglip-base-patch16-224'",
+        "MemoryN": "INTEGER DEFAULT 3",
+        "MemoryTopK": "INTEGER DEFAULT 5",
+    })
     conn.commit()
     return conn, cursor
+
+
+_LEGACY_EVENTSPEC_COLUMNS = {
+    "enabled", "delta_visual", "delta_audio", "epsilon_visual", "epsilon_audio",
+    "eta_visual", "eta_audio", "zeta_visual", "zeta_audio", "rho_visual", "rho_audio",
+    "iseql", "query_sql",
+}
+
+
+def _migrate_eventspec(conn: sqlite3.Connection) -> None:
+    """Rebuild EventSpec without legacy columns and drop GeometryEventSpec.
+
+    Older DBs carry a dead ``GeometryEventSpec`` table and a denormalised
+    EventSpec (enabled / per-parameter delta columns / cached iseql + query_sql).
+    ``model_json`` is the single source of truth, so those columns are dropped.
+    """
+    conn.execute("DROP TABLE IF EXISTS GeometryEventSpec")
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(EventSpec)").fetchall()}
+    if not (cols & _LEGACY_EVENTSPEC_COLUMNS):
+        return
+    conn.execute(
+        """CREATE TABLE EventSpec_migrated (
+            id           TEXT    NOT NULL,
+            condition    TEXT    NOT NULL,
+            model_json   TEXT,
+            created_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+            updated_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+            PRIMARY KEY (id, condition)
+        )"""
+    )
+    conn.execute(
+        "INSERT INTO EventSpec_migrated (id, condition, model_json, created_at, updated_at) "
+        "SELECT id, condition, model_json, created_at, updated_at FROM EventSpec"
+    )
+    conn.execute("DROP TABLE EventSpec")
+    conn.execute("ALTER TABLE EventSpec_migrated RENAME TO EventSpec")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_EventSpec_condition ON EventSpec (condition)")
+    log.info("Migrated EventSpec: dropped legacy columns")
+
+
+def _ensure_columns(conn: sqlite3.Connection, table: str, columns: dict[str, str]) -> None:
+    """Additive migration: append any missing columns so existing DBs work."""
+    existing = {row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+    for name, ddl in columns.items():
+        if name not in existing:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}")
