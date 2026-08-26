@@ -1,26 +1,154 @@
-.PHONY: help backend frontend local docker clean
+.PHONY: help backend frontend \
+	local local-backend local-frontend local-eval local-stop local-status local-clean \
+	hpc hpc-backend hpc-frontend hpc-eval hpc-stop hpc-status hpc-clean \
+	docker docker-backend docker-frontend docker-eval docker-stop docker-status docker-clean clean stop status ngrok ngrok-stop ngrok-status
 
 help:
 	@echo "WATCHOUT ISEQL -- three-condition ablation study"
 	@echo ""
-	@echo "  make backend           - Install Python deps via Pipenv"
-	@echo "  make frontend          - Install JS deps via pnpm"
-	@echo "  make local             - Run backend + frontend locally (no Docker)"
-	@echo "  make docker            - Build and run both services via docker-compose"
-	@echo "  make clean             - Remove build artifacts, .db, node_modules, .venv"
-
-backend:
+	@echo "  make backend             - Install Python deps via Pipenv"
+	@echo "  make frontend            - Install JS deps via pnpm"
+	@echo ""
+	@echo "  make local              - Run backend (auto-detect conda + pipenv) + frontend locally"
+	@echo "  make local-backend      - Run backend only (auto-detect conda + pipenv)"
+	@echo "  make local-frontend     - Run frontend only"
+	@echo "  make local-eval         - Run eval queue (local profile)"
+	@echo "  make local-stop         - Stop local services"
+	@echo "  make local-status       - Status local services"
+	@echo "  make local-clean        - Clean local artifacts"
+	@echo ""
+	@echo "  make hpc                - Frontend on caliban, backend on compute-0-3 (A100)"
+	@echo "  make hpc-backend        - Backend only on compute-0-3"
+	@echo "  make hpc-frontend       - Frontend only"
+	@echo "  make hpc-eval           - Run eval queue on compute-0-3 (HPC profile)"
+	@echo "  make hpc-stop           - Stop HPC backend + frontend"
+	@echo "  make hpc-status         - Status HPC services"
+	@echo "  make hpc-clean          - Clean HPC artifacts"
+	@echo ""
+	@echo "  make docker             - Build and run both services via docker-compose"
+	@echo "  make docker-backend     - Run backend only via docker-compose"
+	@echo "  make docker-frontend    - Run frontend only via docker-compose"
+	@echo "  make docker-eval        - Run eval queue (docker profile)"
+	@echo "  make docker-stop        - Stop docker services"
+	@echo "  make docker-status      - Status docker services"
+	@echo "  make docker-clean       - Stop and remove docker containers/volumes"
+	@echo ""
+	@echo "  make clean              - Clean all artifacts"
+	@echo "  make status             - Status all profiles"
+	@echo "  make stop               - Stop all profiles"
+	@echo ""
+	@echo "  make ngrok              - Start a public tunnel to the frontend (:5173)"
+	@echo "  make ngrok-stop         - Stop the ngrok tunnel"
+	@echo "  make ngrok-status       - Show the public ngrok URL"
 	cd backend && pipenv install --dev
 
 frontend:
 	cd frontend && pnpm install
 
+local-backend:
+	PROFILE=local bash scripts/start.sh backend
+
+local-frontend:
+	PROFILE=local bash scripts/start.sh frontend
+
 local:
-	bash scripts/dev.sh
+	PROFILE=local bash scripts/start.sh
+
+local-eval:
+	PROFILE=local bash scripts/eval.sh
+
+local-stop:
+	pkill -f "uvicorn.*8000" 2>/dev/null || true
+	pkill -f "vite.*5173" 2>/dev/null || true
+	pkill -f "ngrok http" 2>/dev/null || true
+
+local-status:
+	@echo "== local status =="
+	@curl -s http://localhost:8000/api/health 2>&1 | grep -q '"status":"ok"' && echo "backend: UP (8000)" || echo "backend: DOWN"
+	@ss -tlnp 2>/dev/null | grep -q ":8000" && echo "port 8000: LISTEN" || echo "port 8000: -"
+	@ss -tlnp 2>/dev/null | grep -q ":5173" && echo "frontend: UP (5173)" || echo "frontend: DOWN"
+	@curl -s http://localhost:11434/api/version 2>&1 | grep -q version && echo "ollama: UP (localhost)" || echo "ollama: DOWN"
+
+local-clean:
+	rm -rf data/analysis.db data/analysis.db-shm data/analysis.db-wal
+	rm -rf frontend/node_modules frontend/.svelte-kit
+
+hpc-backend:
+	BACKEND_HOST=compute-0-3 PROFILE=hpc bash scripts/start.sh backend
+
+hpc-frontend:
+	BACKEND_HOST=compute-0-3 PROFILE=hpc bash scripts/start.sh frontend
+
+hpc:
+	BACKEND_HOST=compute-0-3 PROFILE=hpc bash scripts/start.sh
+
+hpc-eval:
+	BACKEND_HOST=compute-0-3 PROFILE=hpc bash scripts/eval.sh
+
+hpc-stop:
+	pkill -f "uvicorn.*8000" 2>/dev/null || true
+	ssh compute-0-3 "pkill -f 'uvicorn.*8000' 2>/dev/null || true" 2>/dev/null || true
+	pkill -f "ssh.*-L 8000" 2>/dev/null || true
+	pkill -f "vite.*5173" 2>/dev/null || true
+	pkill -f "ngrok http" 2>/dev/null || true
+
+hpc-status:
+	@echo "== hpc status =="
+	@curl -s http://localhost:8000/api/health 2>&1 | grep -q '"status":"ok"' && echo "backend: UP (via tunnel)" || echo "backend: DOWN"
+	@ssh -o BatchMode=yes -o ConnectTimeout=3 compute-0-3 "curl -s http://localhost:11434/api/version 2>&1 | grep -q version && echo 'ollama@compute-0-3: UP' || echo 'ollama@compute-0-3: DOWN'" 2>/dev/null || echo "ollama@compute-0-3: UNREACHABLE"
+	@ss -tlnp 2>/dev/null | grep -q ":5173" && echo "frontend: UP (5173)" || echo "frontend: DOWN"
+	@curl -s http://127.0.0.1:4040/api/tunnels 2>/dev/null | grep -q public_url && echo "ngrok: UP" || echo "ngrok: DOWN"
+
+hpc-clean:
+	rm -rf data/analysis.db data/analysis.db-shm data/analysis.db-wal
+	rm -rf frontend/node_modules frontend/.svelte-kit
+
+docker-backend:
+	PROFILE=docker docker compose up --build backend
+
+docker-frontend:
+	PROFILE=docker docker compose up --build frontend
 
 docker:
-	docker compose up --build
+	PROFILE=docker docker compose up --build
 
-clean:
-	rm -rf data/analysis.db
+docker-eval:
+	PROFILE=docker bash scripts/eval.sh
+
+docker-stop:
+	docker compose stop 2>/dev/null || true
+	pkill -f "ngrok http" 2>/dev/null || true
+
+docker-status:
+	@docker compose ps 2>&1 | head -20
+	@curl -s http://localhost:8000/api/health 2>&1 | grep -q '"status":"ok"' && echo "backend: UP" || echo "backend: DOWN"
+
+docker-clean:
+	docker compose down -v --remove-orphans 2>/dev/null || true
+
+NGROK_URL := $(shell curl -s http://127.0.0.1:4040/api/tunnels 2>/dev/null | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["tunnels"][0]["public_url"] if d["tunnels"] else "")' 2>/dev/null)
+
+ngrok:
+	@if [ -n "$(NGROK_URL)" ]; then \
+	  echo "ngrok already running: $(NGROK_URL)"; \
+	else \
+	  nohup ngrok http 5173 > /tmp/ngrok.log 2>&1 & \
+	  sleep 6; \
+	  echo "ngrok started: $$(curl -s http://127.0.0.1:4040/api/tunnels | python3 -c 'import json,sys; d=json.load(sys.stdin); print(d["tunnels"][0]["public_url"])')"; \
+	fi
+
+ngrok-stop:
+	pkill -f "ngrok http" 2>/dev/null || true
+	@echo "ngrok stopped"
+
+ngrok-status:
+	@if [ -n "$(NGROK_URL)" ]; then echo "ngrok: $(NGROK_URL)"; else echo "ngrok: DOWN"; fi
+
+status: local-status hpc-status docker-status
+	@echo "All status checked"
+
+stop: local-stop hpc-stop docker-stop ngrok-stop
+	@echo "All stopped"
+
+clean: local-clean hpc-clean docker-clean
 	rm -rf frontend/node_modules frontend/.svelte-kit

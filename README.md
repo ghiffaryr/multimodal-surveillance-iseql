@@ -149,6 +149,61 @@ The full set is authored in the **Events (ISEQL)** configurator, stored in the
 
 ---
 
+## Running (per-profile)
+
+All run targets are **profile-aware** and driven by a single `PROFILE` variable
+(`local`, `hpc`, `docker`), which selects:
+- the backend runner (local conda auto-detect + pipenv / remote GPU node),
+- the matching `config.<profile>.yml` overlay (see `backend/src/resources/`),
+- the FFmpeg/`LD_LIBRARY_PATH` setup (auto-provisioned via conda).
+
+`make local` is a single self-contained profile: it auto-detects an existing
+conda install (`anaconda3`/`miniconda3`, else installs Miniconda3), creates a
+`py310` env with Python 3.10 + FFmpeg, and runs the backend through pipenv.
+
+```bash
+make local      # generic PC: auto-detect conda -> py310 + ffmpeg -> pipenv backend + frontend
+make hpc        # HPC: backend on the GPU node, frontend on the login node
+make docker     # docker compose
+```
+
+Each profile exposes granular targets (e.g. `make hpc-backend`, `make hpc-frontend`,
+`make hpc-eval`, `make hpc-status`, `make hpc-stop`, `make hpc-clean`).
+
+### HPC + ngrok (public access)
+
+On the HPC cluster, GPUs/Ollama live on the compute node while the login node
+runs the frontend. `make hpc` starts the backend on the GPU node (via SSH tunnel
+to `localhost:8000`) and the frontend on the login node (`:5173`). On first run it
+automatically bootstraps the env (conda `py310`, FFmpeg, pipenv venv).
+
+```bash
+# 1) start the app (backend on GPU node, frontend on login node)
+make hpc
+
+# 2) open a public tunnel to the frontend (also proxies /api to the backend)
+ngrok http 5173
+# -> copy the https://....ngrok-free.dev URL from http://127.0.0.1:4040/api/tunnels
+
+# 3) set the tunnel host in frontend/.env (gitignored) if needed:
+#    NGROK_HOST=<your-ngrok-subdomain>.ngrok-free.dev
+
+# 4) stop everything
+make hpc-stop
+```
+
+`make hpc-status` reports backend / frontend / Ollama / ngrok state.
+
+### Docker
+
+```bash
+make docker
+```
+
+Open <http://localhost:5173>.
+
+---
+
 ## Using the app
 
 Events, relations, and audio classes are all **user-configurable**
@@ -185,26 +240,27 @@ make local      # boots backend on :8000 and frontend on :5173
 
 Then open <http://localhost:5173>, upload a video, and pick a **condition** (A / B / C).
 
-### Docker
-
-```bash
-make docker
-```
-
-Open <http://localhost:5173>.
-
 ---
 
 ## Makefile targets
 
-| Target             | What it does                                                   |
-| ------------------ | -------------------------------------------------------------- |
-| `make backend`     | Install Python deps via Pipenv                                 |
-| `make frontend`    | Install JS deps via pnpm                                       |
-| `make local`       | Run backend (`uvicorn`) + frontend (`vite dev`) in parallel    |
-| `make docker`      | Build and run both services via `docker compose`               |
-| `make test`        | Run `pytest`                                                   |
-| `make clean`       | Remove build artefacts, `.db`, `node_modules`, `.venv`, models |
+| Target                              | What it does                                                      |
+| ----------------------------------- | ----------------------------------------------------------------- |
+| `make backend` / `make frontend`    | Install Python / JS deps                                          |
+| `make local`                        | Gen. machine: auto-detect conda -> py310+ffmpeg -> pipenv backend + frontend |
+| `make hpc`                          | HPC: backend on GPU node + frontend on login node                 |
+| `make docker`                       | Build and run both services via `docker compose`                  |
+| `make <profile>-backend`            | Run only the backend for a profile                                |
+| `make <profile>-frontend`           | Run only the frontend for a profile                               |
+| `make <profile>-eval`               | Run the evaluation notebook queue for a profile (via `eval.sh`)   |
+| `make <profile>-status`             | Show backend / frontend / Ollama / ngrok state for a profile      |
+| `make <profile>-stop`               | Stop a profile's services                                         |
+| `make <profile>-clean`              | Clean a profile's artifacts                                       |
+| `make status` / `make stop`         | Status / stop all profiles                                        |
+| `make clean`                        | Clean all artifacts                                               |
+
+Profiles: `local`, `hpc`, `docker`. `PROFILE` can also be set
+directly, e.g. `PROFILE=hpc bash scripts/start.sh backend`.
 
 ---
 

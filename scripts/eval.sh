@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# run_eval_queue.sh - one-shot rerun of the evaluation notebooks, in place.
+# eval.sh - one-shot rerun of the evaluation notebooks, in place (profile-aware via PROFILE).
 #
 # Every notebook is executed via papermill and the executed result is saved
 # back over the same source file (experiments/notebooks/<name>.ipynb), so the
@@ -18,7 +18,7 @@
 #   MULTIMODAL_ONLY=1 only the 8 multimodal eval notebooks (SQL-only)
 #   (none)            full: audio + visual in parallel, then multimodal
 #
-# Example: MULTIMODAL_ONLY=1 ./scripts/run_eval_queue.sh
+# Example: MULTIMODAL_ONLY=1 PROFILE=hpc ./scripts/eval.sh  or  make hpc-eval
 #
 # Exit status: 0 = every notebook succeeded, 1 = at least one failed.
 #
@@ -26,10 +26,42 @@ set -u
 
 # ---- config -------------------------------------------------------------
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PY="/home/ghiffaryr/anaconda3/envs/py310/bin/python"
-KERNEL="py310"
+
+# Strict: no silent fallback to a wrong profile/mode.
+PROFILE="${PROFILE:-}"
+VALID_PROFILES="local hpc docker"
+case " $VALID_PROFILES " in
+  *" $PROFILE "*) ;;
+  "") echo "ERROR: PROFILE not set (use one of: $VALID_PROFILES)" >&2; exit 2 ;;
+  *) echo "ERROR: invalid PROFILE='$PROFILE' (use one of: $VALID_PROFILES)" >&2; exit 2 ;;
+esac
+
 NOTEBOOKS_DIR="$ROOT/experiments/notebooks"
 LOG="$NOTEBOOKS_DIR/progress.log"
+case "$PROFILE" in
+  hpc)
+    PY="pipenv"
+    PY_ARGS="run python"
+    KERNEL="python3"
+    REMOTE="${BACKEND_HOST:-}"
+    ;;
+  docker)
+    PY="docker"
+    PY_ARGS="compose exec backend python"
+    KERNEL="python3"
+    ;;
+  local)
+    PY="pipenv"
+    PY_ARGS="run python"
+    KERNEL="python3"
+    ;;
+esac
+
+# hpc requires the GPU node host (no silent fallback)
+if [[ "$PROFILE" == "hpc" && -z "${BACKEND_HOST:-}" ]]; then
+  echo "ERROR: BACKEND_HOST is required for PROFILE=hpc (e.g. BACKEND_HOST=compute-0-3)" >&2
+  exit 2
+fi
 
 AUDIO_ONLY="${AUDIO_ONLY:-0}"
 VISUAL_ONLY="${VISUAL_ONLY:-0}"
@@ -56,12 +88,24 @@ log()   { echo "[$(ts)] $*" | tee -a "$LOG"; }
 run_nb() {
   local nb="$1" rc start
   start=$(nowms)
-  log "START  ${nb}.ipynb"
-  "$PY" -m papermill "$NOTEBOOKS_DIR/${nb}.ipynb" "$NOTEBOOKS_DIR/${nb}.ipynb" \
-      -k "$KERNEL" --cwd "$NOTEBOOKS_DIR" --no-progress-bar \
-      --stdout-file "$NOTEBOOKS_DIR/${nb}.out" --log-level WARNING \
-      > /dev/null 2>&1
-  rc=$?
+  log "START  ${nb}.ipynb [profile=$PROFILE]"
+  if [[ -n "${REMOTE:-}" ]]; then
+    ssh -o BatchMode=yes "$REMOTE" "cd \"$ROOT\" && PROFILE=$PROFILE $PY $PY_ARGS -m papermill \"$NOTEBOOKS_DIR/${nb}.ipynb\" \"$NOTEBOOKS_DIR/${nb}.ipynb\" -k \"$KERNEL\" --cwd \"$NOTEBOOKS_DIR\" --no-progress-bar --stdout-file \"$NOTEBOOKS_DIR/${nb}.out\" --log-level WARNING >/dev/null 2>&1"
+    rc=$?
+  elif [[ -n "${PY_ARGS:-}" ]]; then
+    # shellcheck disable=SC2086
+    $PY $PY_ARGS -m papermill "$NOTEBOOKS_DIR/${nb}.ipynb" "$NOTEBOOKS_DIR/${nb}.ipynb" \
+        -k "$KERNEL" --cwd "$NOTEBOOKS_DIR" --no-progress-bar \
+        --stdout-file "$NOTEBOOKS_DIR/${nb}.out" --log-level WARNING \
+        > /dev/null 2>&1
+    rc=$?
+  else
+    "$PY" -m papermill "$NOTEBOOKS_DIR/${nb}.ipynb" "$NOTEBOOKS_DIR/${nb}.ipynb" \
+        -k "$KERNEL" --cwd "$NOTEBOOKS_DIR" --no-progress-bar \
+        --stdout-file "$NOTEBOOKS_DIR/${nb}.out" --log-level WARNING \
+        > /dev/null 2>&1
+    rc=$?
+  fi
   echo "$nb $rc" >> "$RESULTS"
   if [ "$rc" -eq 0 ]; then
     log "DONE(0) ${nb}.ipynb  ($(( ($(nowms)-start)/1000 ))s)"

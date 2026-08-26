@@ -1,0 +1,11 @@
+server:
+  cors_origins: http://localhost:5173,http://127.0.0.1:5173
+data:
+  dir: /app/data
+  db_path: /app/data/analysis.db
+  upload_dir: /app/data/uploads
+vlm:
+  ollama_base_url: http://host.docker.internal:11434
+  timeout: 60
+log:
+  path: /tmp/log

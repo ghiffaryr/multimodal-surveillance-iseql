@@ -19,11 +19,5 @@ vlm:
   ollama_base_url: http://localhost:11434
   timeout: 60
 
-# Server-level infrastructure (managed by the operator, not analysis users):
-# the YOLO weights file path and inference device.
-identity:
-  yolo_path: yolov8s.pt
-  device: null
-
 log:
   path: tmp/log

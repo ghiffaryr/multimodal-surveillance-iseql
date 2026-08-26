@@ -14,9 +14,22 @@ class Config:
     @classmethod
     def _load_config(cls):
         if cls._config is None:
+            def deep_merge(a, b):
+                for k, v in b.items():
+                    if k in a and isinstance(a[k], dict) and isinstance(v, dict):
+                        deep_merge(a[k], v)
+                    else:
+                        a[k] = v
+                return a
             config_path = Path(__file__).parents[1] / 'resources' / 'config.yml'
             with open(config_path, 'r') as file:
                 config = yaml.safe_load(file)
+            profile = os.getenv('PROFILE', '').strip().lower()
+            if profile:
+                overlay = Path(__file__).parents[1] / 'resources' / f'config.{profile}.yml'
+                if overlay.exists():
+                    with open(overlay, 'r') as f:
+                        deep_merge(config, yaml.safe_load(f) or {})
             
             # Resolve relative paths to the project root (backend/src/resources -> backend -> ..)
             project_root = Path(__file__).parents[2].resolve()
@@ -38,6 +51,15 @@ class Config:
             }
             
             config['secrets'] = env_vars
+
+            if os.getenv('OLLAMA_BASE_URL'):
+                config.setdefault('vlm', {})['ollama_base_url'] = os.getenv('OLLAMA_BASE_URL')
+            elif os.getenv('OLLAMA_HOST'):
+                host = os.getenv('OLLAMA_HOST')
+                if not host.startswith('http'):
+                    host = f'http://{host}'
+                config.setdefault('vlm', {})['ollama_base_url'] = host
+
             cls._config = munchify(config)
 
     @classmethod
