@@ -75,7 +75,7 @@
   });
   let audioConfig = $state<AudioConfig>({
     provider: 'panns',
-    model: 'cnn14',
+    model: 'CNN14',
     quantization: 'none',
     window: 2.5,
     hop: 1.25,

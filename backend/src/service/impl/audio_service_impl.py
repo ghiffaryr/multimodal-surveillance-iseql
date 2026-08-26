@@ -13,15 +13,20 @@ import numpy as np
 import scipy.signal
 
 from utils.api_logger import get_logger
+from utils.database import commit_with_retry
+from utils.gpu_allocator import build_device_map
 from service.audio_service import AudioService
 
 log = get_logger(__name__)
 
 SAMPLE_RATE = 32000
 
-AUDIO_PROVIDERS = {"panns": "PANNs CNN14 (local)", "huggingface": "HuggingFace LALM"}
-DEFAULT_AUDIO_MODELS = {"panns": "cnn14", "huggingface": "Qwen/Qwen2-Audio-7B-Instruct"}
+AUDIO_PROVIDERS = {"panns": "PANNs", "huggingface": "HuggingFace LALM"}
 QUANTIZATION_OPTIONS = ["none", "8bit", "4bit"]
+
+# The HuggingFace audio provider supports a single fixed checkpoint (Qwen2-Audio);
+# the model is not user-selectable, mirroring how PANNs pins CNN14.
+QWEN2_AUDIO_MODEL_ID = "Qwen/Qwen2-Audio-7B-Instruct"
 
 # --- determinism (same seed block as the evaluation notebooks) ---
 SEED = 42
@@ -170,19 +175,37 @@ def extract_wav(video_path: Path, out_wav_path: Path, sample_rate: int = 16000, 
     return out_wav_path, duration
 
 
+def estimate_audio_vram_bytes(quantization: str, safety_factor: float) -> int:
+    """Estimate the VRAM the (fixed) Qwen2-Audio model needs (no weight download)."""
+    from transformers import Qwen2AudioForConditionalGeneration
+
+    from utils.vram import estimate_hf_vram_bytes
+    return estimate_hf_vram_bytes(
+        QWEN2_AUDIO_MODEL_ID, Qwen2AudioForConditionalGeneration, quantization, safety_factor
+    )
+
+
 class AudioServiceImpl(AudioService):
-    def __init__(self, audio_provider: str, audio_model: str | None,
-                 quantization: str, audio_window: float, audio_hop: float,
+    def __init__(self, audio_provider: str, quantization: str,
+                 audio_window: float, audio_hop: float,
                  classes: list[str], keywords: dict[str, list[str]],
-                 device: str = "cpu"):
+                 max_memory_fraction: float,
+                 device: str = "cpu", devices: Optional[List[str]] = None,
+                 allow_cpu_offload: bool = False):
         if not classes:
             raise ValueError("audio taxonomy classes must not be empty")
         if not keywords:
             raise ValueError("audio taxonomy keywords must not be empty")
         self.audio_provider = audio_provider
-        self.audio_model = audio_model
+        # Both providers ship a single fixed checkpoint; the model is not
+        # user-selectable.
+        self.audio_model = "CNN14" if audio_provider == "panns" else QWEN2_AUDIO_MODEL_ID
         self.quantization = quantization
         self.device = device
+        # Full leased device set (for sharding a model that exceeds one GPU).
+        self.devices = list(devices) if devices else ([device] if device != "cpu" else ["cpu"])
+        self.max_memory_fraction = max_memory_fraction
+        self.allow_cpu_offload = allow_cpu_offload
         self.window_seconds = audio_window
         self.hop_seconds = audio_hop
         self.classes = list(classes)
@@ -219,7 +242,7 @@ class AudioServiceImpl(AudioService):
                 )
                 count += 1
 
-        conn.commit()
+        commit_with_retry(conn)
         log_fn(f"persisted {count} AudioPerInterval rows from {self.audio_provider}")
 
         return {"wav_path": str(wav_path), "duration_s": float(duration),
@@ -296,8 +319,15 @@ class AudioServiceImpl(AudioService):
         import soundfile as sf
 
         log_fn(f"HuggingFace LALM: loading model...")
-        model_id = self.audio_model or DEFAULT_AUDIO_MODELS.get("huggingface", "Qwen/Qwen2-Audio-7B-Instruct")
-        load_kwargs = {"pretrained_model_name_or_path": model_id, "device_map": "auto", "max_memory": {0: "8GiB", "cpu": "32GiB"}}
+        model_id = self.audio_model
+        device_or_map, max_memory = build_device_map(
+            self.devices, self.max_memory_fraction, self.allow_cpu_offload
+        )
+        load_kwargs = {"pretrained_model_name_or_path": model_id}
+        if device_or_map:
+            load_kwargs["device_map"] = device_or_map
+            if max_memory:
+                load_kwargs["max_memory"] = max_memory
         if self.quantization == "4bit":
             load_kwargs["quantization_config"] = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16, llm_int8_enable_fp32_cpu_offload=True)
         elif self.quantization == "8bit":

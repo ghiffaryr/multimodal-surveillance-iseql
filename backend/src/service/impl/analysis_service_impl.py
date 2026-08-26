@@ -4,6 +4,7 @@ import asyncio
 import datetime
 import json
 import sqlite3
+import threading
 import traceback
 import uuid
 from pathlib import Path
@@ -15,7 +16,8 @@ from models.analysis import AnalysisStage, RunState
 from service.analysis_service import AnalysisService
 from utils.api_logger import get_logger
 from utils.config import Config
-from utils.database import setup_database
+from utils.database import setup_database, setup_scratch_database, commit_with_retry
+from utils.gpu_allocator import GpuAllocator
 from utils.sse import make_log_entry, SENTINEL_RUN_DONE, SENTINEL_RUN_FAILED
 
 log = get_logger(__name__)
@@ -72,6 +74,106 @@ def _get_db_conn(cfg: Config) -> sqlite3.Connection:
     conn = sqlite3.connect(str(cfg.data.db_path), timeout=DB_TIMEOUT_SEC)
     conn.row_factory = sqlite3.Row
     return conn
+
+
+def _merge_scratch_into_main(scratch: sqlite3.Connection, conn: sqlite3.Connection,
+                             analysis_id: str) -> None:
+    """Merge a per-analysis scratch DB into the main DB in one atomic transaction.
+
+    Copies all four visual tables. ``VisualPerInterval.RelationID`` is an
+    AUTOINCREMENT key local to each database, so it is remapped while the
+    ``VisualParticipant`` rows are rewritten against the new IDs. The caller is
+    responsible for committing; a mid-merge failure rolls the whole batch back.
+    """
+    frame_rows = scratch.execute(
+        "SELECT AnalysisID, Frame, ClassID, Class, Block, Description "
+        "FROM VisualPerFrame WHERE AnalysisID = ?",
+        (analysis_id,),
+    ).fetchall()
+    if frame_rows:
+        conn.executemany(
+            "INSERT OR IGNORE INTO VisualPerFrame "
+            "(AnalysisID, Frame, ClassID, Class, Block, Description) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            [tuple(r) for r in frame_rows],
+        )
+
+    rel_rows = scratch.execute(
+        "SELECT AnalysisID, Frame, RelationID, RelationType, ClassID "
+        "FROM VisualRelation WHERE AnalysisID = ?",
+        (analysis_id,),
+    ).fetchall()
+    if rel_rows:
+        conn.executemany(
+            "INSERT OR IGNORE INTO VisualRelation "
+            "(AnalysisID, Frame, RelationID, RelationType, ClassID) "
+            "VALUES (?, ?, ?, ?, ?)",
+            [tuple(r) for r in rel_rows],
+        )
+
+    cur = conn.cursor()
+    id_map: dict[int, int] = {}
+    iv_rows = scratch.execute(
+        "SELECT RelationID, AnalysisID, RelationType, StartFrame, EndFrame "
+        "FROM VisualPerInterval WHERE AnalysisID = ? ORDER BY RelationID",
+        (analysis_id,),
+    ).fetchall()
+    for r in iv_rows:
+        cur.execute(
+            "INSERT INTO VisualPerInterval (AnalysisID, RelationType, StartFrame, EndFrame) "
+            "VALUES (?, ?, ?, ?)",
+            (r["AnalysisID"], r["RelationType"], r["StartFrame"], r["EndFrame"]),
+        )
+        id_map[r["RelationID"]] = cur.lastrowid
+
+    part_rows = scratch.execute(
+        "SELECT RelationID, ClassID, Class FROM VisualParticipant"
+    ).fetchall()
+    for p in part_rows:
+        new_rel = id_map.get(p["RelationID"])
+        if new_rel is not None:
+            cur.execute(
+                "INSERT OR IGNORE INTO VisualParticipant (RelationID, ClassID, Class) "
+                "VALUES (?, ?, ?)",
+                (new_rel, p["ClassID"], p["Class"]),
+            )
+
+
+_GIB = 1024 ** 3
+_PANNS_VRAM_BYTES = 1 * _GIB          # CNN14, fits any GPU
+
+
+def _estimate_embedding_vram(run: RunState, safety: float) -> int:
+    """Estimate the VRAM budget for the embedding model (visual conditions).
+
+    Remote (ollama) embeddings consume no local VRAM; the HuggingFace embedding
+    model is arbitrary and must be sized from its config.
+    """
+    if run.embed_provider == "huggingface":
+        if not run.embed_model:
+            raise ValueError("embed_model is required for the 'huggingface' embedding provider")
+        from utils.object_memory import estimate_embedding_vram_bytes
+        return estimate_embedding_vram_bytes(run.embed_model, safety)
+    return 0
+
+
+def _estimate_required_vram(run: RunState, cfg: Config) -> int:
+    """Estimate the VRAM budget a run needs so the allocator can size its lease.
+
+    Accounts for both the embedding model (visual conditions) and the audio
+    model (audio conditions); either may be large enough to need sharding.
+    """
+    safety = float(cfg.gpu.vram_safety_factor)
+    required = 0
+    if run.condition in ("A", "C"):
+        required = max(required, _estimate_embedding_vram(run, safety))
+    if run.condition in ("B", "C"):
+        if run.audio_provider == "panns":
+            required = max(required, _PANNS_VRAM_BYTES)
+        elif run.audio_provider == "huggingface":
+            from service.impl.audio_service_impl import estimate_audio_vram_bytes
+            required = max(required, estimate_audio_vram_bytes(run.audio_quantization, safety))
+    return required
 
 
 def _resolve_config_section(conn: sqlite3.Connection, key: str, overrides: dict | None) -> dict:
@@ -143,6 +245,18 @@ class AnalysisServiceImpl(AnalysisService):
 
     def __init__(self) -> None:
         self._runs: dict[str, RunState] = {}
+        self._gpu_allocator: GpuAllocator | None = None
+        self._gpu_allocator_lock = threading.Lock()
+
+    def _get_gpu_allocator(self, cfg: Config) -> GpuAllocator:
+        if self._gpu_allocator is None:
+            with self._gpu_allocator_lock:
+                if self._gpu_allocator is None:
+                    self._gpu_allocator = GpuAllocator(
+                        devices=cfg.gpu.devices,
+                        max_memory_fraction=float(cfg.gpu.max_memory_fraction),
+                    )
+        return self._gpu_allocator
 
     def get_run(self, analysis_id: str) -> RunState:
         if analysis_id in self._runs:
@@ -356,14 +470,28 @@ class AnalysisServiceImpl(AnalysisService):
         for row in rows:
             st_key = f"{start_alias}.st" if start_alias else None
             et_key = f"{end_alias}.et" if end_alias else None
-            sf_key = f"{start_alias}_sf" if start_alias else None
-            ef_key = f"{end_alias}_ef" if end_alias else None
-            # time-domain: the query already projected st/et (time floats)
+            sf_key = f"{start_alias}.sf" if start_alias else None
+            ef_key = f"{end_alias}.ef" if end_alias else None
+
+            # frame-domain: derive sf/ef (frames) from st/et (seconds) when a
+            # time-authored event did not project frame columns, so the frontend
+            # unit toggle always has both pairs to switch between.
+            def _is_num(v):
+                return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+            # time -> frame: a time-authored event lacks frame columns, so
+            # derive them from the projected st/et seconds (sf = st * fps).
+            if start_alias and st_key in row and sf_key not in row and _is_num(row.get(st_key)):
+                row[sf_key] = round(row[st_key] * fps)
+            if end_alias and et_key in row and ef_key not in row and _is_num(row.get(et_key)):
+                row[ef_key] = round(row[et_key] * fps)
+
+            # time-domain: format st/et seconds -> "HH:MM:SS.mmm"
             if st_key and st_key in row and row[st_key] is not None and not isinstance(row[st_key], str):
                 row[st_key] = _format_time(row[st_key])
             if et_key and et_key in row and row[et_key] is not None and not isinstance(row[et_key], str):
                 row[et_key] = _format_time(row[et_key])
-            # frame-domain: derive st/et from the projected sf/ef frames
+            # time-domain: derive st/et from the projected sf/ef frames when absent
             sf = row.get(sf_key) if sf_key else None
             ef = row.get(ef_key) if ef_key else None
             if st_key is None and sf is not None and start_alias:
@@ -449,9 +577,9 @@ class AnalysisServiceImpl(AnalysisService):
             log.warning("Failed to persist analysis metadata: %s", e)
 
     def _run_vlm(self, run: RunState, conn: sqlite3.Connection, cfg: Config,
-                 _log: Callable[[str], None], persist_stage: Callable[[str], None]) -> None:
+                 _log: Callable[[str], None], persist_stage: Callable[[str], None],
+                 device: str = "cpu") -> None:
         from service.impl.visual_service_impl import VisualServiceImpl
-        from service.impl.interval_service_impl import IntervalServiceImpl
         from utils.vlm_client import VLMClient
 
         run.stage = AnalysisStage.VLM
@@ -481,19 +609,30 @@ class AnalysisServiceImpl(AnalysisService):
                 memory_n=run.memory_n,
                 memory_top_k=run.memory_top_k,
                 ollama_base_url=cfg.vlm.ollama_base_url,
+                device=device,
             )
-            visual.run_pipeline(
-                video_path=str(run.video_path),
-                conn=conn,
-                client=client,
-                grid_rows=run.grid_rows,
-                grid_cols=run.grid_cols,
-                sampling_rate=run.sampling_rate,
-                min_interval=run.vlm_delay,
-                analysis_id=run.id,
-                track_objects=True,
-                log=_log,
-            )
+            # Run the whole visual pipeline (frame-level rows + interval
+            # construction) against a per-analysis in-memory DB, so the shared
+            # SQLite file is never held under a long write lock. Then merge all
+            # four tables into the main DB in one atomic transaction.
+            scratch = setup_scratch_database()
+            try:
+                visual.run_pipeline(
+                    video_path=str(run.video_path),
+                    conn=scratch,
+                    client=client,
+                    grid_rows=run.grid_rows,
+                    grid_cols=run.grid_cols,
+                    sampling_rate=run.sampling_rate,
+                    min_interval=run.vlm_delay,
+                    analysis_id=run.id,
+                    track_objects=True,
+                    log=_log,
+                )
+                _merge_scratch_into_main(scratch, conn, run.id)
+                commit_with_retry(conn)
+            finally:
+                scratch.close()
         except Exception as e:
             _log(f"VLM pipeline error: {e}")
             log.info("VLM pipeline error [%s]: %s\n%s", run.id, e, traceback.format_exc())
@@ -504,7 +643,9 @@ class AnalysisServiceImpl(AnalysisService):
         _log(">>> PHASE 2 START: interval construction (inside VLM pipeline)")
 
     def _run_audio(self, run: RunState, conn: sqlite3.Connection, cfg: Config,
-                   _log: Callable[[str], None], persist_stage: Callable[[str], None]) -> None:
+                   _log: Callable[[str], None], persist_stage: Callable[[str], None],
+                   device: str = "cpu", devices: list[str] | None = None,
+                   allow_cpu_offload: bool = False) -> None:
         from service.impl.audio_service_impl import AudioServiceImpl
 
         run.stage = AnalysisStage.AUDIO
@@ -519,12 +660,15 @@ class AnalysisServiceImpl(AnalysisService):
             })
             audio = AudioServiceImpl(
                 audio_provider=run.audio_provider,
-                audio_model=run.audio_model or None,
                 quantization=run.audio_quantization,
                 audio_window=run.audio_window,
                 audio_hop=run.audio_hop,
                 classes=taxonomy["classes"],
                 keywords=taxonomy["keywords"],
+                device=device,
+                devices=devices,
+                max_memory_fraction=float(cfg.gpu.max_memory_fraction),
+                allow_cpu_offload=allow_cpu_offload,
             )
             result = audio.run_pipeline(
                 video_path=run.video_path,
@@ -571,7 +715,17 @@ class AnalysisServiceImpl(AnalysisService):
                 asyncio.run_coroutine_threadsafe(push(run.stage.value, msg), loop)
 
         conn = None
+        lease_token = None
         try:
+            required_vram = _estimate_required_vram(run, cfg)
+            _log(">>> Waiting for a free compute slot...")
+            devices, lease_token, allow_cpu_offload = (
+                self._get_gpu_allocator(cfg).acquire_for_vram(required_vram)
+            )
+            device = devices[0]
+            _log(f">>> Acquired compute device(s): {', '.join(devices)}"
+                 + (" (CPU offload enabled)" if allow_cpu_offload else ""))
+
             conn, _cursor = setup_database(Path(cfg.data.db_path))
 
             if run.condition in ("A", "C"):
@@ -579,7 +733,7 @@ class AnalysisServiceImpl(AnalysisService):
                     _log(">>> STOPPED before VLM")
                     run.stage = AnalysisStage.STOPPED
                     return
-                self._run_vlm(run, conn, cfg, _log, persist_stage)
+                self._run_vlm(run, conn, cfg, _log, persist_stage, device=device)
             else:
                 _log(">>> CONDITION B: skipping VLM (audio-only condition)")
 
@@ -588,7 +742,9 @@ class AnalysisServiceImpl(AnalysisService):
                     _log(">>> STOPPED before audio")
                     run.stage = AnalysisStage.STOPPED
                     return
-                self._run_audio(run, conn, cfg, _log, persist_stage)
+                self._run_audio(run, conn, cfg, _log, persist_stage,
+                                device=device, devices=devices,
+                                allow_cpu_offload=allow_cpu_offload)
             else:
                 _log(">>> CONDITION A: skipping audio pipeline (visual-only condition)")
 
@@ -627,6 +783,11 @@ class AnalysisServiceImpl(AnalysisService):
             if conn is not None:
                 try:
                     conn.close()
+                except Exception:
+                    pass
+            if lease_token is not None:
+                try:
+                    self._get_gpu_allocator(cfg).release(lease_token)
                 except Exception:
                     pass
             sentinel = SENTINEL_RUN_FAILED if run.stage == AnalysisStage.FAILED else SENTINEL_RUN_DONE

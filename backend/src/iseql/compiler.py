@@ -310,13 +310,13 @@ def _proj_col(ref: str, col: str | None, name: str) -> str:
     if col:
         return f"{ref}.{col}_{name}"
     if name in ("sf", "start"):
-        return f"{ref}.sf AS {ref}_sf"
+        return f'{ref}.sf AS "{ref}.sf"'
     if name in ("ef", "end"):
-        return f"{ref}.ef AS {ref}_ef"
+        return f'{ref}.ef AS "{ref}.ef"'
     if name in ("st",):
-        return f"{ref}.st AS {ref}_st"
+        return f'{ref}.st AS "{ref}.st"'
     if name in ("et",):
-        return f"{ref}.et AS {ref}_et"
+        return f'{ref}.et AS "{ref}.et"'
     return f"{ref}.{name}"
 
 
@@ -494,8 +494,8 @@ def _default_projection(model: dict, ivs: list[dict],
         alias = f"M{i + 1}"
         ref, col = alias_map.get(alias, (alias, None))
         if iv.get("query_ref"):
-            fields.append(f"{ref}.sf AS {ref}_sf")
-            fields.append(f"{ref}.ef AS {ref}_ef")
+            fields.append(f'{ref}.sf AS "{ref}.sf"')
+            fields.append(f'{ref}.ef AS "{ref}.ef"')
             continue
         for k in range(1, len(iv["pred"].get("arguments", [])) + 1):
             fields.append(_proj_col(ref, col, f"arg{k}"))

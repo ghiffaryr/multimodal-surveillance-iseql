@@ -636,17 +636,20 @@ class VisualServiceImpl(VisualService):
                  memory_n: int = 3, memory_top_k: int = 5, memory_cap: int = 30,
                  embed_provider: str = "huggingface",
                  embed_model: str = "google/siglip-base-patch16-224",
-                 ollama_base_url: str = "http://localhost:11434"):
+                 ollama_base_url: str = "http://localhost:11434",
+                 device: str = "cpu"):
         if not relation_classids or not relation_descriptions:
             raise ValueError("relation vocabulary not configured (relation_vocab)")
         self.max_retries = max_retries
         self.relation_classids = [tuple(x) for x in relation_classids]
         self.relation_descriptions = dict(relation_descriptions)
+        self.device = device
         self.memory = ObjectMemory(
             memory_db_dir,
             embed_provider=embed_provider,
             embed_model=embed_model,
             ollama_base_url=ollama_base_url,
+            device=device,
         ) if memory_db_dir else None
         self.memory_n = int(memory_n)
         self.memory_top_k = int(memory_top_k)

@@ -25,7 +25,7 @@
           .filter((k) => !k.startsWith('__p'))
           .filter((k) =>
             unit === 'seconds'
-              ? !k.endsWith('_sf') && !k.endsWith('_ef')
+              ? !k.endsWith('.sf') && !k.endsWith('.ef')
               : !k.endsWith('.st') && !k.endsWith('.et')
           )
           .map((k) => ({ label: k.replace(/^M(\d+)_/, 'M$1.'), key: k }))

@@ -12,11 +12,13 @@ import numpy as np
 from PIL import Image
 
 
-def _load_hf_embedder(model_id: str) -> Callable[[list[Image.Image]], np.ndarray]:
+def _load_hf_embedder(model_id: str, device: str = "cpu") -> Callable[[list[Image.Image]], np.ndarray]:
     import torch
     from transformers import AutoImageProcessor, AutoModel
 
     model = AutoModel.from_pretrained(model_id)
+    if device != "cpu":
+        model = model.to(device)
     processor = AutoImageProcessor.from_pretrained(model_id)
     model.eval()
 
@@ -27,6 +29,8 @@ def _load_hf_embedder(model_id: str) -> Callable[[list[Image.Image]], np.ndarray
             n = dim["n"]
             return np.zeros((0, n if n is not None else 0), dtype=np.float32)
         inputs = processor(images=crops, return_tensors="pt")
+        if device != "cpu":
+            inputs = {k: v.to(device) for k, v in inputs.items()}
         with torch.no_grad():
             out = model.get_image_features(**inputs)
         if hasattr(out, "pooler_output") and out.pooler_output is not None:
@@ -40,6 +44,14 @@ def _load_hf_embedder(model_id: str) -> Callable[[list[Image.Image]], np.ndarray
         return emb / np.clip(norms, 1e-6, None)
 
     return embed
+
+
+def estimate_embedding_vram_bytes(model_id: str, safety_factor: float) -> int:
+    """Estimate the VRAM the HuggingFace embedding model needs (no weight download)."""
+    from transformers import AutoModel
+
+    from utils.vram import estimate_hf_vram_bytes
+    return estimate_hf_vram_bytes(model_id, AutoModel, None, safety_factor)
 
 
 def _load_ollama_embedder(model_id: str, base_url: str) -> Callable[[list[Image.Image]], np.ndarray]:
@@ -81,16 +93,19 @@ _embedder_cache: dict[tuple, Callable[[list[Image.Image]], np.ndarray]] = {}
 
 
 def _get_embedder(provider: str, model: str,
-                  ollama_base_url: str = "http://localhost:11434") -> Callable[[list[Image.Image]], np.ndarray]:
+                  ollama_base_url: str = "http://localhost:11434",
+                  device: str = "cpu") -> Callable[[list[Image.Image]], np.ndarray]:
     if not provider:
         raise ValueError("embedding provider is required (huggingface or ollama)")
     if not model:
         raise ValueError("embedding model is required (e.g. an HF id or an ollama model)")
     provider = provider.lower()
-    key = (provider, model, ollama_base_url if provider == "ollama" else "")
+    # Cache per device: a model pinned to one GPU cannot be reused from another.
+    key = (provider, model, device if provider == "huggingface" else "",
+           ollama_base_url if provider == "ollama" else "")
     if key not in _embedder_cache:
         if provider == "huggingface":
-            _embedder_cache[key] = _load_hf_embedder(model)
+            _embedder_cache[key] = _load_hf_embedder(model, device=device)
         elif provider == "ollama":
             _embedder_cache[key] = _load_ollama_embedder(model, ollama_base_url)
         else:
@@ -133,7 +148,8 @@ class ObjectMemory:
     def __init__(self, db_dir: str | Path = "data/vector_db",
                  embed_provider: str | None = None,
                  embed_model: str | None = None,
-                 ollama_base_url: str = "http://localhost:11434"):
+                 ollama_base_url: str = "http://localhost:11434",
+                 device: str = "cpu"):
         self.db_dir = Path(db_dir)
         self.db_dir.mkdir(parents=True, exist_ok=True)
         import chromadb
@@ -142,10 +158,11 @@ class ObjectMemory:
         self._embed_provider = embed_provider
         self._embed_model = embed_model
         self._ollama_base_url = ollama_base_url
+        self._device = device
 
     def _embed(self, crops: list[Image.Image]) -> np.ndarray:
         return _get_embedder(self._embed_provider, self._embed_model,
-                             self._ollama_base_url)(crops)
+                             self._ollama_base_url, device=self._device)(crops)
 
     def _collection(self, analysis_id: str):
         name = self._safe_name(analysis_id)

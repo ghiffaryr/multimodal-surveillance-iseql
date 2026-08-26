@@ -80,7 +80,7 @@ class AnalysisStartController:
         memory_n: int = Form(3),
         memory_top_k: int = Form(5),
         audio_provider: str = Form("panns"),
-        audio_model: str = Form("cnn14"),
+        audio_model: str = Form("CNN14"),
         audio_quantization: str = Form("none"),
         audio_window: float = Form(2.5),
         audio_hop: float = Form(1.25),

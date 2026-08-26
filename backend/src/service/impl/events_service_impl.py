@@ -238,7 +238,7 @@ def _result_column_labels(model: dict) -> list[str] | None:
     Mirrors the projection SELECT order so duplicate ``argN`` columns can be
     renamed to class-based labels (``M1.person``-style, SQLite-safe as
     ``M1_person``) without aliasing the emitted SQL. ``sf``/``ef`` become
-    ``M1_sf``/``M1_ef`` (frames). Returns ``None`` when the projection can't be
+    ``M1.sf``/``M1.ef`` (frames). Returns ``None`` when the projection can't be
     resolved (fall back to the raw DataFrame columns).
     """
     from iseql.compiler import _interval_arg_class, _translate_field
@@ -265,7 +265,7 @@ def _result_column_labels(model: dict) -> list[str] | None:
             attr = parts[1]
             iv = iv_by_alias.get(parts[0])
             if attr in ("sf", "ef"):
-                labels.append(f"{parts[0]}_{attr}")
+                labels.append(f"{parts[0]}.{attr}")
                 continue
             m = re.match(r"^arg(\d+)$", attr)
             if m and iv is not None:

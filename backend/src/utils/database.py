@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
+import time
 from pathlib import Path
 from typing import Tuple
 
@@ -108,6 +109,78 @@ SCHEMA_STATEMENTS: list[str] = [
         updated_at TEXT    NOT NULL DEFAULT (datetime('now'))
     );""",
 ]
+
+
+VISUAL_SCRATCH_SCHEMA: list[str] = [
+    """CREATE TABLE IF NOT EXISTS VisualPerFrame (
+        AnalysisID  TEXT    NOT NULL,
+        Frame       INTEGER NOT NULL,
+        ClassID     INTEGER NOT NULL,
+        Class       TEXT    NOT NULL,
+        Block       INTEGER NOT NULL,
+        Description TEXT    NOT NULL,
+        PRIMARY KEY (AnalysisID, Frame, ClassID, Block)
+    );""",
+    "CREATE INDEX IF NOT EXISTS idx_VisualPerFrame_aid ON VisualPerFrame (AnalysisID);",
+    "CREATE INDEX IF NOT EXISTS idx_VisualPerFrame_frame ON VisualPerFrame (Frame);",
+
+    """CREATE TABLE IF NOT EXISTS VisualRelation (
+        AnalysisID   TEXT    NOT NULL,
+        Frame        INTEGER NOT NULL,
+        RelationID   INTEGER NOT NULL,
+        RelationType TEXT    NOT NULL,
+        ClassID      INTEGER NOT NULL,
+        PRIMARY KEY (AnalysisID, Frame, RelationID, ClassID)
+    );""",
+    "CREATE INDEX IF NOT EXISTS idx_VisualRelation_aid  ON VisualRelation (AnalysisID);",
+    "CREATE INDEX IF NOT EXISTS idx_VisualRelation_frame ON VisualRelation (Frame);",
+
+    """CREATE TABLE IF NOT EXISTS VisualPerInterval (
+        RelationID   INTEGER PRIMARY KEY AUTOINCREMENT,
+        AnalysisID   TEXT    NOT NULL,
+        StartFrame   INTEGER NOT NULL,
+        EndFrame     INTEGER NOT NULL,
+        RelationType TEXT    NOT NULL
+    );""",
+
+    """CREATE TABLE IF NOT EXISTS VisualParticipant (
+        RelationID  INTEGER NOT NULL,
+        ClassID     INTEGER NOT NULL,
+        Class       TEXT    NOT NULL,
+        PRIMARY KEY (RelationID, ClassID)
+    );""",
+]
+
+
+def setup_scratch_database() -> sqlite3.Connection:
+    """Per-analysis in-memory SQLite that hosts the full visual pipeline.
+
+    The visual pipeline (frame-level rows + interval construction) runs entirely
+    against this connection, so the shared on-disk DB is never held under a long
+    write lock. The caller then merges all four visual tables into the main DB
+    in a single atomic transaction (see ``_merge_scratch_into_main``).
+    """
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    for stmt in VISUAL_SCRATCH_SCHEMA:
+        conn.execute(stmt)
+    return conn
+
+
+def commit_with_retry(conn: sqlite3.Connection, retries: int = 10, sleep_s: float = 0.5) -> None:
+    """Commit, retrying on a transient ``database is locked`` (busy writer).
+
+    SQLite allows a single writer at a time; short-lived concurrent writers can
+    still collide at commit. Retry briefly rather than failing the whole run.
+    """
+    for attempt in range(retries):
+        try:
+            conn.commit()
+            return
+        except sqlite3.OperationalError as e:
+            if "locked" not in str(e).lower() or attempt == retries - 1:
+                raise
+            time.sleep(sleep_s)
 
 
 def setup_database(db_path: Path) -> Tuple[sqlite3.Connection, sqlite3.Cursor]:

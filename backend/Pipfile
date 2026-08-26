@@ -44,9 +44,11 @@ scipy = "==1.11.4"
 panns-inference = "==0.1.1"
 torch = {version = "==2.5.1", index = "pytorch-cu121"}
 torchaudio = {version = "==2.5.1", index = "pytorch-cu121"}
+torchvision = {version = "==0.20.1", index = "pytorch-cu121"}
 
 # --- HuggingFace LALM (Qwen2-Audio) ---
 transformers = "==5.13.1"
+accelerate = "==1.4.0"
 bitsandbytes = "==0.49.2"
 
 [dev-packages]

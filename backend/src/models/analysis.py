@@ -44,7 +44,7 @@ class RunState:
     memory_n: int = 3
     memory_top_k: int = 5
     audio_provider: str = "panns"
-    audio_model: str = "cnn14"
+    audio_model: str = "CNN14"
     audio_quantization: str = "none"
     audio_window: float = 2.5
     audio_hop: float = 1.25
