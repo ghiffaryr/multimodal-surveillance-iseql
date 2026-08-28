@@ -38,7 +38,7 @@
   }
 </script>
 
-<div class="flex h-full min-h-0 flex-col rounded-lg border border-border bg-card">
+<div class="flex min-h-0 flex-1 flex-col rounded-lg border border-border bg-card">
   <div class="flex items-center justify-between border-b border-border px-4 py-2">
     <div class="flex items-center gap-2 text-sm font-medium">
       <Terminal class="size-4" />

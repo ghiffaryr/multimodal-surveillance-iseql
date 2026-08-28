@@ -78,7 +78,7 @@
     </div>
   </aside>
 {:else}
-<aside class={cn('flex h-full w-72 shrink-0 flex-col border-r border-border bg-card text-card-foreground', className)}>
+<aside class={cn('flex h-full w-72 shrink-0 flex-col border-r border-border bg-card text-card-foreground max-sm:fixed max-sm:inset-0 max-sm:z-50 max-sm:w-full max-sm:border-r-0', className)}>
   <div class="flex items-start justify-between gap-2 px-5 py-3">
     <div class="flex flex-col gap-1">
       <h1 class="text-xl font-bold tracking-tight">{APP_NAME}</h1>

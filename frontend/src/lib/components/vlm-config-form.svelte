@@ -112,7 +112,7 @@
   }
 </script>
 
-<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+<div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
   <Field>
     <Label for="vlm-provider">VLM Provider</Label>
     <Select
@@ -231,7 +231,7 @@
       {disabled} />
   </Field>
 
-  <Field class="col-span-2">
+  <Field class="lg:col-span-2">
     <Label for="sampling-rate">Sampling Rate</Label>
     <div class="flex h-9 items-center rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground">
       {detectedFps > 0 ? `Auto-detected: ${detectedFps} fps (1 frame/second)` : 'Auto-detected from video'}
@@ -239,7 +239,7 @@
   </Field>
 
   {#if !isOllama}
-    <Field class="col-span-2">
+    <Field class="lg:col-span-2">
       <Label for="vlm-delay">Delay between VLM calls (seconds)</Label>
       <Input id="vlm-delay" type="number" min="0" step="0.1"
         value={value.vlm_delay}
@@ -247,7 +247,7 @@
         {disabled} />
     </Field>
 
-    <Field class="col-span-2">
+    <Field class="lg:col-span-2">
       <Label for="vlm-max-retries">Max retries on rate limit</Label>
       <Input id="vlm-max-retries" type="number" min="0" max="20"
         value={value.max_retries}

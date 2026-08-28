@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { browser } from '$app/environment';
   import { api, ApiError } from '$lib/api';
   import { openLogStream } from '$lib/sse';
   import { APP_NAME, APP_VERSION } from '$lib/app';
@@ -31,6 +32,10 @@
   import CardHeader from '$lib/components/ui/card-header.svelte';
   import CardTitle from '$lib/components/ui/card-title.svelte';
   import CardContent from '$lib/components/ui/card-content.svelte';
+  import Tabs from '$lib/components/ui/tabs.svelte';
+  import TabsList from '$lib/components/ui/tabs-list.svelte';
+  import TabsTrigger from '$lib/components/ui/tabs-trigger.svelte';
+  import TabsContent from '$lib/components/ui/tabs-content.svelte';
   import Button from '$lib/components/ui/button.svelte';
   import { Play, AlertTriangle, Square } from 'lucide-svelte';
 
@@ -80,7 +85,7 @@
     window: 2.5,
     hop: 1.25,
   });
-  let sidebarCollapsed = $state(false);
+  let sidebarCollapsed = $state(browser ? window.matchMedia('(max-width: 639px)').matches : false);
   let deltas = $state<Deltas>({});
   let eventTypes = $state<EventTypesResponse>({ A_visual: [], B_audio_only: [], C_audio_visual: [] });
 
@@ -109,6 +114,15 @@
   let analysisDone = $state(false);
   let lastConfigSnapshot = $state('');
   let unit = $state<Unit>('seconds');
+  let rightTab = $state<'logs' | 'results'>('logs');
+
+  $effect(() => {
+    if (stage === 'done') {
+      rightTab = 'results';
+    } else if (stage !== 'idle') {
+      rightTab = 'logs';
+    }
+  });
 
   let closeSse: (() => void) | null = null;
 
@@ -385,7 +399,7 @@
   />
 
   <main class="flex flex-1 flex-col gap-4 overflow-y-auto p-4 lg:overflow-hidden">
-    <div class="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-12 lg:grid-rows-[minmax(0,1fr)]">
+    <div class="grid grid-cols-1 gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-12 lg:grid-rows-[minmax(0,1fr)]">
       <section class="col-span-12 flex flex-col gap-4 overflow-y-auto pr-1 lg:col-span-5">
         <Button href="/events-config" variant="outline" class="w-full">
           Events Configuration →
@@ -491,16 +505,24 @@
         {/if}
       </section>
 
-      <section class="col-span-12 flex min-h-0 flex-col gap-4 lg:col-span-7">
-        <div class="min-h-0 flex-1">
-          <LogConsole entries={logs} onClear={clearLogs} />
-        </div>
-        <div class="min-h-0 flex-1">
-          <ResultsTable result={result} running={detecting} error={null}
-            unit={unit}
-            onMemory={() => (showMemory = true)}
-            onUnitChange={(u) => { convertDeltasUnit(unit, u); unit = u; }} />
-        </div>
+      <section class="col-span-12 flex flex-col lg:min-h-0 lg:col-span-7">
+        <Tabs bind:value={rightTab} class="flex h-[75vh] min-h-0 flex-col overflow-hidden rounded-md border lg:h-auto lg:flex-1">
+          <TabsList class="shrink-0 border-b px-2 py-1">
+            <TabsTrigger value="logs">Logs</TabsTrigger>
+            <TabsTrigger value="results">Results</TabsTrigger>
+          </TabsList>
+          <TabsContent value="logs" class="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden">
+            <LogConsole entries={logs} onClear={clearLogs} />
+          </TabsContent>
+          <TabsContent value="results" class="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden">
+            <ResultsTable result={result} running={detecting} error={null}
+              unit={unit}
+              analysisId={analysisId}
+              fps={detectedFps}
+              onMemory={() => (showMemory = true)}
+              onUnitChange={(u) => { convertDeltasUnit(unit, u); unit = u; }} />
+          </TabsContent>
+        </Tabs>
       </section>
     </div>
   </main>

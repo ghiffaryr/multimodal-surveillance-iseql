@@ -61,7 +61,7 @@
 
 </script>
 
-<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+<div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
   <Field>
     <Label for="audio-provider">Audio Provider</Label>
     <Select
@@ -99,7 +99,7 @@
   </Field>
 
   {#if isHuggingface}
-    <Field class="col-span-2">
+    <Field class="lg:col-span-2">
       <Label for="audio-quantization">Quantization</Label>
       <Select
         id="audio-quantization"

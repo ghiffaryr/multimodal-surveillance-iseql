@@ -7,7 +7,7 @@ import uuid
 from pathlib import Path
 
 from fastapi import File, Form, HTTPException, UploadFile
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 
 from models.analysis import AnalysisDetectRequest, AnalysisStage, AnalysisStartResponse, Condition
 from utils.config import VALID_CONDITIONS, Config
@@ -210,6 +210,19 @@ class AnalysisDetectController:
             deltas=request.deltas,
             unit=request.unit,
         )
+
+
+class AnalysisVideoController:
+    """Stream the uploaded video for an analysis (supports HTTP Range for seeking)."""
+    def __init__(self, analysis_service) -> None:
+        self._service = analysis_service
+
+    async def on_get(self, analysis_id: str) -> FileResponse:
+        run = self._service.get_run(analysis_id)
+        path = Path(run.video_path)
+        if not path.is_file():
+            raise HTTPException(status_code=404, detail="video file not found for this analysis")
+        return FileResponse(path, media_type="video/mp4", filename=path.name)
 
 
 class AnalysisStopController:
