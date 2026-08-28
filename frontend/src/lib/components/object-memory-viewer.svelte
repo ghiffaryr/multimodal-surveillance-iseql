@@ -1,7 +1,6 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { api } from '$lib/api';
-  import type { ObjectMemoryResponse, ObjectMemoryStats } from '$lib/types';
+  import type { ObjectMemoryEntry, ObjectMemoryResponse, ObjectMemoryStats } from '$lib/types';
   import Button from '$lib/components/ui/button.svelte';
   import Input from '$lib/components/ui/input.svelte';
   import Label from '$lib/components/ui/label.svelte';
@@ -9,21 +8,30 @@
   import Badge from '$lib/components/ui/badge.svelte';
   import { DatabaseZap, Search } from 'lucide-svelte';
 
+  const PAGE_SIZE = 100;
+
   type Props = {
     analysisId: string;
   };
   let { analysisId }: Props = $props();
 
   let stats = $state<ObjectMemoryStats | null>(null);
-  let mem = $state<ObjectMemoryResponse>({ items: [], count: 0, total: 0 });
+  let items = $state<ObjectMemoryEntry[]>([]);
+  let total = $state(0);
   let error = $state<string | null>(null);
   let loading = $state(false);
+  let loadingMore = $state(false);
 
-  let limit = $state(200);
-  let offset = $state(0);
   let classFilter = $state('');
+  let classIdFilter = $state<number | null>(null);
+  let descriptionFilter = $state('');
   let frameMin = $state<number | null>(null);
   let frameMax = $state<number | null>(null);
+
+  let scrollEl = $state<HTMLDivElement | null>(null);
+  let sentinelEl = $state<HTMLDivElement | null>(null);
+
+  let hasMore = $derived(items.length < total);
 
   const CLASS_COLORS: Record<string, string> = {
     person: 'bg-sky-500/10 text-sky-300 border-sky-500/30',
@@ -31,12 +39,18 @@
     object: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30',
   };
 
-  function buildQuery(): string {
-    const parts: string[] = [`limit=${limit}`, `offset=${offset}`];
+  function buildQuery(off: number): string {
+    const parts: string[] = [`limit=${PAGE_SIZE}`, `offset=${off}`];
     if (classFilter) parts.push(`class_name=${encodeURIComponent(classFilter)}`);
+    if (classIdFilter != null && !Number.isNaN(classIdFilter)) parts.push(`class_id=${classIdFilter}`);
+    if (descriptionFilter) parts.push(`description=${encodeURIComponent(descriptionFilter)}`);
     if (frameMin != null && !Number.isNaN(frameMin)) parts.push(`frame_min=${frameMin}`);
     if (frameMax != null && !Number.isNaN(frameMax)) parts.push(`frame_max=${frameMax}`);
     return parts.join('&');
+  }
+
+  function fetchObjects(off: number) {
+    return api.get<ObjectMemoryResponse>(`/api/analysis/${analysisId}/memory/objects?${buildQuery(off)}`);
   }
 
   async function load(): Promise<void> {
@@ -46,35 +60,62 @@
     try {
       const [s, m] = await Promise.all([
         api.get<ObjectMemoryStats>(`/api/analysis/${analysisId}/memory/stats`),
-        api.get<ObjectMemoryResponse>(`/api/analysis/${analysisId}/memory/objects?${buildQuery()}`),
+        fetchObjects(0),
       ]);
       stats = s;
-      mem = m;
+      items = m.items;
+      total = m.total;
     } catch (e) {
       error = (e as Error).message;
       stats = null;
-      mem = { items: [], count: 0, total: 0 };
+      items = [];
+      total = 0;
     } finally {
       loading = false;
     }
   }
 
-  function resetFilters() {
-    classFilter = '';
-    frameMin = null;
-    frameMax = null;
-    limit = 200;
-    offset = 0;
+  async function loadMore(): Promise<void> {
+    if (loading || loadingMore || !hasMore) return;
+    loadingMore = true;
+    error = null;
+    try {
+      const m = await fetchObjects(items.length);
+      items = [...items, ...m.items];
+      total = m.total;
+    } catch (e) {
+      error = (e as Error).message;
+    } finally {
+      loadingMore = false;
+    }
   }
 
-  onMount(load);
+  function resetFilters() {
+    classFilter = '';
+    classIdFilter = null;
+    descriptionFilter = '';
+    frameMin = null;
+    frameMax = null;
+  }
 
   $effect(() => {
     if (analysisId) load();
   });
+
+  $effect(() => {
+    if (!scrollEl || !sentinelEl) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) loadMore();
+      },
+      { root: scrollEl, rootMargin: '200px 0px' },
+    );
+    observer.observe(sentinelEl);
+    return () => observer.disconnect();
+  });
 </script>
 
-<div class="flex h-full min-h-0 flex-col gap-3">
+<div class="flex min-h-0 flex-1 flex-col gap-3">
   {#if error}
     <div class="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</div>
   {/if}
@@ -106,6 +147,16 @@
           oninput={(e) => (classFilter = (e.currentTarget as HTMLInputElement).value)} />
       </Field>
       <Field>
+        <Label>ClassID</Label>
+        <Input type="number" min="0" value={classIdFilter ?? ''}
+          oninput={(e) => (classIdFilter = (e.currentTarget as HTMLInputElement).value === '' ? null : Number((e.currentTarget as HTMLInputElement).value))} />
+      </Field>
+      <Field>
+        <Label>Description</Label>
+        <Input type="text" value={descriptionFilter} placeholder="e.g. blue jacket"
+          oninput={(e) => (descriptionFilter = (e.currentTarget as HTMLInputElement).value)} />
+      </Field>
+      <Field>
         <Label>Frame min</Label>
         <Input type="number" min="0" value={frameMin ?? ''}
           oninput={(e) => (frameMin = (e.currentTarget as HTMLInputElement).value === '' ? null : Number((e.currentTarget as HTMLInputElement).value))} />
@@ -115,24 +166,19 @@
         <Input type="number" min="0" value={frameMax ?? ''}
           oninput={(e) => (frameMax = (e.currentTarget as HTMLInputElement).value === '' ? null : Number((e.currentTarget as HTMLInputElement).value))} />
       </Field>
-      <Field>
-        <Label>Rows</Label>
-        <Input type="number" min="1" max="1000" value={limit}
-          oninput={(e) => (limit = Number((e.currentTarget as HTMLInputElement).value) || 200)} />
-      </Field>
-      <Button variant="secondary" size="sm" onclick={() => { offset = 0; load(); }}><Search class="size-3 mr-1" /> Apply</Button>
-      {#if classFilter || frameMin != null || frameMax != null}
+      <Button variant="secondary" size="sm" onclick={load}><Search class="size-3 mr-1" /> Apply</Button>
+      {#if classFilter || classIdFilter != null || descriptionFilter || frameMin != null || frameMax != null}
         <Button variant="ghost" size="sm" onclick={() => { resetFilters(); load(); }}>Reset</Button>
       {/if}
     </section>
 
     <section class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border">
-      <div class="min-h-0 flex-1 overflow-auto">
+      <div class="min-h-0 flex-1 overflow-auto" bind:this={scrollEl}>
         <table class="w-full text-left text-xs">
           <thead class="sticky top-0 bg-card text-muted-foreground">
             <tr class="border-b">
               <th class="px-3 py-2 font-medium">Frame</th>
-              <th class="px-3 py-2 font-medium">Object ID</th>
+              <th class="px-3 py-2 font-medium">ClassID</th>
               <th class="px-3 py-2 font-medium">Class</th>
               <th class="px-3 py-2 font-medium">Blocks</th>
               <th class="px-3 py-2 font-medium">Description</th>
@@ -140,7 +186,7 @@
             </tr>
           </thead>
           <tbody>
-            {#each mem.items as entry}
+            {#each items as entry}
               <tr class="border-b last:border-0 hover:bg-muted/40">
                 <td class="px-3 py-1.5 font-mono tabular-nums">{entry.frame}</td>
                 <td class="px-3 py-1.5 font-mono tabular-nums">{entry.id}</td>
@@ -162,19 +208,17 @@
             {/each}
           </tbody>
         </table>
+        <div bind:this={sentinelEl} class="h-px" aria-hidden="true"></div>
       </div>
     </section>
 
     <footer class="flex items-center justify-between text-xs text-muted-foreground">
-      <span>{mem.count} of {mem.total} shown</span>
-      <div class="flex gap-2">
-        <Button variant="outline" size="sm" disabled={offset <= 0} onclick={() => { offset = Math.max(0, offset - limit); load(); }}>
-          Previous
+      <span>{items.length} of {total} loaded</span>
+      {#if hasMore}
+        <Button variant="outline" size="sm" disabled={loadingMore} onclick={loadMore}>
+          {loadingMore ? 'Loading…' : 'Load more'}
         </Button>
-        <Button variant="outline" size="sm" disabled={offset + mem.count >= mem.total} onclick={() => { offset += mem.count; load(); }}>
-          Next
-        </Button>
-      </div>
+      {/if}
     </footer>
   {/if}
 </div>

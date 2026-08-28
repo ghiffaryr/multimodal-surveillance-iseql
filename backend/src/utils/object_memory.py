@@ -231,9 +231,9 @@ class ObjectMemory:
                 documents=docs, metadatas=metadatas,
             )
 
-    def get_embedding(self, analysis_id: str, frame: int, object_id) -> Optional[np.ndarray]:
+    def get_embedding(self, analysis_id: str, frame: int, class_id) -> Optional[np.ndarray]:
         got = self._collection(analysis_id).get(
-            ids=[f"{analysis_id}:{int(frame)}:{int(object_id)}"], include=["embeddings"]
+            ids=[f"{analysis_id}:{int(frame)}:{int(class_id)}"], include=["embeddings"]
         )
         if got["ids"]:
             embs = got["embeddings"]
@@ -311,6 +311,8 @@ class ObjectMemory:
         self,
         analysis_id: str,
         class_name: Optional[str] = None,
+        class_id: Optional[int] = None,
+        description: Optional[str] = None,
         frame_min: Optional[int] = None,
         frame_max: Optional[int] = None,
         limit: int = 200,
@@ -320,18 +322,19 @@ class ObjectMemory:
         conds = [{"aid": analysis_id}]
         if class_name:
             conds.append({"class": class_name})
+        if class_id is not None:
+            conds.append({"class_id": int(class_id)})
         if frame_min is not None:
             conds.append({"frame": {"$gte": int(frame_min)}})
         if frame_max is not None:
             conds.append({"frame": {"$lte": int(frame_max)}})
         where = conds[0] if len(conds) == 1 else {"$and": conds}
-        got = col.get(
-            where=where, include=["documents", "metadatas"],
-            limit=max(limit, 1), offset=max(offset, 0),
-        )
-        total = len(col.get(where=where, include=["metadatas"])["ids"])
+        got = col.get(where=where, include=["documents", "metadatas"])
+        query = description.strip().lower() if description else None
         items = []
         for full, meta, doc in zip(got["ids"], got["metadatas"], got["documents"]):
+            if query and query not in str(meta.get("description", "")).lower():
+                continue
             blocks = json.loads(meta["blocks"]) if meta.get("blocks") else []
             items.append(
                 {
@@ -343,4 +346,6 @@ class ObjectMemory:
                     "document": doc,
                 }
             )
-        return {"items": items, "count": len(items), "total": total}
+        total = len(items)
+        page = items[max(offset, 0):max(offset, 0) + max(limit, 1)]
+        return {"items": page, "count": len(page), "total": total}
