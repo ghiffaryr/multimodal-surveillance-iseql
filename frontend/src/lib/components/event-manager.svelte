@@ -47,7 +47,7 @@
   }
 </script>
 
-<div class="flex h-full flex-col gap-3 overflow-y-auto pt-1">
+<div class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pt-1">
   {#if error}<p class="text-sm text-destructive">{error}</p>{/if}
 
   <div class="flex flex-wrap items-center gap-2">

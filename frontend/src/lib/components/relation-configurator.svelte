@@ -162,9 +162,9 @@
           onkeydown={(ev) => { if (ev.key === 'Enter') open(rows.indexOf(r)); }}
           title="Click to edit"
         >
-          <span class="w-48 shrink-0 truncate font-mono text-sm font-medium">{r.name || '(unnamed)'}</span>
-          <span class="w-40 shrink-0 truncate font-mono text-xs text-muted-foreground">{r.classid}</span>
-          <span class="min-w-0 flex-1 truncate text-xs text-muted-foreground">{r.description || '-'}</span>
+          <span class="w-28 shrink-0 truncate font-mono text-sm font-medium sm:w-48" title={r.name}>{r.name || '(unnamed)'}</span>
+          <span class="w-28 shrink-0 truncate font-mono text-xs text-muted-foreground sm:w-40" title={r.classid}>{r.classid}</span>
+          <span class="min-w-0 flex-1 truncate text-xs text-muted-foreground" title={r.description}>{r.description || '-'}</span>
           <button
             class="shrink-0 p-1.5 text-muted-foreground/50 opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
             onclick={(ev) => { ev.stopPropagation(); remove(rows.indexOf(r)); }}

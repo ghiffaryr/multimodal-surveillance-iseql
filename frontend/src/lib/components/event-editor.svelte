@@ -144,7 +144,7 @@
     'h-full w-full resize-none rounded-md border border-input bg-background p-2 font-mono text-xs leading-relaxed ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
 </script>
 
-<div class="flex h-full flex-col gap-2">
+<div class="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto lg:overflow-hidden">
   <div class="flex flex-wrap items-center gap-2 rounded-md border p-2">
     <Button type="button" size="icon" variant="ghost" class="h-8 w-8" title="Back to events" onclick={onBack}>⌂</Button>
     <Input class="w-48 font-mono" placeholder="event_name" value={eventId} onchange={(e) => (eventId = inputStr(e))} />
@@ -156,12 +156,12 @@
   {#if error}<p class="text-xs text-destructive">{error}</p>{/if}
   {#if status}<p class="text-xs text-emerald-600">{status}</p>{/if}
 
-  <div class="flex items-center gap-1 rounded-md border px-2 py-1 text-xs text-muted-foreground">
+  <div class="flex flex-wrap items-center gap-1 rounded-md border px-2 py-1 text-xs text-muted-foreground">
     <span class="mr-1 shrink-0">Insert:</span>
     {#each SYMBOLS as s (s)}
       <button type="button" class="rounded border px-1.5 py-0.5 font-mono hover:bg-muted" onclick={() => insertText(s)} title={`Insert ${s}`}>{s}</button>
     {/each}
-    <span class="ml-2 hidden shrink-0 md:inline">
+    <span class="ml-2 w-full md:w-auto">
       π projection · σ selection · ∪/∖/∩ set ops · ∧/∨ and/or · operators SP EF Bef Aft DJ RDJ LOJ ROJ with δ/ε/ζ/η/ρ
     </span>
   </div>
@@ -173,8 +173,8 @@
     <strong class="text-foreground">frames</strong>. Mixing <code>st</code>/<code>et</code> with <code>sf</code>/<code>ef</code> is not allowed.
   </p>
 
-  <div class="grid min-h-0 flex-1 grid-cols-1 gap-2 lg:grid-cols-2">
-    <div class="flex min-h-0 flex-col rounded-md border">
+  <div class="grid min-h-0 grid-cols-1 gap-2 lg:min-h-0 lg:flex-1 lg:grid-cols-2 lg:grid-rows-1">
+    <div class="flex h-80 min-h-0 flex-col rounded-md border lg:h-auto">
       <div class="border-b px-2 py-1 text-sm font-semibold">ISEQL Query</div>
       <div class="min-h-0 flex-1 p-2">
         <textarea
@@ -186,7 +186,7 @@
         ></textarea>
       </div>
     </div>
-    <div class="flex min-h-0 flex-col rounded-md border">
+    <div class="flex h-64 min-h-0 flex-col rounded-md border lg:h-auto">
       <div class="border-b px-2 py-1 text-sm font-semibold">SQL</div>
       <pre class="min-h-0 flex-1 overflow-auto p-2 font-mono text-xs leading-relaxed">{sql || '-- compile to see the SQL conversion'}</pre>
     </div>
