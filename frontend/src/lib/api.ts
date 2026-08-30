@@ -1,5 +1,5 @@
 import { browser } from '$app/environment';
-import { PUBLIC_API_URL } from '$env/static/public';
+import { env } from '$env/dynamic/public';
 
 export class ApiError extends Error {
   status: number;
@@ -11,7 +11,7 @@ export class ApiError extends Error {
   }
 }
 
-const BASE = browser ? '' : PUBLIC_API_URL;
+const BASE = browser ? '' : (env.PUBLIC_API_URL ?? '');
 
 async function request<T>(
   method: string,
