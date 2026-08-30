@@ -11,8 +11,11 @@
     onText: (t: string) => void;
     onOpen?: (name: string) => void;
     onHover?: (names: string[]) => void;
+    labelOf?: (name: string) => string;
   };
-  let { text, tokens, options, operators, kind, onText, onOpen = () => undefined, onHover = () => undefined }: Props = $props();
+  let { text, tokens, options, operators, kind, onText, onOpen = () => undefined, onHover = () => undefined, labelOf }: Props = $props();
+
+  const display = (name: string): string => labelOf?.(name) ?? name;
 
   let el = $state<HTMLDivElement | null>(null);
   let paletteEl = $state<HTMLDivElement | null>(null);
@@ -81,7 +84,7 @@
   function tokenHtml(t: EditorToken): string {
     switch (t.type) {
       case 'item':
-        return `<span contenteditable="false" draggable="false" data-item="${esc(t.name)}" class="mx-0.5 inline-flex select-none touch-none align-middle"><button type="button" class="rounded border border-sky-400/40 bg-sky-400/10 px-1.5 py-0.5 font-mono text-xs">${esc(t.name)}</button></span>`;
+        return `<span contenteditable="false" draggable="false" data-item="${esc(t.name)}" class="mx-0.5 inline-flex select-none touch-none align-middle"><button type="button" class="rounded border border-sky-400/40 bg-sky-400/10 px-1.5 py-0.5 font-mono text-xs">${esc(display(t.name))}</button></span>`;
       case 'op':
         return `<select contenteditable="false" class="mx-0.5 h-6 rounded border bg-background px-0.5 py-0 align-middle font-mono text-xs">${operators.map((o) => `<option${o === t.op ? ' selected' : ''}>${esc(o)}</option>`).join('')}</select>`;
       case 'open':
@@ -112,7 +115,7 @@
     if (!el) return;
     const chips = [...el.querySelectorAll('[data-item]')];
     const op = operators[0] ?? '';
-    const chip = `<span contenteditable="false" draggable="false" data-item="${esc(name)}" class="mx-0.5 inline-flex select-none touch-none align-middle"><button type="button" class="rounded border border-sky-400/40 bg-sky-400/10 px-1.5 py-0.5 font-mono text-xs">${esc(name)}</button></span>`;
+    const chip = `<span contenteditable="false" draggable="false" data-item="${esc(name)}" class="mx-0.5 inline-flex select-none touch-none align-middle"><button type="button" class="rounded border border-sky-400/40 bg-sky-400/10 px-1.5 py-0.5 font-mono text-xs">${esc(display(name))}</button></span>`;
     const opHtml = `<select contenteditable="false" class="mx-0.5 h-6 rounded border bg-background px-0.5 py-0 align-middle font-mono text-xs">${operators.map((o) => `<option>${esc(o)}</option>`).join('')}</select>`;
     const hasContent = extractText(el).trim().length > 0;
     if (!hasContent) {
@@ -339,7 +342,7 @@
         onclick={() => onOpen(name)}
         onmouseenter={() => onHover([name])}
         onmouseleave={() => onHover([])}
-      >{name}</button>
+      >{display(name)}</button>
     {:else}
       <span class="text-[10px] text-muted-foreground">{search ? 'No matches.' : 'All items are used.'}</span>
     {/each}

@@ -498,19 +498,57 @@ export function aliasOf(globalIndex: number): string {
   return `M${globalIndex + 1}`;
 }
 
+// Display label for a predicate with its argument classes, e.g.
+// `running(person)`, `explosion_visible(vehicle ∨ object)` or `gunshot()`.
+export function predicateLabel(name: string, args: string[]): string {
+  return `${name}(${args.join(', ')})`;
+}
+
 // Human label for an interval, reflecting its authored selection (a single
 // predicate, an AND of predicates, or an OR of branches).
 export function intervalLabel(iv: BuilderInterval): string {
-  const sel = iv.selection as { branches?: { preds?: string[] }[]; preds?: string[] } | null | undefined;
-  if (sel && Array.isArray(sel.branches) && sel.branches.length > 1) {
-    const names = sel.branches.map((b) => b.preds?.[0]).filter((n): n is string => !!n);
-    if (names.length > 1) return names.join(' ∨ ');
-    return names[0] ?? iv.pred;
+  if (!iv.pred) return '';
+
+  type SelBranch = { preds?: string[]; args?: Record<string, string[]>; pred_args?: Record<string, string[]> };
+  const sel = iv.selection as {
+    branches?: SelBranch[];
+    preds?: string[];
+    args?: Record<string, string[]>;
+    pred_args?: Record<string, string[]>;
+  } | null | undefined;
+
+  const argsList = (m: Record<string, string[]> | undefined): string[] => {
+    if (!m) return [];
+    return Object.keys(m)
+      .sort((a, b) => Number(a) - Number(b))
+      .map((k) => {
+        const vals = (m[k] ?? []).filter(Boolean);
+        if (vals.length > 1) return vals.join(' ∨ ');
+        return vals[0] ?? '';
+      })
+      .filter(Boolean);
+  };
+
+  const labelPred = (p: string, own: string[] | undefined, shared: string[]): string => {
+    const a = own && own.length ? own : shared;
+    return predicateLabel(p, a);
+  };
+
+  if (sel && Array.isArray(sel.branches) && sel.branches.length) {
+    return sel.branches
+      .map((b) => {
+        const shared = argsList(b.args);
+        return (b.preds ?? []).map((p) => labelPred(p, b.pred_args?.[p], shared)).join(' ∧ ');
+      })
+      .join(' ∨ ');
   }
+
   if (sel && Array.isArray(sel.preds) && sel.preds.length > 1) {
-    return sel.preds.join(' ∧ ');
+    const shared = argsList(sel.args).length ? argsList(sel.args) : iv.args;
+    return sel.preds.map((p) => labelPred(p, sel.pred_args?.[p], shared)).join(' ∧ ');
   }
-  return iv.args.length ? `${iv.pred}(${iv.args.join(', ')})` : iv.pred;
+
+  return predicateLabel(iv.pred, iv.args);
 }
 
 // ---------------------------------------------------------------------------

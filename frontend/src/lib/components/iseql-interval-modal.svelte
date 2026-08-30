@@ -6,7 +6,7 @@
   import Field from '$lib/components/ui/field.svelte';
   import ExprEditor from '$lib/components/expr-editor.svelte';
   import type { Condition } from '$lib/types';
-  import { parseBoolExpr, boolTextFromSelection, tokenizeBoolExpr, type Vocabulary, type EditorToken } from '$lib/iseql-model';
+  import { parseBoolExpr, boolTextFromSelection, tokenizeBoolExpr, predicateLabel, type Vocabulary, type EditorToken } from '$lib/iseql-model';
   import { inputInt, selectValue } from '$lib/dom-helpers';
 
   interface IntervalDraft {
@@ -54,15 +54,38 @@
     return vocabulary.predicates.find((p) => p.name === name)?.args ?? [];
   }
 
+  function labelOf(name: string): string {
+    return predicateLabel(name, vocabArgs(name));
+  }
+
   function openPredicate(name: string) {
     const modality = vocabulary.predicates.find((p) => p.name === name)?.modality ?? 'visual';
     confirm = { name, modality };
   }
 
-  function argsToMap(args: string[]): Record<string, string[]> {
+  function unionArgsMap(preds: string[]): Record<string, string[]> {
     const map: Record<string, string[]> = {};
-    args.forEach((c, i) => { if (c) map[String(i + 1)] = [c]; });
+    preds.forEach((p) => {
+      vocabArgs(p).forEach((c, i) => {
+        if (!c) return;
+        const k = String(i + 1);
+        (map[k] ??= []).push(c);
+      });
+    });
+    for (const k of Object.keys(map)) map[k] = [...new Set(map[k])];
     return map;
+  }
+
+  function unionArgs(preds: string[]): string[] {
+    const map = unionArgsMap(preds);
+    return Object.keys(map)
+      .sort((a, b) => Number(a) - Number(b))
+      .map((k) => map[k][0] ?? '')
+      .filter(Boolean);
+  }
+
+  function predArgsMap(preds: string[]): Record<string, string[]> {
+    return Object.fromEntries(preds.map((p) => [p, vocabArgs(p)]));
   }
 
   const tokens = $derived<EditorToken[] | null>(mapTokens(tokenizeBoolExpr(text)));
@@ -79,21 +102,23 @@
 
   function save() {
     if (!parsed || !parsed.length) return;
-    const first = parsed[0][0];
+    const allPreds = [...new Set(parsed.flat())];
+    const first = allPreds[0];
     let selection: Record<string, unknown> | null = null;
     if (parsed.length === 1 && parsed[0].length === 1) {
       selection = null;
     } else if (parsed.length === 1) {
-      selection = { preds: parsed[0], args: {} };
+      selection = { preds: parsed[0], args: unionArgsMap(parsed[0]), pred_args: predArgsMap(parsed[0]) };
     } else {
       selection = {
         branches: parsed.map((b) => ({
           preds: b,
-          args: b.length === 1 ? argsToMap(vocabArgs(b[0])) : {},
+          args: unionArgsMap(b),
+          pred_args: predArgsMap(b),
         })),
       };
     }
-    onSave({ pred: first, args: vocabArgs(first), ts, te, group, selection });
+    onSave({ pred: first, args: unionArgs(allPreds), ts, te, group, selection });
   }
 </script>
 
@@ -108,7 +133,7 @@
       <div class="space-y-3">
         <Field>
           <Label>Predicates Expression</Label>
-          <ExprEditor {text} {tokens} options={predOptions.map((p) => p.value)} operators={['∧', '∨']} kind="pred" {onText} onOpen={openPredicate} />
+          <ExprEditor {text} {tokens} options={predOptions.map((p) => p.value)} operators={['∧', '∨']} kind="pred" {onText} onOpen={openPredicate} {labelOf} />
         </Field>
         <div class="grid grid-cols-2 gap-3">
           <Field>

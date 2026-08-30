@@ -132,8 +132,64 @@ describe('empty state and labels', () => {
 
   it('intervalLabel reflects a multi-branch selection', () => {
     const iv = makeInterval('running');
-    iv.selection = { branches: [{ preds: ['running'] }, { preds: ['walking'] }] };
-    expect(intervalLabel(iv)).toBe('running ∨ walking');
+    iv.selection = {
+      branches: [
+        { preds: ['running'], args: { 1: ['person'] } },
+        { preds: ['walking'], args: { 1: ['person'] } },
+      ],
+    };
+    expect(intervalLabel(iv)).toBe('running(person) ∨ walking(person)');
+  });
+
+  it('intervalLabel renders multi-value args without wrapping parens', () => {
+    const iv = makeInterval('explosion_visible', ['vehicle']);
+    iv.selection = {
+      branches: [{ preds: ['explosion_visible'], args: { 1: ['vehicle', 'object'] } }],
+    };
+    expect(intervalLabel(iv)).toBe('explosion_visible(vehicle ∨ object)');
+  });
+
+  it('intervalLabel shows empty parens for audio predicates', () => {
+    const iv = makeInterval('gunshot', []);
+    expect(intervalLabel(iv)).toBe('gunshot()');
+  });
+
+  it('intervalLabel shows args for an AND selection', () => {
+    const iv = makeInterval('running', ['person']);
+    iv.selection = { preds: ['running', 'walking'], args: { 1: ['person'] } };
+    expect(intervalLabel(iv)).toBe('running(person) ∧ walking(person)');
+  });
+
+  it('intervalLabel shows args for OR branches', () => {
+    const iv = makeInterval('running', ['person']);
+    iv.selection = {
+      branches: [
+        { preds: ['running'], args: { 1: ['person'] } },
+        { preds: ['walking'], args: { 1: ['person'] } },
+      ],
+    };
+    expect(intervalLabel(iv)).toBe('running(person) ∨ walking(person)');
+  });
+
+  it('intervalLabel falls back to interval args for AND without selection args', () => {
+    const iv = makeInterval('running', ['person']);
+    iv.selection = { preds: ['running', 'walking'], args: {} };
+    expect(intervalLabel(iv)).toBe('running(person) ∧ walking(person)');
+  });
+
+  it('intervalLabel renders per-predicate args from pred_args', () => {
+    const iv = makeInterval('running', ['person']);
+    iv.selection = {
+      preds: ['running', 'carrying'],
+      args: { 1: ['person'], 2: ['object'] },
+      pred_args: { running: ['person'], carrying: ['person', 'object'] },
+    };
+    expect(intervalLabel(iv)).toBe('running(person) ∧ carrying(person, object)');
+  });
+
+  it('intervalLabel renders a single predicate with args', () => {
+    const iv = makeInterval('carrying', ['person', 'object']);
+    expect(intervalLabel(iv)).toBe('carrying(person, object)');
   });
 
   it('detectOperator returns a known operator', () => {
