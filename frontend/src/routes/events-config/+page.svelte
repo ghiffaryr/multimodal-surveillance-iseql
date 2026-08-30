@@ -11,11 +11,12 @@
   import { ArrowLeft } from 'lucide-svelte';
   import type { Condition } from '$lib/types';
 
-  let active = $state('events');
+  let active = $state('predicates');
   let condition = $state<Condition>('A');
   let editing = $state(false);
   let activeId = $state<string | null>(null);
   let mode = $state<'new' | 'open'>('new');
+  let predicateFocus = $state<{ modality: 'visual' | 'audio'; name: string } | null>(null);
 </script>
 
 <div class="mx-auto flex h-screen w-full max-w-7xl flex-col gap-3 p-4">
@@ -23,7 +24,7 @@
     <div>
       <h1 class="text-lg font-semibold">Events Configuration</h1>
       <p class="text-xs text-muted-foreground">
-        Author ISEQL events, relations, and audio events. Saved to the database.
+        Define predicates (relations and audio classes) first, then author ISEQL events that use them.
       </p>
     </div>
     <Button href="/" variant="outline" size="sm"><ArrowLeft /> Back to analysis</Button>
@@ -31,10 +32,24 @@
 
   <Tabs bind:value={active} class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border">
     <TabsList class="shrink-0 border-b px-2 py-1">
+      <TabsTrigger value="predicates">Predicates</TabsTrigger>
       <TabsTrigger value="events">Events (ISEQL)</TabsTrigger>
-      <TabsTrigger value="relations">Relations</TabsTrigger>
-      <TabsTrigger value="audio">Audio events</TabsTrigger>
     </TabsList>
+
+    {#if active === 'predicates'}
+      <TabsContent value="predicates" class="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-3">
+        <section class="flex min-h-0 flex-1 flex-col rounded-md border p-2">
+          <div class="flex min-h-0 flex-1 flex-col">
+            <RelationConfigurator focusRelation={predicateFocus?.modality === 'visual' ? predicateFocus.name : null} onFocused={() => (predicateFocus = null)} />
+          </div>
+        </section>
+        <section class="flex min-h-0 flex-1 flex-col rounded-md border p-2">
+          <div class="flex min-h-0 flex-1 flex-col">
+            <AudioSettings />
+          </div>
+        </section>
+      </TabsContent>
+    {/if}
 
     {#if active === 'events'}
       <TabsContent value="events" class="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden p-2">
@@ -67,6 +82,7 @@
               mode={mode}
               onBack={() => (editing = false)}
               onSaved={() => { activeId = null; editing = false; }}
+              onOpenPredicate={(name, modality) => { editing = false; predicateFocus = { modality, name }; active = 'predicates'; }}
             />
           {:else}
             <EventManager
@@ -76,18 +92,6 @@
             />
           {/if}
         </div>
-      </TabsContent>
-    {/if}
-
-    {#if active === 'relations'}
-      <TabsContent value="relations" class="min-h-0 flex-1 overflow-y-auto p-4">
-        <RelationConfigurator />
-      </TabsContent>
-    {/if}
-
-    {#if active === 'audio'}
-      <TabsContent value="audio" class="min-h-0 flex-1 overflow-y-auto p-4">
-        <AudioSettings />
       </TabsContent>
     {/if}
   </Tabs>

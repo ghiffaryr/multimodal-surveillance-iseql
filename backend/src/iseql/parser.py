@@ -182,23 +182,42 @@ class _Parser:
 
     def parse_query(self, name: str) -> dict:
         """Parse the whole query text into a model dict."""
-        operands = []
-        set_ops = []
-        while True:
-            operands.append(self.parse_operand())
-            self.skip_ws()
-            if self.eof():
-                break
-            set_ops.append(self.read_set_op())
-        if not operands:
-            raise IseqlParseError("empty query")
-        if len(set_ops) != len(operands) - 1:
-            raise IseqlParseError("malformed set operation sequence")
-        if len(operands) > 2:
-            raise IseqlParseError("only a single set operation (two operands) is supported")
+        operands: list["Operand"] = []
+        root = self._parse_set_expression(operands)
+        self.skip_ws()
+        if not self.eof():
+            raise IseqlParseError(
+                f"unexpected trailing content at position {self.i}: "
+                f"'{self.s[self.i:].strip()}'"
+            )
         if len(operands) == 1:
             return self._build_flat_model(operands[0], name)
-        return self._build_set_model(operands[0], operands[1], set_ops[0], name)
+        return self._build_tree_model(root, operands, name)
+
+    def _parse_set_expression(self, operands: list["Operand"]) -> dict:
+        """Set-expression tree: operands joined by \\ ∪ ∩, left-associative, with
+        parenthesised sub-expressions. Leaves are {group_ref: idx} markers."""
+        node = self._parse_set_primary(operands)
+        while True:
+            self.skip_ws()
+            if self.eof() or self.peek() == ")":
+                break
+            op = self.read_set_op()
+            right = self._parse_set_primary(operands)
+            node = {"op": op, "children": [node, right]}
+        return node
+
+    def _parse_set_primary(self, operands: list["Operand"]) -> dict:
+        self.skip_ws()
+        if self.peek() == "(":
+            self.i += 1
+            node = self._parse_set_expression(operands)
+            self.expect(")")
+            return node
+        operand = self.parse_operand()
+        idx = len(operands)
+        operands.append(operand)
+        return {"group_ref": idx, "projection": operand.projection}
 
     def parse_operand(self) -> "Operand":
         self.skip_ws()
@@ -420,43 +439,46 @@ class _Parser:
             model["custom_projection"] = op.projection
         return model
 
-    def _build_set_model(self, left: "Operand", right: "Operand", set_op: str, name: str) -> dict:
-        self._synthesize(left.intervals, left.ops)
-        self._synthesize(right.intervals, right.ops)
-        k = len(left.intervals)
+    def _build_tree_model(self, root: dict, operands: list["Operand"], name: str) -> dict:
+        all_intervals: list[dict] = []
+        all_ccs: list[dict] = []
+        overrides: list[dict] = []
+        dm: dict[str, object] = {}
+        offset = 0
+        for idx, op in enumerate(operands):
+            gname = f"s{idx + 1}"
+            self._synthesize(op.intervals, op.ops)
+            all_intervals += [dict(iv, group=gname) for iv in op.intervals]
+            all_ccs += self._offset_ccs(op.cross_conditions, offset)
+            for i, o in enumerate(op.ops):
+                overrides.append({"side": gname, "pair_idx": i + 1, "operator": o["op"]})
+                entry = {p: o.get(p) for p in OPERATOR_PARAMS[o["op"]]}
+                for p in ("zeta", "eta", "rho"):
+                    if o.get(p) is not None:
+                        entry[p] = o[p]
+                dm[f"{gname}.{i}"] = entry
+            offset += len(op.intervals)
         model: dict = {
             "event_name": name,
-            "set_operator": set_op,
-            "intervals": [dict(iv, set_side="left") for iv in left.intervals]
-                       + [dict(iv, set_side="right") for iv in right.intervals],
-            "cross_conditions": left.cross_conditions + self._offset_ccs(right.cross_conditions, k),
-            "operator_overrides": (
-                [{"side": "left", "pair_idx": i + 1, "operator": o["op"]}
-                 for i, o in enumerate(left.ops)]
-                + [{"side": "right", "pair_idx": i + 1, "operator": o["op"]}
-                   for i, o in enumerate(right.ops)]
-            ),
+            "set_expression": self._finalize_tree(root),
+            "intervals": all_intervals,
+            "cross_conditions": all_ccs,
+            "operator_overrides": overrides,
         }
-        dm: dict[str, object] = {}
-        for i, o in enumerate(left.ops):
-            entry = {p: o.get(p) for p in OPERATOR_PARAMS[o["op"]]}
-            for p in ("zeta", "eta", "rho"):
-                if o.get(p) is not None:
-                    entry[p] = o[p]
-            dm[f"left.{i}"] = entry
-        for i, o in enumerate(right.ops):
-            entry = {p: o.get(p) for p in OPERATOR_PARAMS[o["op"]]}
-            for p in ("zeta", "eta", "rho"):
-                if o.get(p) is not None:
-                    entry[p] = o[p]
-            dm[f"right.{i}"] = entry
         if dm:
             model["delta_map"] = dm
-        if left.projection:
-            model["left_projection"] = left.projection
-        if right.projection:
-            model["right_projection"] = right.projection
         return model
+
+    def _finalize_tree(self, node: dict) -> dict:
+        if "group_ref" in node:
+            leaf: dict = {"group": f"s{node['group_ref'] + 1}"}
+            if node.get("projection"):
+                leaf["projection"] = node["projection"]
+            return leaf
+        return {
+            "op": node["op"],
+            "children": [self._finalize_tree(c) for c in node["children"]],
+        }
 
     @staticmethod
     def _offset_ccs(ccs: list[dict], offset: int) -> list[dict]:
@@ -475,8 +497,8 @@ class _Parser:
         """Assign concrete ts/te to intervals from the operator sequence."""
         if not intervals:
             return
-        length = 10
-        base = 1000
+        length = 100
+        base = 0
         cur_ts, cur_te = base, base + length
         intervals[0]["ts"] = cur_ts
         intervals[0]["te"] = cur_te
@@ -486,29 +508,29 @@ class _Parser:
             a0, a1 = cur_ts, cur_te
             op = o["op"]
             if op == "Bef":
-                b0 = a1 + (d if d is not None else 0)
+                b0 = a1
                 b1 = b0 + length
             elif op == "Aft":
-                b1 = a0 - (d if d is not None else 0)
+                b1 = a0
                 b0 = b1 - length
             elif op == "SP":
-                b0 = a0 + 2
-                b1 = a0 + length - 2
+                b0 = a0 + length // 2
+                b1 = b0 + length
             elif op == "EF":
-                b1 = a1 - 2
+                b1 = a1 + length // 2
                 b0 = a0
             elif op == "DJ":
-                b0 = a0 - (d if d is not None else 2)
-                b1 = a1 + (e if e is not None else 2)
+                b0 = a0 - (d if d is not None else length // 4)
+                b1 = a1 + (e if e is not None else length // 4)
             elif op == "RDJ":
-                b0 = a0 + (d if d is not None else 2)
-                b1 = a1 - (e if e is not None else 2)
+                b0 = a0 + (d if d is not None else length // 4)
+                b1 = a1 - (e if e is not None else length // 4)
             elif op == "LOJ":
-                b0 = a0 + (d if d is not None else 2)
-                b1 = a1 + (e if e is not None else 4)
+                b0 = a0 + (d if d is not None else length // 4)
+                b1 = a1 + (e if e is not None else length // 2)
             elif op == "ROJ":
-                b0 = a0 - (d if d is not None else 2)
-                b1 = a1 - (e if e is not None else 2)
+                b0 = a0 - (d if d is not None else length // 4)
+                b1 = a1 - (e if e is not None else length // 2)
             else:
                 raise IseqlParseError(f"unsupported operator '{op}'")
             b0 = max(0, b0)

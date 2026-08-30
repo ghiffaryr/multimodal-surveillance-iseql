@@ -37,6 +37,8 @@ log = get_logger(__name__)
 _VISUAL_SOURCE = "visual"
 _AUDIO_SOURCE = "audio"
 
+_STRICTNESS_OPS = ("<", "<=", ">", ">=")
+
 
 class ModelValidationError(ValueError):
     pass
@@ -89,7 +91,42 @@ def validate_model(model_json: str | dict) -> dict:
     has_set_side = any(iv.get("set_side") for iv in intervals)
     if set_operator and not has_set_side:
         raise ModelValidationError("set_operator present but no interval has set_side")
+    se = model.get("set_expression")
+    if se is not None:
+        _validate_expression(se)
+        if has_set_side:
+            raise ModelValidationError("model mixes set_expression with set_side intervals")
+    for i, iv in enumerate(intervals):
+        g = iv.get("group")
+        if g is not None and not isinstance(g, str):
+            raise ModelValidationError(f"interval[{i}].group must be a string or null")
     return model
+
+
+def _validate_expression(node, depth: int = 0) -> None:
+    """Validate a set_expression tree node (leaf references a group name)."""
+    if depth > 64:
+        raise ModelValidationError("set_expression is nested too deeply")
+    if not isinstance(node, dict):
+        raise ModelValidationError("set_expression nodes must be objects")
+    if "group" in node:
+        g = node.get("group")
+        if g is not None and not isinstance(g, str):
+            raise ModelValidationError("set_expression group must be a string or null")
+        proj = node.get("projection")
+        if proj is not None and (
+                not isinstance(proj, list)
+                or any(not isinstance(f, str) for f in proj)):
+            raise ModelValidationError("set_expression projection must be a list of strings")
+        return
+    op = node.get("op")
+    if op not in ("\\", "∪", "∩"):
+        raise ModelValidationError(f"unsupported set_expression op '{op}'")
+    children = node.get("children")
+    if not isinstance(children, list) or not children:
+        raise ModelValidationError("set_expression internal node requires a non-empty 'children' list")
+    for c in children:
+        _validate_expression(c, depth + 1)
 
 
 def _normalized_model(model: dict) -> dict:
@@ -101,6 +138,7 @@ def _normalized_model(model: dict) -> dict:
     out.setdefault("left_projection", None)
     out.setdefault("right_projection", None)
     out.setdefault("set_operator", None)
+    out.setdefault("set_expression", None)
     out.setdefault("delta_map", {})
     return out
 
@@ -595,8 +633,13 @@ def _operators_between_slots(model: dict, ivs: list[dict], deltas: dict,
                 raw = entry[p]
                 # Authored numeric thresholds are in the domain's own unit
                 # (frames for sf/ef, seconds for st/et); named keys resolve
-                # per-detect after.
-                params[p] = _resolve(raw, deltas)
+                # per-detect after (None in preview -> default below).
+                val = _resolve(raw, deltas)
+                if p in ("zeta", "eta") and val not in _STRICTNESS_OPS:
+                    val = "<="
+                elif p == "rho" and val is None:
+                    val = 0
+                params[p] = val
         a1, a2 = f"M{k + 1}", f"M{k + 2}"
         conds.append(helper(a1, a2, cols=cols, **_operator_kwargs(helper, params)))
     return conds
@@ -795,6 +838,120 @@ def _side_cross_conditions(model: dict, n_intervals: int, offset: int = 0) -> li
     return out
 
 
+# ---------------------------------------------------------------------------
+# set expressions (named groups + full set-operation trees)
+# ---------------------------------------------------------------------------
+
+_SET_SQL = {"\\": "EXCEPT", "∪": "UNION", "∩": "INTERSECT"}
+
+
+def _group_intervals(model: dict, group: str | None) -> list[dict]:
+    """Intervals that belong to ``group`` (None = ungrouped), in authored order."""
+    return [iv for iv in model["intervals"] if (iv.get("group") or None) == group]
+
+
+def _group_field_count(ivs: list[dict], projection: list[str] | None = None) -> int:
+    """Output column count of a group's projection (default StartFrame/EndFrame
+    plus each interval's argN/sf/ef, or the authored projection)."""
+    if projection:
+        return len(projection)
+    n = 2
+    for iv in ivs:
+        if iv.get("query_ref"):
+            n += 2
+        else:
+            n += len((iv.get("pred") or {}).get("arguments", [])) + 2
+    return n
+
+
+def _group_cross_conditions(model: dict, group: str | None) -> list[dict]:
+    """Cross-conditions whose two aliases both sit inside ``group``, rebound to
+    the group's local M1..Mn aliases."""
+    gidx = [i + 1 for i, iv in enumerate(model["intervals"])
+            if (iv.get("group") or None) == group]
+    gset = set(gidx)
+    local = {g: k + 1 for k, g in enumerate(sorted(gidx))}
+    out = []
+    for c in model.get("cross_conditions", []):
+        la, ra = c.get("left_alias"), c.get("right_alias")
+        if not (isinstance(la, str) and isinstance(ra, str)
+                and la.startswith("M") and la[1:].isdigit()
+                and ra.startswith("M") and ra[1:].isdigit()):
+            continue
+        ln, rn = int(la[1:]), int(ra[1:])
+        if ln in gset and rn in gset:
+            out.append({**c, "left_alias": f"M{local[ln]}", "right_alias": f"M{local[rn]}"})
+    return out
+
+
+def _group_model(model: dict, group: str | None, group_ivs: list[dict],
+                 projection: list[str] | None = None) -> dict:
+    """A per-group model slice: the group's intervals with rebased cross-conditions
+    and no set-op metadata (delta_map stays shared so ``<group>.<pair_idx>`` keys
+    resolve)."""
+    return dict(
+        model,
+        intervals=group_ivs,
+        set_side=None,
+        set_operator=None,
+        set_expression=None,
+        custom_projection=projection,
+        left_projection=None,
+        right_projection=None,
+        cross_conditions=_group_cross_conditions(model, group),
+        group_cross_conditions={},
+    )
+
+
+def _render_group_body(model: dict, group: str | None, analysis_id: str, deltas: dict,
+                       fps: int | str = 1,
+                       audio_predicates: set[str] | None = None,
+                       projection: list[str] | None = None) -> str:
+    ivs = _group_intervals(model, group)
+    if not ivs:
+        raise ModelValidationError(f"set_expression references empty group {group!r}")
+    gm = _group_model(model, group, ivs, projection)
+    ctes, fields, conditions = _render_chain(
+        gm, ivs, analysis_id, deltas, side=group, fps=fps,
+        audio_predicates=audio_predicates)
+    return _build_inline(ctes, fields, conditions)
+
+
+def _expression_arity(node: dict, model: dict) -> int:
+    """Maximum output column count across a set-expression subtree."""
+    if "group" in node:
+        return _group_field_count(_group_intervals(model, node["group"]),
+                                  node.get("projection"))
+    return max(_expression_arity(c, model) for c in node["children"])
+
+
+def _render_expression(node: dict, model: dict, analysis_id: str, deltas: dict,
+                       fps: int | str = 1,
+                       audio_predicates: set[str] | None = None,
+                       arity: int | None = None) -> str:
+    """Render a set_expression tree to SQL (leaves are group chains, internal
+    nodes are UNION/EXCEPT/INTERSECT). Every operand is padded to the subtree's
+    arity so the columns align across all branches."""
+    if arity is None:
+        arity = _expression_arity(node, model)
+    if "group" in node:
+        ivs = _group_intervals(model, node["group"])
+        if not ivs:
+            raise ModelValidationError(
+                f"set_expression references empty group {node['group']!r}")
+        gm = _group_model(model, node["group"], ivs, node.get("projection"))
+        ctes, fields, conditions = _render_chain(
+            gm, ivs, analysis_id, deltas, side=node["group"], fps=fps,
+            audio_predicates=audio_predicates)
+        return _build_inline(ctes, _pad_fields(fields, arity), conditions)
+    keyword = _SET_SQL[node["op"]]
+    return f"\n{keyword}\n".join(
+        _render_expression(c, model, analysis_id, deltas, fps=fps,
+                           audio_predicates=audio_predicates, arity=arity)
+        for c in node["children"]
+    )
+
+
 def compile_event(model_json: str | dict, deltas: dict, analysis_id: str,
                   fps: int | str = 1, audio_predicates: set[str] | None = None
                   ) -> tuple[str, str]:
@@ -813,7 +970,10 @@ def compile_event(model_json: str | dict, deltas: dict, analysis_id: str,
     model = validate_model(model_json)
     model = _normalized_model(model)
     has_set_side = any(iv.get("set_side") for iv in model["intervals"])
-    if has_set_side:
+    if model.get("set_expression") is not None:
+        sql = _render_expression(model["set_expression"], model, analysis_id, deltas,
+                                 fps=fps, audio_predicates=audio_predicates)
+    elif has_set_side:
         sql = _render_set_operation(model, analysis_id, deltas, fps=fps,
                                     audio_predicates=audio_predicates)
     else:
@@ -840,7 +1000,10 @@ def _render_selection(iv: dict, alias: str) -> str:
             conds = [f'pred="{p}"' for p in (b.get("preds") or [])]
             for k in sorted((b.get("args") or {}), key=int):
                 vals = b["args"][k]
-                conds.append(" ∨ ".join(f'arg{k}="{v}"' for v in vals))
+                if len(vals) > 1:
+                    conds.append("(" + " ∨ ".join(f'arg{k}="{v}"' for v in vals) + ")")
+                elif vals:
+                    conds.append(f'arg{k}="{vals[0]}"')
             parts.append(" ∧ ".join(conds))
         expr = " ∨ ".join(f"({p})" for p in parts) if len(parts) > 1 else parts[0]
         return f"σ_{{{expr}}}({alias})"
@@ -951,6 +1114,22 @@ def _render_operand(model: dict, ivs: list[dict], side: str | None, offset: int,
     return "\n".join(lines)
 
 
+def _render_expression_text(node: dict, model: dict, lits: dict | None = None) -> str:
+    """Render a set_expression tree to ISEQL text. Non-leaf children are
+    parenthesised so the nesting round-trips through the parser."""
+    if "group" in node:
+        ivs = _group_intervals(model, node["group"])
+        gm = _group_model(model, node["group"], ivs, node.get("projection"))
+        return _render_operand(gm, ivs, node["group"], 0, lits)
+    parts = []
+    for c in node["children"]:
+        text = _render_expression_text(c, model, lits)
+        if "op" in c:
+            text = f"({text})"
+        parts.append(text)
+    return f"\n{node['op']}\n".join(parts)
+
+
 def render_iseql(model: dict, lits: dict | None = None) -> str:
     """Render a model dict to ISEQL text (round-trips through the parser).
 
@@ -961,6 +1140,8 @@ def render_iseql(model: dict, lits: dict | None = None) -> str:
     ivs = model["intervals"]
     if not ivs:
         return "-- No intervals."
+    if model.get("set_expression") is not None:
+        return _render_expression_text(model["set_expression"], model, lits)
     if any(iv.get("set_side") for iv in ivs):
         left = [iv for iv in ivs if iv.get("set_side") == "left"]
         right = [iv for iv in ivs if iv.get("set_side") == "right"]

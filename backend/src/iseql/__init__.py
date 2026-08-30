@@ -5,6 +5,20 @@
 - ``compiler`` model -> SQL (+ ISEQL text rendering)
 - ``facade``   thin entry points for the service/API layers
 """
-from iseql.facade import compile_event, compile_query, render_model, validate_model
+from iseql.facade import (
+    compile_event,
+    compile_model,
+    compile_query,
+    render_model,
+    validate_model,
+    vocabulary,
+)
 
-__all__ = ["compile_event", "compile_query", "render_model", "validate_model"]
+__all__ = [
+    "compile_event",
+    "compile_model",
+    "compile_query",
+    "render_model",
+    "validate_model",
+    "vocabulary",
+]

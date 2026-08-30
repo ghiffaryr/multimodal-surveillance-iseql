@@ -1,8 +1,8 @@
 <script lang="ts">
   import { api } from '$lib/api';
+  import { longpress } from '$lib/actions/longpress';
   import Input from '$lib/components/ui/input.svelte';
-  import Button from '$lib/components/ui/button.svelte';
-  import { Trash2 } from 'lucide-svelte';
+  import CountBadge from '$lib/components/ui/count-badge.svelte';
   import type { Condition, EventTypeInfo } from '$lib/types';
 
   type Props = {
@@ -16,6 +16,7 @@
   let search = $state('');
   let error = $state<string | null>(null);
   let loading = $state(false);
+  let ctxMenu = $state<{ x: number; y: number; id: string } | null>(null);
 
   async function load() {
     loading = true;
@@ -45,15 +46,21 @@
       error = `Failed to delete event: ${(err as Error).message}`;
     }
   }
+
+  async function removeById(id: string) {
+    const e = events.find((x) => x.id === id);
+    if (e) await remove(e);
+  }
 </script>
 
 <div class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pt-1">
   {#if error}<p class="text-sm text-destructive">{error}</p>{/if}
 
-  <div class="flex flex-wrap items-center gap-2">
-    <Button type="button" size="sm" variant="outline" onclick={onNew}>＋ New Event</Button>
-    <Input class="h-8 flex-1 font-mono text-xs" placeholder="Search events…" value={search} oninput={(e) => (search = (e.currentTarget as HTMLInputElement).value)} />
-    <span class="text-xs text-muted-foreground">{filtered.length} event{filtered.length === 1 ? '' : 's'}</span>
+  <div class="flex items-center gap-2">
+    <span class="text-sm font-semibold">Events</span>
+    <CountBadge filtered={filtered.length} total={events.length} filtering={search.trim() !== ''} />
+    <Input class="h-7 flex-1 font-mono text-xs" placeholder="Search events…" value={search} oninput={(e) => (search = (e.currentTarget as HTMLInputElement).value)} />
+    <button type="button" class="rounded border px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted" title="Add event" onclick={onNew}>＋</button>
   </div>
 
   <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
@@ -61,21 +68,14 @@
       <div
         role="button"
         tabindex="0"
-        class="group cursor-pointer rounded-md border p-2 transition-colors hover:border-primary/50 hover:bg-muted/40"
+        class="group cursor-pointer select-none touch-callout-none rounded-md border p-2 transition-colors hover:border-primary/50 hover:bg-muted/40"
         onclick={() => onOpen(e.id)}
         onkeydown={(ev) => { if (ev.key === 'Enter') onOpen(e.id); }}
+        oncontextmenu={(ev) => { ev.preventDefault(); ctxMenu = { x: ev.clientX, y: ev.clientY, id: e.id }; }}
+        use:longpress={{ onLongPress: (ev) => { ctxMenu = { x: ev.clientX, y: ev.clientY, id: e.id }; } }}
         title="Click to edit"
       >
-        <div class="flex items-center justify-between gap-1">
-          <span class="min-w-0 truncate font-mono text-sm font-medium">{e.id}</span>
-          <button
-            class="shrink-0 p-1.5 text-muted-foreground/50 opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
-            onclick={(ev) => { ev.stopPropagation(); remove(e); }}
-            title="Delete event"
-          >
-            <Trash2 class="size-3" />
-          </button>
-        </div>
+        <span class="min-w-0 truncate font-mono text-sm font-medium">{e.id}</span>
       </div>
     {:else}
       <p class="col-span-full text-sm text-muted-foreground">
@@ -84,3 +84,10 @@
     {/each}
   </div>
 </div>
+
+{#if ctxMenu}
+  <div class="fixed inset-0 z-50" role="presentation" onclick={() => (ctxMenu = null)} oncontextmenu={(e) => { e.preventDefault(); ctxMenu = null; }}></div>
+  <div class="fixed z-50 w-44 rounded-md border bg-background py-1 text-xs shadow-lg" style="left: {ctxMenu.x}px; top: {ctxMenu.y}px">
+    <button type="button" class="block w-full px-3 py-1 text-left hover:bg-muted" onclick={() => { removeById(ctxMenu!.id); ctxMenu = null; }}>Delete</button>
+  </div>
+{/if}

@@ -30,10 +30,10 @@
   }: Props = $props();
 
   const STRICTNESS_OPTIONS = [
-    { value: '<', label: 'strict <' },
-    { value: '<=', label: 'non-strict <=' },
-    { value: '>', label: 'strict >' },
-    { value: '>=', label: 'non-strict >=' },
+    { value: '<=', label: '<=' },
+    { value: '>=', label: '>=' },
+    { value: '<', label: '<' },
+    { value: '>', label: '>' },
   ];
 
   type ParamField = {

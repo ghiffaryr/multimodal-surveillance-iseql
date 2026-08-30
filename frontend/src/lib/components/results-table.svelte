@@ -3,7 +3,8 @@
   import CardHeader from '$lib/components/ui/card-header.svelte';
   import CardTitle from '$lib/components/ui/card-title.svelte';
   import CardContent from '$lib/components/ui/card-content.svelte';
-  import Badge from '$lib/components/ui/badge.svelte';
+  import Input from '$lib/components/ui/input.svelte';
+  import CountBadge from '$lib/components/ui/count-badge.svelte';
   import UnitToggle from '$lib/components/unit-toggle.svelte';
   import { DatabaseZap } from 'lucide-svelte';
   import { cn } from '$lib/utils';
@@ -41,6 +42,16 @@
           )
           .map((k) => ({ label: k.replace(/^M(\d+)_/, 'M$1.'), key: k }))
       : []
+  );
+
+  let search = $state('');
+
+  const filteredRows = $derived(
+    (result?.rows ?? []).map((row, i) => ({ row, i })).filter(({ row }) => {
+      const q = search.trim().toLowerCase();
+      if (!q) return true;
+      return Object.values(row).some((v) => String(v ?? '').toLowerCase().includes(q));
+    })
   );
 
   // --- video + timeline ---
@@ -115,22 +126,25 @@
 </script>
 
 <Card class="flex min-h-0 flex-1 flex-col">
-  <CardHeader class="flex flex-row flex-wrap items-center justify-between gap-2">
-    <CardTitle>Results</CardTitle>
-    <div class="flex flex-wrap items-center gap-2">
+  <CardHeader class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+    <div class="flex items-center justify-between gap-2 sm:contents">
+      <CardTitle class="flex shrink-0 items-center gap-1.5 sm:order-1">
+        Results
+        {#if result}<CountBadge filtered={filteredRows.length} total={result.rows.length} filtering={search.trim() !== ''} />{/if}
+      </CardTitle>
+      <UnitToggle class="shrink-0 sm:order-4" {unit} {onUnitChange} secondsLabel="Time" />
+    </div>
+    <div class="flex flex-col gap-2 sm:contents">
+      <Input class="h-7 w-full min-w-0 font-mono text-xs sm:order-2 sm:flex-1" placeholder="Search results…" value={search} oninput={(e) => (search = (e.currentTarget as HTMLInputElement).value)} />
       {#if onMemory}
         <button
           type="button"
           title="View object memory"
-          class="inline-flex items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          class="inline-flex shrink-0 self-start items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:order-3 sm:self-auto"
           onclick={onMemory}
         >
           <DatabaseZap class="size-3.5" /> Object memory
         </button>
-      {/if}
-      <UnitToggle {unit} {onUnitChange} secondsLabel="Time" />
-      {#if result}
-        <Badge variant="outline">{result.rows.length} row(s)</Badge>
       {/if}
     </div>
   </CardHeader>
@@ -161,6 +175,8 @@
       </p>
     {:else if result.rows.length === 0}
       <p class="text-sm text-muted-foreground">No events detected.</p>
+    {:else if filteredRows.length === 0}
+      <p class="text-sm text-muted-foreground">No results match your search.</p>
     {:else}
       <div class="overflow-x-auto">
         <table class={cn('w-full text-left text-sm')}>
@@ -172,7 +188,7 @@
             </tr>
           </thead>
           <tbody>
-            {#each result.rows as row, i (i)}
+            {#each filteredRows as { row, i } (i)}
               <tr
                 class={cn(
                   'cursor-pointer border-b border-border/50 transition-colors last:border-0',

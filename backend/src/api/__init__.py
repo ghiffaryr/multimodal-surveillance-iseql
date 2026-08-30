@@ -25,7 +25,10 @@ from api.event_registry_controller import (
 )
 from api.iseql_compile_controller import IseqlCompileController
 from api.iseql_preview_controller import IseqlPreviewController
+from api.iseql_model_compile_controller import IseqlModelCompileController
+from api.iseql_vocabulary_controller import IseqlVocabularyController
 from api.config_controller import ConfigController
+from api.relations_controller import RelationsController
 from api.object_memory_controller import (
     ObjectMemoryStatsController,
     ObjectMemoryObjectsController,
@@ -54,8 +57,11 @@ ROUTES = {
     '/events/{event_id}': EventRegistryItemController(),
     '/iseql/compile': IseqlCompileController(),
     '/iseql/preview': IseqlPreviewController(),
+    '/iseql/model/compile': IseqlModelCompileController(),
+    '/iseql/vocabulary': IseqlVocabularyController(),
     '/analysis/{analysis_id}/memory/stats': ObjectMemoryStatsController(),
     '/analysis/{analysis_id}/memory/objects': ObjectMemoryObjectsController(),
     '/config': ConfigController(),
     '/config/{key}': ConfigController(),
+    '/relations': RelationsController(),
 }

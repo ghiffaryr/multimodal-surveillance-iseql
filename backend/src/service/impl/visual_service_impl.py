@@ -247,32 +247,17 @@ def _memory_prompt_context(
 
 _RELATION_PATTERN = re.compile(r"(?i)([a-z_]+)\s*\(([^)\n]*)\)")
 
-_SIGNATURE_CLASS = {"PersonID": "person", "VehicleID": "vehicle", "ObjectID": "object"}
-
-
 def _cls_label(cls: object) -> str:
     """Display label for an object class; fall back to 'object' when absent."""
     return str(cls) if cls else "object"
-
 
 
 def _relation_allowed_classes(signature: str) -> set[str]:
     """Parse a relation signature like '(PersonID, VehicleID)' or
     '(VehicleID?, ObjectID?)' into the set of allowed participant classes.
     '?' marks an optional argument; at least one participant is still required."""
-    inner = (signature or "").strip().strip("()")
-    allowed: set[str] = set()
-    for tok in inner.split(","):
-        tok = tok.strip()
-        if not tok:
-            continue
-        name = tok.rstrip("?").strip()
-        # handle multi-argument IDs like PersonID1 / PersonID2
-        for key, cls in _SIGNATURE_CLASS.items():
-            if name == key or name.startswith(key):
-                allowed.add(cls)
-                break
-    return allowed
+    from service.relation_vocab import signature_classes
+    return set(signature_classes(signature))
 
 @dataclass
 class FrameState:

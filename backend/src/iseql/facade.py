@@ -44,18 +44,17 @@ def render_model(model_json: str | dict) -> str:
     return render_iseql(_normalized_model(_load_model(model_json)))
 
 
-def compile_query(query: str, name: str = "event", delta_unit: str = "seconds") -> dict:
-    """Compile an ISEQL query written as text into (iseql, sql, model).
+_STRICTNESS = {"<=", "<", ">=", ">", "≤", "≥", "⩽", "⩾"}
 
-    Raises ValueError with a human-readable message on syntax/compile errors.
-    ``delta_unit`` is the unit of the authored δ/ε thresholds (seconds/frames).
-    Named δ/ε keys resolve per-detect; for the preview they are treated as
+
+def _compile_model_result(model: dict) -> dict:
+    """Compile a model (already parsed/loaded) into {iseql, sql, model}.
+
+    Named δ/ε/ρ keys resolve per-detect; for the preview they are treated as
     unbounded (None) since no detection deltas are available.
     """
-    from iseql.parser import parse_iseql
     from iseql.compiler import compile_event as _compile
-    model = parse_iseql(query, name=name, delta_unit=delta_unit)
-    _STRICTNESS = {"<=", "<", ">=", ">", "≤", "≥", "⩽", "⩾"}
+    from iseql.compiler import render_iseql, _normalized_model
     named = {
         v
         for entry in (model.get("delta_map") or {}).values()
@@ -72,6 +71,62 @@ def compile_query(query: str, name: str = "event", delta_unit: str = "seconds") 
         conn.close()
     iseql, sql = _compile(model, preview_deltas, "__analysis__", fps="__fps__",
                           audio_predicates=audio_predicates)
-    from iseql.compiler import render_iseql, _normalized_model
-    rendered = render_iseql(_normalized_model(model))
-    return {"iseql": rendered, "sql": sql, "model": model}
+    return {"iseql": render_iseql(_normalized_model(model)), "sql": sql, "model": model}
+
+
+def compile_query(query: str, name: str = "event", delta_unit: str = "seconds") -> dict:
+    """Compile an ISEQL query written as text into (iseql, sql, model).
+
+    Raises ValueError with a human-readable message on syntax/compile errors.
+    ``delta_unit`` is the unit of the authored δ/ε thresholds (seconds/frames).
+    """
+    from iseql.parser import parse_iseql
+    model = parse_iseql(query, name=name, delta_unit=delta_unit)
+    return _compile_model_result(model)
+
+
+def compile_model(model_json: str | dict) -> dict:
+    """Compile an event model directly into (iseql, sql, model).
+
+    Used by the visual builder, which edits the model in place (groups,
+    set-expression tree, intervals, operators) and wants the resulting
+    SQL/ISEQL without round-tripping through text.
+    """
+    from iseql.compiler import _load_model, _normalized_model
+    model = _normalized_model(_load_model(model_json))
+    return _compile_model_result(model)
+
+
+def vocabulary() -> dict:
+    """Predicate and participant-class vocabulary for the visual event builder.
+
+    Visual predicates come from ``relation_vocab.relation_classids`` (name ->
+    participant signature); audio predicates from ``audio_taxonomy.classes``.
+    """
+    from service.impl.config_store_service_impl import ConfigStoreServiceImpl
+    from service.relation_vocab import signature_classes
+    conn = _config_conn()
+    try:
+        store = ConfigStoreServiceImpl()
+        relation_vocab = store.get_section(conn, "relation_vocab") or {}
+        audio_taxonomy = store.get_section(conn, "audio_taxonomy") or {}
+    finally:
+        conn.close()
+
+    predicates: list[dict] = []
+    for name, sig in (relation_vocab.get("relation_classids") or []):
+        predicates.append({
+            "name": str(name),
+            "modality": "visual",
+            "args": signature_classes(str(sig)),
+        })
+    for name in (audio_taxonomy.get("classes") or []):
+        predicates.append({"name": str(name), "modality": "audio", "args": []})
+
+    participant_classes: set[str] = set()
+    for p in predicates:
+        participant_classes.update(p["args"])
+    return {
+        "predicates": predicates,
+        "participant_classes": sorted(participant_classes),
+    }

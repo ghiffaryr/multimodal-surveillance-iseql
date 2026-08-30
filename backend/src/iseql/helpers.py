@@ -115,7 +115,7 @@ def iseql_before(r: str, s: str, delta: Optional[int | str] = None,
     (gap 0) valid. ρ is the robustness tolerance, default 0. δ unbounded (∞) when omitted.
     ``cols`` = (start_column, end_column): frames (``sf``/``ef``) or time (``st``/``et``)."""
     cst, ced = cols
-    rho = int(rho)
+    rho = int(rho or 0)
     z = _strictness_op(zeta)
     if delta is None:
         return f"({r}.{ced} {z} ({s}.{cst} + {rho}))"
@@ -142,7 +142,7 @@ def iseql_loj(
     cst, ced = cols
     z = _strictness_op(zeta)
     n = _strictness_op(eta)
-    rho = int(rho)
+    rho = int(rho or 0)
     parts = [
         f"({r}.{cst} - {rho}) {z} {s}.{cst}",
         f"{s}.{cst} < ({r}.{ced} + {rho})",
@@ -170,7 +170,7 @@ def iseql_sp(
     (r.Ts - ρ) ζ s.Ts  ∧  s.Ts < r.Te + ρ  ∧  (s.Ts - r.Ts) <= δ + ρ."""
     cst, ced = cols
     z = _strictness_op(zeta)
-    rho = int(rho)
+    rho = int(rho or 0)
     parts = [
         f"({r}.{cst} - {rho}) {z} {s}.{cst}",
         f"{s}.{cst} < ({r}.{ced} + {rho})",
@@ -195,7 +195,7 @@ def iseql_dj(
     cst, ced = cols
     z = _strictness_op(zeta)
     n = _strictness_op(eta)
-    rho = int(rho)
+    rho = int(rho or 0)
     parts = [
         f"({s}.{cst} - {rho}) {z} {r}.{cst}",
         f"{r}.{cst} <= ({s}.{ced} + {rho})",
@@ -222,7 +222,7 @@ def iseql_ef(
     """ISEQL+ End Following (EF)."""
     cst, ced = cols
     n = _strictness_op(eta)
-    rho = int(rho)
+    rho = int(rho or 0)
     parts = [
         f"({r}.{cst} - {rho}) < {s}.{ced}",
         f"{s}.{ced} {n} ({r}.{ced} + {rho})",
