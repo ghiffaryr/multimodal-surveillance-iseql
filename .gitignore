@@ -78,6 +78,7 @@ logs/
 # --- Test / coverage ---
 .coverage
 .coverage.*
+coverage.xml
 htmlcov/
 .pytest_cache/
 .mypy_cache/
