@@ -315,7 +315,7 @@ class AudioServiceImpl(AudioService):
 
     def _analyze_huggingface(self, audio_path: str, fps: int, log_fn) -> list:
         import torch
-        from transformers import Qwen2AudioForConditionalGeneration, AutoProcessor, BitsAndBytesConfig
+        from transformers import Qwen2AudioForConditionalGeneration, AutoProcessor
         import soundfile as sf
 
         log_fn(f"HuggingFace LALM: loading model...")
@@ -329,8 +329,12 @@ class AudioServiceImpl(AudioService):
             if max_memory:
                 load_kwargs["max_memory"] = max_memory
         if self.quantization == "4bit":
+            # bitsandbytes is CUDA-only; import lazily so non-CUDA (e.g. macOS)
+            # and full-precision paths do not require it at install time.
+            from transformers import BitsAndBytesConfig
             load_kwargs["quantization_config"] = BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_compute_dtype=torch.float16, llm_int8_enable_fp32_cpu_offload=True)
         elif self.quantization == "8bit":
+            from transformers import BitsAndBytesConfig
             load_kwargs["quantization_config"] = BitsAndBytesConfig(load_in_8bit=True, llm_int8_enable_fp32_cpu_offload=True)
         else:
             log_fn("WARNING: full-precision is slow. Use 4bit for speed.")

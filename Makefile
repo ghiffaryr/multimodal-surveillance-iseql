@@ -1,6 +1,7 @@
 .PHONY: help backend frontend \
 	test test-backend test-frontend test-cov \
 	local local-backend local-frontend local-eval local-stop local-status local-clean \
+	mac mac-backend mac-frontend mac-eval mac-stop mac-status mac-clean \
 	hpc hpc-backend hpc-frontend hpc-eval hpc-stop hpc-status hpc-clean \
 	docker docker-backend docker-frontend docker-eval docker-stop docker-status docker-clean clean stop status ngrok ngrok-stop ngrok-status
 
@@ -22,6 +23,14 @@ help:
 	@echo "  make local-stop         - Stop local services"
 	@echo "  make local-status       - Status local services"
 	@echo "  make local-clean        - Clean local artifacts"
+	@echo ""
+	@echo "  make mac                - Run backend (brew ffmpeg + CPU pipenv) + frontend on macOS"
+	@echo "  make mac-backend        - Backend only on macOS (Pipfile.mac, no CUDA)"
+	@echo "  make mac-frontend       - Frontend only"
+	@echo "  make mac-eval           - Run eval queue (mac profile)"
+	@echo "  make mac-stop           - Stop mac services"
+	@echo "  make mac-status         - Status mac services"
+	@echo "  make mac-clean          - Clean mac artifacts"
 	@echo ""
 	@echo "  make hpc                - Frontend on caliban, backend on compute-0-3 (A100)"
 	@echo "  make hpc-backend        - Backend only on compute-0-3"
@@ -92,6 +101,33 @@ local-status:
 	@curl -s http://localhost:11434/api/version 2>&1 | grep -q version && echo "ollama: UP (localhost)" || echo "ollama: DOWN"
 
 local-clean:
+	rm -rf data/analysis.db data/analysis.db-shm data/analysis.db-wal
+	rm -rf frontend/node_modules frontend/.svelte-kit
+
+mac-backend:
+	PROFILE=mac bash scripts/start.sh backend
+
+mac-frontend:
+	PROFILE=mac bash scripts/start.sh frontend
+
+mac:
+	PROFILE=mac bash scripts/start.sh
+
+mac-eval:
+	PROFILE=mac bash scripts/eval.sh
+
+mac-stop:
+	pkill -f "uvicorn.*8000" 2>/dev/null || true
+	pkill -f "vite.*5173" 2>/dev/null || true
+	pkill -f "ngrok http" 2>/dev/null || true
+
+mac-status:
+	@echo "== mac status =="
+	@curl -s http://localhost:8000/api/health 2>&1 | grep -q '"status":"ok"' && echo "backend: UP (8000)" || echo "backend: DOWN"
+	@lsof -i :8000 2>/dev/null | grep -q LISTEN && echo "port 8000: LISTEN" || echo "port 8000: -"
+	@lsof -i :5173 2>/dev/null | grep -q LISTEN && echo "frontend: UP (5173)" || echo "frontend: DOWN"
+
+mac-clean:
 	rm -rf data/analysis.db data/analysis.db-shm data/analysis.db-wal
 	rm -rf frontend/node_modules frontend/.svelte-kit
 

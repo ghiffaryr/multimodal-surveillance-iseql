@@ -29,7 +29,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # Strict: no silent fallback to a wrong profile/mode.
 PROFILE="${PROFILE:-}"
-VALID_PROFILES="local hpc docker"
+VALID_PROFILES="local hpc docker mac"
 case " $VALID_PROFILES " in
   *" $PROFILE "*) ;;
   "") echo "ERROR: PROFILE not set (use one of: $VALID_PROFILES)" >&2; exit 2 ;;
@@ -50,7 +50,7 @@ case "$PROFILE" in
     PY_ARGS="compose exec backend python"
     KERNEL="python3"
     ;;
-  local)
+  local|mac)
     PY="pipenv"
     PY_ARGS="run python"
     KERNEL="python3"

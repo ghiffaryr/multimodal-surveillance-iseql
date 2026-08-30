@@ -119,7 +119,7 @@ This is the **first application of a Large Audio-Language Model for surveillance
 
 ## Multimodal: Ablation Results (30 scenes)
 
-Best window/hop per pair — all tied configs shown (all 8 window/hop configs per pair are in `data/analysis_*/summary.xlsx`; the full ranked 64-combination ablation is in the thesis appendix):
+Best window/hop per pair (all tied configs shown; all 8 window/hop configs per pair are in `data/analysis_*/summary.xlsx`, and the full ranked 64-combination ablation is in the thesis appendix):
 
 | VLM + Audio Model                     | Window/Hop (s)                | F1     | Precision | Recall | TP | FP | FN |
 |---------------------------------------|-------------------------------|--------|-----------|--------|----|----|----|
@@ -152,23 +152,40 @@ The full set is authored in the **Events (ISEQL)** configurator, stored in the
 ## Running (per-profile)
 
 All run targets are **profile-aware** and driven by a single `PROFILE` variable
-(`local`, `hpc`, `docker`), which selects:
-- the backend runner (local conda auto-detect + pipenv / remote GPU node),
-- the matching `config.<profile>.yml` overlay (see `backend/src/resources/`),
-- the FFmpeg/`LD_LIBRARY_PATH` setup (auto-provisioned via conda).
+(`local`, `hpc`, `docker`, `mac`), which selects:
+- the backend runner (local conda auto-detect + pipenv / remote GPU node / macOS brew + CPU pipenv),
+- an optional `config.<profile>.yml` overlay on top of the base `config.yml` (only `hpc` and `docker` override it),
+- the FFmpeg/`LD_LIBRARY_PATH` setup (auto-provisioned via conda, or brew on macOS).
 
-`make local` is a single self-contained profile: it auto-detects an existing
+`make local` targets **Linux (including WSL2)**. It auto-detects an existing
 conda install (`anaconda3`/`miniconda3`, else installs Miniconda3), creates a
 `py310` env with Python 3.10 + FFmpeg, and runs the backend through pipenv.
+It relies on `bash`, `make` and `conda`, so it does not run on native Windows.
 
 ```bash
-make local      # generic PC: auto-detect conda -> py310 + ffmpeg -> pipenv backend + frontend
+make local      # Linux/WSL2: auto-detect conda -> py310 + ffmpeg -> pipenv backend + frontend
+make mac        # macOS: brew ffmpeg + Pipfile.mac (CPU/MPS torch, no CUDA/bitsandbytes)
 make hpc        # HPC: backend on the GPU node, frontend on the login node
-make docker     # docker compose
+make docker     # docker compose (any host with Docker, incl. native Windows)
 ```
+
+Windows without WSL: use `make docker` (see the Docker section) or run inside
+WSL2 with the `local` profile.
 
 Each profile exposes granular targets (e.g. `make hpc-backend`, `make hpc-frontend`,
 `make hpc-eval`, `make hpc-status`, `make hpc-stop`, `make hpc-clean`).
+
+### macOS
+
+```bash
+brew install ffmpeg   # or `make mac` auto-installs via Homebrew if missing
+make mac              # backend (Pipfile.mac, CPU/MPS) + frontend
+```
+
+macOS has no CUDA, so `make mac` installs torch/torchaudio/torchvision from
+PyPI (CPU/MPS) via `backend/Pipfile.mac` (no `pytorch-cu121` wheel index, no
+`bitsandbytes`). LALM `4bit`/`8bit` quantization is unavailable on macOS, so
+use `quantization: none` (the CNN14/PANNs audio path works unchanged).
 
 ### HPC + ngrok (public access)
 
@@ -227,7 +244,8 @@ write `arg1="vehicle"`.
 
 ## Quick start
 
-Requires: `python3.10`, `pipenv`, `node >= 18`, `pnpm`, `ffmpeg`, `libsndfile`, `git`.
+Requires: `python3.10`, `pipenv`, `node >= 18`, `pnpm`, `ffmpeg`, `libsndfile`, `git`
+(plus `bash` and `make`; see "Running (per-profile)" for macOS, HPC, Docker and Windows).
 
 ```bash
 git clone <repo-url> multimodal-surveillance-iseql
@@ -235,8 +253,11 @@ cd multimodal-surveillance-iseql
 
 make backend    # pipenv install --dev
 make frontend   # pnpm install
-make local      # boots backend on :8000 and frontend on :5173
+make local      # Linux/WSL2: boots backend on :8000 and frontend on :5173
 ```
+
+Other profiles: `make mac` (macOS), `make hpc` (GPU cluster), `make docker`
+(Docker, also native Windows). See "Running (per-profile)" below.
 
 Then open <http://localhost:5173>, upload a video, and pick a **condition** (A / B / C).
 
@@ -248,6 +269,7 @@ Then open <http://localhost:5173>, upload a video, and pick a **condition** (A /
 | ----------------------------------- | ----------------------------------------------------------------- |
 | `make backend` / `make frontend`    | Install Python / JS deps                                          |
 | `make local`                        | Gen. machine: auto-detect conda -> py310+ffmpeg -> pipenv backend + frontend |
+| `make mac`                          | macOS: brew ffmpeg + Pipfile.mac (CPU/MPS torch) + frontend       |
 | `make hpc`                          | HPC: backend on GPU node + frontend on login node                 |
 | `make docker`                       | Build and run both services via `docker compose`                  |
 | `make <profile>-backend`            | Run only the backend for a profile                                |
@@ -259,7 +281,7 @@ Then open <http://localhost:5173>, upload a video, and pick a **condition** (A /
 | `make status` / `make stop`         | Status / stop all profiles                                        |
 | `make clean`                        | Clean all artifacts                                               |
 
-Profiles: `local`, `hpc`, `docker`. `PROFILE` can also be set
+Profiles: `local`, `mac`, `hpc`, `docker`. `PROFILE` can also be set
 directly, e.g. `PROFILE=hpc bash scripts/start.sh backend`.
 
 ---

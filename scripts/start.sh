@@ -10,9 +10,9 @@ ROOT="$(cd "$HERE/.." && pwd)"
 
 PROFILE="${PROFILE:-}"
 case "$PROFILE" in
-  local|hpc|docker) ;;
-  "") echo "ERROR: PROFILE not set (use local|hpc|docker)" >&2; exit 2 ;;
-  *) echo "ERROR: invalid PROFILE='$PROFILE' (use local|hpc|docker)" >&2; exit 2 ;;
+  local|hpc|docker|mac) ;;
+  "") echo "ERROR: PROFILE not set (use local|hpc|docker|mac)" >&2; exit 2 ;;
+  *) echo "ERROR: invalid PROFILE='$PROFILE' (use local|hpc|docker|mac)" >&2; exit 2 ;;
 esac
 
 MODE="${1:-all}"
@@ -79,6 +79,21 @@ ensure_ffmpeg() {
   export LD_LIBRARY_PATH="$env_dir/lib:${LD_LIBRARY_PATH:-}"
 }
 
+# macOS: ffmpeg via Homebrew (no conda/CUDA), matching the Pipfile.mac CPU deps.
+ensure_ffmpeg_mac() {
+  if command -v ffmpeg >/dev/null 2>&1; then
+    echo ">> [backend] ffmpeg found: $(command -v ffmpeg)"
+    return
+  fi
+  if command -v brew >/dev/null 2>&1; then
+    echo ">> [backend] installing ffmpeg via Homebrew..."
+    brew install ffmpeg
+  else
+    echo "ERROR: ffmpeg not found and Homebrew not available. Install ffmpeg (e.g. 'brew install ffmpeg')." >&2
+    exit 2
+  fi
+}
+
 cleanup() {
   trap - INT TERM EXIT
   if [[ "$PROFILE" == "hpc" ]]; then
@@ -122,6 +137,19 @@ run_backend() {
       if [ -f "$ROOT/backend/.env" ]; then set -a; source "$ROOT/backend/.env"; set +a; fi
       echo ">> [backend] starting uvicorn (pipenv)..."
       # idempotent: clear a stray backend from a previous run so :8000 is free
+      pkill -f "uvicorn.*8000" 2>/dev/null || true
+      sleep 1
+      PYTHONPATH=src pipenv run uvicorn start_application:StartApplication --host 0.0.0.0 --port 8000 --reload &
+      BACK_PID=$!
+      ;;
+    mac)
+      ensure_ffmpeg_mac
+      cd "$ROOT/backend"
+      echo ">> [backend] installing deps if needed (Pipfile.mac, CPU)..."
+      export PIPENV_PIPFILE=Pipfile.mac
+      pipenv install --dev --quiet 2>/dev/null || true
+      if [ -f "$ROOT/backend/.env" ]; then set -a; source "$ROOT/backend/.env"; set +a; fi
+      echo ">> [backend] starting uvicorn (pipenv, macOS)..."
       pkill -f "uvicorn.*8000" 2>/dev/null || true
       sleep 1
       PYTHONPATH=src pipenv run uvicorn start_application:StartApplication --host 0.0.0.0 --port 8000 --reload &

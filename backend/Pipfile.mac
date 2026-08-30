@@ -1,0 +1,57 @@
+[[source]]
+name = "pypi"
+verify_ssl = true
+url = "https://pypi.org/simple"
+
+[packages]
+# --- Web framework ---
+fastapi = "==0.128.0"
+uvicorn = {extras = ["standard"], version = "==0.40.0"}
+sse-starlette = "==3.4.4"
+python-multipart = "==0.0.21"
+httpx = "==0.28.1"
+requests = "==2.34.2"
+chromadb = "==1.1.1"
+
+# --- Data validation / settings ---
+pydantic = "==2.12.5"
+pydantic-settings = "==2.10.1"
+pyyaml = "==6.0.3"
+munch = "==4.0.0"
+json_repair = "==0.25.3"
+
+# --- VLM providers ---
+openai = "==2.32.0"
+google-genai = "==1.73.1"
+anthropic = "==0.95.0"
+mistralai = "==2.3.2"
+zhipuai = "==2.1.5.20250825"
+
+# --- Image / video ---
+opencv-python = "==4.11.0.86"
+pillow = "==12.2.0"
+numpy = "==1.26.4"
+pandas = "==2.3.3"
+
+# --- Sound pipeline (PANNs CNN14 + Qwen2-Audio) ---
+# NOTE: macOS has no CUDA, so torch/torchaudio/torchvision come from PyPI
+# (CPU/MPS) instead of the pytorch-cu121 wheel index used on Linux. LALM
+# bitsandbytes quantization is unavailable on macOS; use quantization=none.
+soundfile = "==0.13.1"
+scipy = "==1.11.4"
+panns-inference = "==0.1.1"
+torch = "==2.5.1"
+torchaudio = "==2.5.1"
+torchvision = "==0.20.1"
+
+# --- HuggingFace LALM (Qwen2-Audio) ---
+transformers = "==5.13.1"
+accelerate = "==1.4.0"
+
+[dev-packages]
+pytest = "*"
+pytest-cov = "*"
+ruff = "*"
+
+[requires]
+python_version = "3.10"
