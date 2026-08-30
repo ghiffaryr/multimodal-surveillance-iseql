@@ -1,4 +1,5 @@
 .PHONY: help backend frontend \
+	test test-backend test-frontend test-cov \
 	local local-backend local-frontend local-eval local-stop local-status local-clean \
 	hpc hpc-backend hpc-frontend hpc-eval hpc-stop hpc-status hpc-clean \
 	docker docker-backend docker-frontend docker-eval docker-stop docker-status docker-clean clean stop status ngrok ngrok-stop ngrok-status
@@ -8,6 +9,11 @@ help:
 	@echo ""
 	@echo "  make backend             - Install Python deps via Pipenv"
 	@echo "  make frontend            - Install JS deps via pnpm"
+	@echo ""
+	@echo "  make test               - Run backend + frontend test suites"
+	@echo "  make test-backend       - Run backend pytest suite (backend/tests)"
+	@echo "  make test-frontend      - Run frontend vitest suite (iseql-model)"
+	@echo "  make test-cov           - Run tests with coverage (xml/lcov for Codecov)"
 	@echo ""
 	@echo "  make local              - Run backend (auto-detect conda + pipenv) + frontend locally"
 	@echo "  make local-backend      - Run backend only (auto-detect conda + pipenv)"
@@ -44,6 +50,22 @@ help:
 
 frontend:
 	cd frontend && pnpm install
+
+test: test-backend test-frontend
+
+test-backend:
+	cd backend && PYTHONPATH=src pipenv run pytest
+
+test-frontend:
+	cd frontend && pnpm test
+
+test-cov: test-backend-cov test-frontend-cov
+
+test-backend-cov:
+	cd backend && PYTHONPATH=src pipenv run pytest --cov=iseql --cov=service.relation_vocab --cov-report=term-missing --cov-report=xml
+
+test-frontend-cov:
+	cd frontend && pnpm test:coverage
 
 local-backend:
 	PROFILE=local bash scripts/start.sh backend

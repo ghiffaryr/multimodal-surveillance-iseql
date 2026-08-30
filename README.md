@@ -264,6 +264,41 @@ directly, e.g. `PROFILE=hpc bash scripts/start.sh backend`.
 
 ---
 
+## Tests
+
+The ISEQL engine (parser, compiler, args<->ClassID mapping, text<->model
+round-trips) has a pytest suite that runs without the full ML stack; the
+frontend builder's model-conversion logic has a Vitest suite. Both are wired
+into the Makefile and run automatically on GitHub Actions (with coverage
+uploaded to Codecov).
+
+```bash
+make test          # backend (pytest) + frontend (vitest)
+make test-backend  # backend only
+make test-frontend # frontend only
+make test-cov      # both, with coverage (coverage.xml / coverage/lcov.info)
+```
+
+Or run the suites directly:
+
+```bash
+cd backend  && pipenv run pytest          # pytest (111 tests)
+cd frontend && pnpm test                  # vitest (35 tests)
+cd frontend && pnpm run check && pnpm run build   # typecheck + production build
+```
+
+Test layout: `backend/tests/` (pytest) and `frontend/src/lib/iseql-model.test.ts`
+(vitest). The backend suite stubs the SQLite `AppConfig` DB in
+`tests/conftest.py`, so no GPU / VLM / audio models are required.
+
+CI: `.github/workflows/ci.yml` runs the backend suite (Python 3.10, minimal
+`pytest` + `pytest-cov`) and the frontend suite (typecheck, tests, build) on
+push/PR, then uploads `backend/coverage.xml` and `frontend/coverage/lcov.info`
+to [Codecov](https://codecov.io). Public repos use GitHub OIDC for the upload;
+private repos need a `CODECOV_TOKEN` secret.
+
+---
+
 ## Project layout
 
 ```

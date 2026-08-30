@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  backend:
+    name: Backend tests (pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: pip
+
+      # The ISEQL engine tests are dependency-light (no torch/VLM/audio); only
+      # pytest + pytest-cov are required. `pytest.ini` sets `pythonpath = src`.
+      - name: Install test dependencies
+        run: pip install pytest pytest-cov
+
+      - name: Run backend tests with coverage
+        run: pytest --cov=iseql --cov=service.relation_vocab --cov-report=term-missing --cov-report=xml
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: backend/coverage.xml
+          flags: backend
+          use_oidc: true
+          fail_ci_if_error: false
+
+  frontend:
+    name: Frontend tests + typecheck + build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '10'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck (svelte-check)
+        run: pnpm run check
+
+      - name: Run unit tests with coverage
+        run: pnpm test:coverage
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: frontend/coverage/lcov.info
+          flags: frontend
+          use_oidc: true
+          fail_ci_if_error: false
