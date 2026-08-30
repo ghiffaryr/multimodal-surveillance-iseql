@@ -6,6 +6,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
   backend:
     name: Backend tests (pytest)
@@ -29,6 +33,7 @@ jobs:
         run: pytest --cov=iseql --cov=service.relation_vocab --cov-report=term-missing --cov-report=xml
 
       - name: Upload coverage to Codecov
+        continue-on-error: true
         uses: codecov/codecov-action@v4
         with:
           files: backend/coverage.xml
@@ -68,6 +73,7 @@ jobs:
         run: pnpm run build
 
       - name: Upload coverage to Codecov
+        continue-on-error: true
         uses: codecov/codecov-action@v4
         with:
           files: frontend/coverage/lcov.info
