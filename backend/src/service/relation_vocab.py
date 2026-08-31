@@ -1,12 +1,17 @@
 """Relation vocabulary helpers: args <-> ClassID signature conversion.
 
 The stored relation signature is the ISEQL prompt form, e.g.
-``(PersonID, VehicleID?)``. The user-facing "args" form is a comma-separated
-list of participant classes, e.g. ``person, vehicle?``.
+``(PersonID, VehicleID)`` or ``(VehicleID∨ObjectID)``. A ``∨`` groups
+alternative classes for a *single* argument slot (``vehicle ∨ object`` means
+one participant that is either a vehicle or an object), while a comma separates
+distinct argument slots. A trailing ``?`` marks an optional slot.
+
+The user-facing "args" form mirrors that notation:
+``person, vehicle`` and ``vehicle ∨ object``.
 
 The conversion is generic (not a fixed class table): ``foo`` -> ``FooID`` and
 ``FooID`` -> ``foo``, so any participant class (person, vehicle, object, item,
-...) round-trips. A trailing ``?`` marks an optional argument and is preserved.
+...) round-trips.
 """
 
 from __future__ import annotations
@@ -24,52 +29,91 @@ def _token_to_class(name: str) -> str:
     return base[0].lower() + base[1:]
 
 
+def _strip_parens(s: str) -> str:
+    s = (s or "").strip()
+    if s.startswith("("):
+        s = s[1:]
+    if s.endswith(")"):
+        s = s[:-1]
+    return s
+
+
 def args_to_classid(args: str) -> str:
-    """'person, vehicle?' -> '(PersonID, VehicleID?)'."""
+    """'person, vehicle?' -> '(PersonID, VehicleID?)'; 'vehicle ∨ object' ->
+    '(VehicleID∨ObjectID)'."""
     parts: list[str] = []
-    for tok in (args or "").split(","):
-        tok = tok.strip()
-        if not tok:
+    for slot in (args or "").split(","):
+        slot = slot.strip()
+        if not slot:
             continue
-        optional = tok.endswith("?")
-        base = tok[:-1] if optional else tok
-        if not base:
+        optional = slot.endswith("?")
+        base = slot[:-1] if optional else slot
+        classes: list[str] = []
+        for tok in base.split("∨"):
+            tok = tok.strip()
+            if not tok:
+                continue
+            classes.append(tok[0].upper() + tok[1:] + "ID")
+        if not classes:
             continue
-        parts.append(base[0].upper() + base[1:] + "ID" + ("?" if optional else ""))
+        parts.append("∨".join(classes) + ("?" if optional else ""))
     return "(" + ", ".join(parts) + ")" if parts else ""
 
 
 def classid_to_args(classid: str) -> str:
-    """'(PersonID, VehicleID?)' -> 'person, vehicle?'."""
-    inner = (classid or "").strip()
-    if inner.startswith("("):
-        inner = inner[1:]
-    if inner.endswith(")"):
-        inner = inner[:-1]
+    """'(PersonID, VehicleID?)' -> 'person, vehicle?'; '(VehicleID∨ObjectID)' ->
+    'vehicle ∨ object'."""
+    inner = _strip_parens(classid)
     out: list[str] = []
-    for tok in inner.split(","):
-        tok = tok.strip()
-        if not tok:
+    for slot in inner.split(","):
+        slot = slot.strip()
+        if not slot:
             continue
-        optional = tok.endswith("?")
-        cls = _token_to_class(tok)
-        if not cls:
+        optional = slot.endswith("?")
+        base = slot[:-1] if optional else slot
+        classes: list[str] = []
+        for tok in base.split("∨"):
+            cls = _token_to_class(tok)
+            if cls:
+                classes.append(cls)
+        if not classes:
             continue
-        out.append(cls + ("?" if optional else ""))
+        out.append(" ∨ ".join(classes) + ("?" if optional else ""))
     return ", ".join(out)
 
 
+def signature_slots(signature: str) -> list[list[str]]:
+    """Argument slots of a signature, each slot a list of alternative classes.
+
+    '(PersonID, VehicleID)' -> [['person'], ['vehicle']]
+    '(VehicleID∨ObjectID)'   -> [['vehicle', 'object']]
+    """
+    inner = _strip_parens(signature)
+    slots: list[list[str]] = []
+    for slot in inner.split(","):
+        slot = slot.strip()
+        if not slot:
+            continue
+        classes: list[str] = []
+        for tok in slot.split("∨"):
+            cls = _token_to_class(tok)
+            if cls and cls not in classes:
+                classes.append(cls)
+        if classes:
+            slots.append(classes)
+    return slots
+
+
 def signature_classes(signature: str) -> list[str]:
-    """Participant classes of a signature: '(PersonID, VehicleID?)' ->
-    ['person', 'vehicle']. Preserves order and de-duplicates."""
-    inner = (signature or "").strip()
-    if inner.startswith("("):
-        inner = inner[1:]
-    if inner.endswith(")"):
-        inner = inner[:-1]
+    """Flat participant classes of a signature (alternatives collapsed).
+
+    '(PersonID, VehicleID)' -> ['person', 'vehicle']
+    '(VehicleID∨ObjectID)'   -> ['vehicle', 'object']
+    Preserves order and de-duplicates.
+    """
     classes: list[str] = []
-    for tok in inner.split(","):
-        cls = _token_to_class(tok)
-        if cls and cls not in classes:
-            classes.append(cls)
+    for slot in signature_slots(signature):
+        for cls in slot:
+            if cls not in classes:
+                classes.append(cls)
     return classes

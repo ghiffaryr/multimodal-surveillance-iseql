@@ -3,6 +3,8 @@
   import { longpress } from '$lib/actions/longpress';
   import Label from '$lib/components/ui/label.svelte';
   import CountBadge from '$lib/components/ui/count-badge.svelte';
+  import DeleteHint from '$lib/components/delete-hint.svelte';
+  import { askConfirm } from '$lib/confirm.svelte';
   import Field from '$lib/components/ui/field.svelte';
   import Button from '$lib/components/ui/button.svelte';
   import Input from '$lib/components/ui/input.svelte';
@@ -90,6 +92,7 @@
   }
 
   async function remove(name: string) {
+    if (!(await askConfirm(`Delete audio class '${name}'?`, { title: 'Delete audio class' }))) return;
     const next = rows.filter((r) => r.name !== name);
     try {
       await persist(next);
@@ -114,6 +117,7 @@
     <Input class="h-7 flex-1 font-mono text-xs" placeholder="Search predicates…" value={search} oninput={(e) => (search = (e.currentTarget as HTMLInputElement).value)} />
     <button type="button" class="rounded border px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted" title="Add class" onclick={openNew}>＋</button>
   </div>
+  <DeleteHint />
 
   <div class="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
     {#each filtered as r (r.name)}

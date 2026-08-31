@@ -15,7 +15,7 @@ export type Unit = 'frames' | 'seconds';
 export interface PredicateVocab {
   name: string;
   modality: Modality;
-  args: string[];
+  args: string[][];
 }
 
 export interface Vocabulary {
@@ -271,8 +271,8 @@ export function parseExprText(text: string): ExprNode | null {
 }
 
 // ---------------------------------------------------------------------------
-// predicate boolean expressions (interval selection): identifiers + ∧ / ∨ / ()
-// Parsed into DNF (OR of ANDs), matching the backend `selection` shape.
+// predicate boolean expressions (interval selection): identifiers + ∨ / ()
+// Parsed into an OR of predicates, matching the backend `selection` shape.
 // ---------------------------------------------------------------------------
 
 export function parseBoolExpr(text: string): string[][] | null {
@@ -281,7 +281,7 @@ export function parseBoolExpr(text: string): string[][] | null {
   while (i < text.length) {
     const ch = text[i];
     if (/\s/.test(ch)) { i += 1; continue; }
-    if (ch === '(' || ch === ')' || ch === '∧' || ch === '∨') { tokens.push(ch); i += 1; continue; }
+    if (ch === '(' || ch === ')' || ch === '∨') { tokens.push(ch); i += 1; continue; }
     if (/[A-Za-z0-9_]/.test(ch)) {
       let j = i;
       while (j < text.length && /[A-Za-z0-9_]/.test(text[j])) j += 1;
@@ -294,28 +294,14 @@ export function parseBoolExpr(text: string): string[][] | null {
 
   let pos = 0;
   function parseOr(): string[][] | null {
-    const left = parseAnd();
-    if (!left) return null;
-    let result = left;
-    while (tokens[pos] === '∨') {
-      pos += 1;
-      const right = parseAnd();
-      if (!right) return null;
-      result = [...result, ...right];
-    }
-    return result;
-  }
-  function parseAnd(): string[][] | null {
     const left = parseAtom();
     if (!left) return null;
-    let result = left;
-    while (tokens[pos] === '∧') {
+    const result = left;
+    while (tokens[pos] === '∨') {
       pos += 1;
       const right = parseAtom();
       if (!right) return null;
-      const next: string[][] = [];
-      for (const a of result) for (const b of right) next.push([...a, ...b]);
-      result = next;
+      result.push(...right);
     }
     return result;
   }
@@ -328,7 +314,7 @@ export function parseBoolExpr(text: string): string[][] | null {
       pos += 1;
       return n;
     }
-    if (t && t !== '∧' && t !== '∨' && t !== ')' && t !== '(') {
+    if (t && t !== '∨' && t !== ')' && t !== '(') {
       pos += 1;
       return [[t]];
     }
@@ -340,9 +326,7 @@ export function parseBoolExpr(text: string): string[][] | null {
 }
 
 export function boolBranchesToText(branches: string[][]): string {
-  return branches
-    .map((b) => (b.length > 1 ? `(${b.join(' ∧ ')})` : b[0] ?? ''))
-    .join(' ∨ ');
+  return branches.map((b) => b.join(' ∨ ')).join(' ∨ ');
 }
 
 export function boolTextFromSelection(sel: Record<string, unknown> | null | undefined, pred: string): string {
@@ -351,14 +335,14 @@ export function boolTextFromSelection(sel: Record<string, unknown> | null | unde
     return boolBranchesToText(s.branches.map((b) => (b.preds ?? [])));
   }
   if (s && Array.isArray(s.preds) && s.preds.length) {
-    return s.preds.join(' ∧ ');
+    return s.preds.join(' ∨ ');
   }
   return pred;
 }
 
 export type PredToken =
   | { type: 'pred'; name: string }
-  | { type: 'op'; op: '∧' | '∨' }
+  | { type: 'op'; op: '∨' }
   | { type: 'open' }
   | { type: 'close' };
 
@@ -377,7 +361,6 @@ export function tokenizeBoolExpr(text: string): PredToken[] | null {
     if (/\s/.test(ch)) { i += 1; continue; }
     if (ch === '(') { tokens.push({ type: 'open' }); i += 1; continue; }
     if (ch === ')') { tokens.push({ type: 'close' }); i += 1; continue; }
-    if (ch === '∧') { tokens.push({ type: 'op', op: '∧' }); i += 1; continue; }
     if (ch === '∨') { tokens.push({ type: 'op', op: '∨' }); i += 1; continue; }
     if (/[A-Za-z0-9_]/.test(ch)) {
       let j = i;
@@ -498,57 +481,60 @@ export function aliasOf(globalIndex: number): string {
   return `M${globalIndex + 1}`;
 }
 
-// Display label for a predicate with its argument classes, e.g.
-// `running(person)`, `explosion_visible(vehicle ∨ object)` or `gunshot()`.
-export function predicateLabel(name: string, args: string[]): string {
-  return `${name}(${args.join(', ')})`;
+// Display label for a predicate with its argument slots (each slot a list of
+// alternative classes), e.g. `running(person)`,
+// `explosion_visible(vehicle ∨ object)` or `gunshot()`.
+export function predicateLabel(name: string, slots: string[][]): string {
+  const rendered = slots.map((s) => (s.length > 1 ? s.join(' ∨ ') : s[0] ?? ''));
+  return `${name}(${rendered.join(', ')})`;
 }
 
 // Human label for an interval, reflecting its authored selection (a single
-// predicate, an AND of predicates, or an OR of branches).
+// predicate or an OR of predicates).
 export function intervalLabel(iv: BuilderInterval): string {
   if (!iv.pred) return '';
 
-  type SelBranch = { preds?: string[]; args?: Record<string, string[]>; pred_args?: Record<string, string[]> };
+  type SelBranch = {
+    preds?: string[];
+    args?: Record<string, string[]>;
+    pred_args?: Record<string, string[][]>;
+  };
   const sel = iv.selection as {
     branches?: SelBranch[];
     preds?: string[];
     args?: Record<string, string[]>;
-    pred_args?: Record<string, string[]>;
+    pred_args?: Record<string, string[][]>;
   } | null | undefined;
 
-  const argsList = (m: Record<string, string[]> | undefined): string[] => {
-    if (!m) return [];
-    return Object.keys(m)
+  const mapSlots = (m: Record<string, string[]> | undefined): string[][] =>
+    Object.keys(m ?? {})
       .sort((a, b) => Number(a) - Number(b))
-      .map((k) => {
-        const vals = (m[k] ?? []).filter(Boolean);
-        if (vals.length > 1) return vals.join(' ∨ ');
-        return vals[0] ?? '';
-      })
-      .filter(Boolean);
-  };
+      .map((k) => (m![k] ?? []).filter(Boolean))
+      .filter((s) => s.length);
 
-  const labelPred = (p: string, own: string[] | undefined, shared: string[]): string => {
-    const a = own && own.length ? own : shared;
-    return predicateLabel(p, a);
-  };
+  const flatSlots = (flat: string[]): string[][] => flat.map((c) => [c]);
+
+  const labelPred = (p: string, own: string[][] | undefined, shared: string[][]): string =>
+    predicateLabel(p, own && own.some((s) => s.length) ? own : shared);
 
   if (sel && Array.isArray(sel.branches) && sel.branches.length) {
     return sel.branches
       .map((b) => {
-        const shared = argsList(b.args);
-        return (b.preds ?? []).map((p) => labelPred(p, b.pred_args?.[p], shared)).join(' ∧ ');
+        const shared = mapSlots(b.args);
+        return (b.preds ?? []).map((p) => labelPred(p, b.pred_args?.[p], shared)).join(' ∨ ');
       })
       .join(' ∨ ');
   }
 
-  if (sel && Array.isArray(sel.preds) && sel.preds.length > 1) {
-    const shared = argsList(sel.args).length ? argsList(sel.args) : iv.args;
-    return sel.preds.map((p) => labelPred(p, sel.pred_args?.[p], shared)).join(' ∧ ');
+  if (sel && Array.isArray(sel.preds) && sel.preds.length) {
+    const shared = mapSlots(sel.args);
+    const fallback = flatSlots(iv.args);
+    return sel.preds
+      .map((p) => labelPred(p, sel.pred_args?.[p], shared.length ? shared : fallback))
+      .join(' ∨ ');
   }
 
-  return predicateLabel(iv.pred, iv.args);
+  return predicateLabel(iv.pred, flatSlots(iv.args));
 }
 
 // ---------------------------------------------------------------------------
@@ -628,12 +614,6 @@ export function stateToModel(state: BuilderState, eventName: string): IseqlModel
   };
   if (overrides.length) model.operator_overrides = overrides;
   if (Object.keys(deltaMap).length) model.delta_map = deltaMap;
-
-  // No sets: the unassigned lane's projection is stored as a flat custom projection.
-  if (!sets.length) {
-    const u = groups.find((g) => g.name === UNASSIGNED_GROUP);
-    if (u?.projection?.length) model.custom_projection = [...u.projection];
-  }
 
   // cross-conditions are authored per-group with local aliases (M1..Mn);
   // rebase them to the global flattened alias indices.
@@ -753,23 +733,49 @@ export function normalizeModel(model: IseqlModel): IseqlModel {
       left_projection: null,
       right_projection: null,
     };
+  } else if (model.custom_projection?.length) {
+    // A custom projection requires a set: wrap the flat chain in a single set
+    // so the projection has a set home instead of a dangling custom_projection.
+    result = {
+      ...model,
+      intervals: ivs.map((iv) => ({ ...iv, group: 's1', set_side: null })),
+      set_expression: { group: 's1', projection: [...model.custom_projection] },
+      custom_projection: null,
+      set_operator: null,
+      left_projection: null,
+      right_projection: null,
+      operator_overrides: (model.operator_overrides ?? []).map((o) => ({
+        ...o,
+        side: o.side == null || o.side === 'none' || o.side === '' ? 's1' : o.side,
+      })),
+      delta_map: remapFlatDeltaMap(model.delta_map),
+    };
   } else {
-    // Flat single chain (no groups, no set sides): keep it flat rather than
-    // synthesizing a single set. Intervals stay unassigned and the projection
-    // stays a custom_projection.
+    // Flat single chain (no groups, no set sides, no custom projection): keep
+    // it flat; the projection is auto.
     result = {
       ...model,
       intervals: ivs.map((iv) => ({ ...iv, group: null, set_side: null })),
       set_expression: null,
       set_operator: null,
       operator_overrides: (model.operator_overrides ?? []).map((o) => ({ ...o, side: o.side ?? null })),
-      custom_projection: model.custom_projection ?? null,
+      custom_projection: null,
       left_projection: null,
       right_projection: null,
     };
   }
 
   return renameLegacyGroups(result);
+}
+
+// Rewrite flat delta_map keys ("0", "1", ...) to a set side ("s1.0", ...).
+function remapFlatDeltaMap(dm: Record<string, Record<string, unknown>> | undefined) {
+  if (!dm) return dm;
+  const out: Record<string, Record<string, unknown>> = {};
+  for (const [k, v] of Object.entries(dm)) {
+    out[k.includes('.') ? k : `s1.${k}`] = v;
+  }
+  return out;
 }
 
 // Migrate legacy set names (g1, g2, left, right) to the current s1, s2, ...
@@ -816,7 +822,7 @@ function renameLegacyGroups(model: IseqlModel): IseqlModel {
   };
 }
 
-function unitFromModel(model: IseqlModel): Unit {
+export function unitFromModel(model: IseqlModel): Unit {
   if (model.delta_unit === 'seconds') return 'seconds';
   // fall back to the projection domain
   if (model.set_expression && !isLeaf(model.set_expression)) {
@@ -846,10 +852,9 @@ export function modelToState(model: IseqlModel): BuilderState {
     if (g && !groupNames.includes(g)) groupNames.push(g);
   }
 
-  // A single set is redundant; collapse its intervals into the unassigned lane.
-  const singleSet = groupNames.length === 1 ? groupNames[0] : null;
-
-  const groups: BuilderGroup[] = (singleSet ? [] : groupNames).map((name) => ({
+  // A set (even a single one) keeps its own projection; only the unassigned
+  // lane (no set) falls back to auto projection.
+  const groups: BuilderGroup[] = groupNames.map((name) => ({
     name,
     intervals: [],
     ops: [],
@@ -862,7 +867,7 @@ export function modelToState(model: IseqlModel): BuilderState {
 
   for (const iv of model.intervals) {
     const g = iv.group || null;
-    const target = g && g !== singleSet ? groups[idxByName.get(g)!] : unassigned;
+    const target = g && idxByName.has(g) ? groups[idxByName.get(g)!] : unassigned;
     target.intervals.push({
       id: nextId(),
       pred: iv.pred.name,
@@ -881,11 +886,11 @@ export function modelToState(model: IseqlModel): BuilderState {
     g.ops = Array.from({ length: need }, () => emptyOperator());
     for (let i = 0; i < need; i++) {
       const isUnassigned = g.name === UNASSIGNED_GROUP;
-      const dmKey = isUnassigned ? (singleSet ? `${singleSet}.${i}` : String(i)) : `${g.name}.${i}`;
+      const dmKey = isUnassigned ? String(i) : `${g.name}.${i}`;
       const dm = (model.delta_map ?? {})[dmKey] ?? {};
       const ov = (model.operator_overrides ?? []).find(
         (o) => (isUnassigned
-          ? (singleSet ? o.side === singleSet : (o.side == null || o.side === 'none' || o.side === ''))
+          ? (o.side == null || o.side === 'none' || o.side === '')
           : o.side === g.name) && o.pair_idx === i + 1,
       );
       g.ops[i] = {
@@ -901,30 +906,21 @@ export function modelToState(model: IseqlModel): BuilderState {
 
   // projection
   if (expr) {
-    if (singleSet) {
-      const proj = leafProjection(expr, singleSet);
-      if (proj) unassigned.projection = proj;
-    } else {
-      const collect = (n: ExprNode) => {
-        if (isLeaf(n)) {
-          if (n.projection && idxByName.has(n.group)) {
-            groups[idxByName.get(n.group)!].projection = n.projection;
-          }
-        } else n.children.forEach(collect);
-      };
-      collect(expr);
-    }
-  } else if (model.custom_projection) {
-    unassigned.projection = [...model.custom_projection];
+    const collect = (n: ExprNode) => {
+      if (isLeaf(n)) {
+        if (n.projection && idxByName.has(n.group)) {
+          groups[idxByName.get(n.group)!].projection = n.projection;
+        }
+      } else n.children.forEach(collect);
+    };
+    collect(expr);
   }
 
-  const finalExpr: ExprNode | null = singleSet
-    ? null
-    : (expr ?? (groups.length === 1
-      ? leaf(groups[0].name)
-      : groups.length > 1
-        ? branch('∪', groups.map((g) => leaf(g.name)))
-        : null));
+  const finalExpr: ExprNode | null = expr ?? (groups.length === 1
+    ? leaf(groups[0].name)
+    : groups.length > 1
+      ? branch('∪', groups.map((g) => leaf(g.name)))
+      : null);
 
   // distribute cross-conditions (global aliases) back to the group that owns
   // both endpoints, rebased to local M1..Mn aliases.
@@ -953,16 +949,6 @@ export function modelToState(model: IseqlModel): BuilderState {
   }
 
   return { groups: allGroups, expr: finalExpr, unit };
-}
-
-function leafProjection(node: ExprNode | null, name: string): string[] | null {
-  if (!node) return null;
-  if (isLeaf(node)) return node.group === name && node.projection ? node.projection : null;
-  for (const c of node.children) {
-    const p = leafProjection(c, name);
-    if (p) return p;
-  }
-  return null;
 }
 
 // ---------------------------------------------------------------------------

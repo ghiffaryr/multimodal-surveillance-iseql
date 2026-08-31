@@ -254,7 +254,7 @@ def _cls_label(cls: object) -> str:
 
 def _relation_allowed_classes(signature: str) -> set[str]:
     """Parse a relation signature like '(PersonID, VehicleID)' or
-    '(VehicleID?, ObjectID?)' into the set of allowed participant classes.
+    '(VehicleID∨ObjectID)' into the set of allowed participant classes.
     '?' marks an optional argument; at least one participant is still required."""
     from service.relation_vocab import signature_classes
     return set(signature_classes(signature))

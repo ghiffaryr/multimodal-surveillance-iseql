@@ -12,7 +12,10 @@ class IseqlModelCompileController:
         model = payload.get("model")
         if model is None:
             raise HTTPException(status_code=400, detail="'model' is required")
+        condition = payload.get("condition")
+        if condition is not None and condition not in ("A", "B", "C"):
+            raise HTTPException(status_code=400, detail="'condition' must be 'A', 'B' or 'C'")
         try:
-            return compile_model(model)
+            return compile_model(model, condition=condition)
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"invalid model: {e}")

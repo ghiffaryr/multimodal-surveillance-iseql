@@ -27,12 +27,16 @@ ANALYSIS_ID_HEX_LENGTH = 12
 
 
 def _format_time(seconds: float) -> str:
-    h = int(seconds // 3600)
-    m = int((seconds % 3600) // 60)
-    s = seconds % 60
-    if h > 0:
-        return f"{h}:{m:02d}:{s:05.2f}"
-    return f"{m}:{s:05.2f}"
+    total_ms = int(round(seconds * 1000))
+    ms = total_ms % 1000
+    total_s = total_ms // 1000
+    s = total_s % 60
+    m = (total_s // 60) % 60
+    h = (total_s // 3600) % 24
+    d = total_s // 86400
+    if d > 0:
+        return f"{d}d {h:02d}:{m:02d}:{s:02d}.{ms:03d}"
+    return f"{h:02d}:{m:02d}:{s:02d}.{ms:03d}"
 
 
 def _projection_extent_aliases(event_type: str, condition: str, specs) -> tuple[str | None, str | None]:
@@ -51,11 +55,8 @@ def _projection_extent_aliases(event_type: str, condition: str, specs) -> tuple[
         if spec is None or not getattr(spec, "model_json", None):
             return None, None
         model = _json.loads(spec.model_json)
-        fields = None
-        if any(iv.get("set_side") for iv in model.get("intervals", [])):
-            fields = model.get("left_projection")
-        else:
-            fields = model.get("custom_projection")
+        from service.impl.events_service_impl import _model_result_fields
+        fields = _model_result_fields(model)
         start_alias = end_alias = None
         if fields:
             for f in fields:

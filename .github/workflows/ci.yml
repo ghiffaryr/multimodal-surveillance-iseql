@@ -32,14 +32,12 @@ jobs:
       - name: Run backend tests with coverage
         run: pytest --cov=iseql --cov=service.relation_vocab --cov-report=term-missing --cov-report=xml
 
-      - name: Upload coverage to Codecov
-        continue-on-error: true
-        uses: codecov/codecov-action@v4
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
         with:
-          files: backend/coverage.xml
-          flags: backend
-          use_oidc: true
-          fail_ci_if_error: false
+          name: backend-coverage
+          path: backend/coverage.xml
+          if-no-files-found: error
 
   frontend:
     name: Frontend tests + typecheck + build
@@ -72,11 +70,44 @@ jobs:
       - name: Build
         run: pnpm run build
 
-      - name: Upload coverage to Codecov
-        continue-on-error: true
-        uses: codecov/codecov-action@v4
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
         with:
-          files: frontend/coverage/lcov.info
-          flags: frontend
-          use_oidc: true
-          fail_ci_if_error: false
+          name: frontend-coverage
+          path: frontend/coverage/lcov.info
+          if-no-files-found: error
+
+  coverage-badge:
+    name: Update coverage badge
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download coverage artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: '*-coverage'
+          path: cov-artifacts
+          merge-multiple: true
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Generate coverage badge
+        run: |
+          BXML=$(find cov-artifacts -name coverage.xml | head -1)
+          FLCOV=$(find cov-artifacts -name lcov.info | head -1)
+          python3 scripts/coverage_badge.py "$BXML" "$FLCOV"
+
+      - name: Commit coverage badge
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add coverage/coverage.json
+          git commit -m "chore: update coverage badge [skip ci]" || echo "No changes to commit"
+          git push

@@ -47,9 +47,26 @@ _DURATION_RE = re.compile(
 
 _STRICTNESS_ALIASES = {"≤": "<=", "⩽": "<=", "≥": ">=", "⩾": ">="}
 
+_KIND_LABEL = {"δ": "delta", "ε": "epsilon", "ρ": "rho"}
+
 
 def _normalize_strictness(op: str) -> str:
     return _STRICTNESS_ALIASES.get(op, op)
+
+
+def _delta_value(kind: str, raw: str):
+    """Parse a δ/ε/ρ value in authored ISEQL text: a number or ∞/inf (unbounded).
+
+    Named keys (e.g. ``delta_visual_handoff``) are backend working values only
+    and must not appear in user-authored ISEQL text.
+    """
+    if raw in ("∞", "inf"):
+        return None
+    if raw.isdigit():
+        return int(raw)
+    raise IseqlParseError(
+        f"invalid {_KIND_LABEL[kind]} value '{raw}'; expected a number or ∞"
+    )
 
 
 class IseqlParseError(ValueError):
@@ -388,7 +405,7 @@ class _Parser:
                         rm = re.match(r"ρ\s*:\s*([A-Za-z_][A-Za-z0-9_]*|\d+|∞|inf)$", p)
                         if pm:
                             raw = pm.group(2)
-                            value = None if raw in ("∞", "inf") else (int(raw) if raw.isdigit() else raw)
+                            value = _delta_value(pm.group(1), raw)
                             if pm.group(1) == "δ":
                                 delta = value
                             else:
@@ -400,8 +417,7 @@ class _Parser:
                             else:
                                 eta = value
                         elif rm:
-                            raw = rm.group(1)
-                            rho = None if raw in ("∞", "inf") else (int(raw) if raw.isdigit() else raw)
+                            rho = _delta_value("ρ", rm.group(1))
                         else:
                             raise IseqlParseError(f"invalid operator parameter '{p}'")
                 return {"op": name, "delta": delta, "epsilon": epsilon,

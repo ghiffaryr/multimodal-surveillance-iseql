@@ -1,15 +1,17 @@
 <script lang="ts">
   import { getContext } from 'svelte';
   import { cn } from '$lib/utils';
+  import type { HTMLButtonAttributes } from 'svelte/elements';
 
-  type Props = { class?: string; value: string; children?: import('svelte').Snippet };
-  let { class: className = '', value, children }: Props = $props();
+  type Props = HTMLButtonAttributes & { value: string; children?: import('svelte').Snippet };
+  let { class: className = '', value, children, ...rest }: Props = $props();
 
   const ctx = getContext<{ value: string; setValue: (v: string) => void }>('tabs');
   const active = $derived(ctx.value === value);
 </script>
 
 <button
+  {...rest}
   type="button"
   role="tab"
   aria-selected={active}

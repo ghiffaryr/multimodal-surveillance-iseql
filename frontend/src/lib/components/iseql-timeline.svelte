@@ -4,7 +4,8 @@
   import { longpress } from '$lib/actions/longpress';
   import Input from '$lib/components/ui/input.svelte';
   import CountBadge from '$lib/components/ui/count-badge.svelte';
-  import UnitToggle from '$lib/components/unit-toggle.svelte';
+  import DeleteHint from '$lib/components/delete-hint.svelte';
+  import { askConfirm } from '$lib/confirm.svelte';
   import IseqlIntervalModal from '$lib/components/iseql-interval-modal.svelte';
   import IseqlOperatorModal from '$lib/components/iseql-operator-modal.svelte';
   import IseqlExprTree from '$lib/components/iseql-expr-tree.svelte';
@@ -38,17 +39,17 @@
     model: IseqlModel | null;
     vocabulary: Vocabulary;
     eventName: string;
+    unit: Unit;
     onChange: (model: IseqlModel) => void;
     onOpenPredicate?: (name: string, modality: 'visual' | 'audio') => void;
   };
-  let { condition, model, vocabulary, eventName, onChange, onOpenPredicate = () => undefined }: Props = $props();
+  let { condition, model, vocabulary, eventName, unit, onChange, onOpenPredicate = () => undefined }: Props = $props();
 
   // -------------------------------------------------------------------------
   // state
   // -------------------------------------------------------------------------
   let groups = $state<BuilderGroup[]>([]);
   let expr = $state<ExprNode | null>(null);
-  let unit = $state<Unit>('seconds');
   let scale = $state(timelineUi.scale);
   let activeGroup = $state<string>('');
 
@@ -81,7 +82,6 @@
     const prevActive = untrack(() => activeGroup);
     groups = st.groups;
     expr = st.expr;
-    unit = st.unit;
     activeGroup = st.groups.some((g) => g.name === prevActive) ? prevActive : (st.groups[0]?.name ?? '');
     modal = null;
     intervalModal = null;
@@ -104,6 +104,30 @@
   $effect(() => {
     timelineUi.scale = scale;
   });
+
+  // Re-emit when the parent changes the unit so the projection domain and
+  // delta_unit stay in sync (the parent owns the Time/Frames switcher).
+  let lastUnit: Unit = untrack(() => unit);
+  $effect(() => {
+    if (unit !== lastUnit) {
+      lastUnit = unit;
+      swapProjectionTemporal(unit);
+      emit();
+    }
+  });
+
+  // Swap st/et <-> sf/ef in each group's explicit projection so the temporal
+  // domain follows the Time/Frames unit (argument fields are unchanged).
+  function swapProjectionTemporal(to: Unit) {
+    const map: Record<string, string> = to === 'frames' ? { st: 'sf', et: 'ef' } : { sf: 'st', ef: 'et' };
+    groups = groups.map((g) => {
+      if (!g.projection) return g;
+      return {
+        ...g,
+        projection: g.projection.map((f) => f.replace(/\.(st|et|sf|ef)$/, (_m, a: string) => `.${map[a] ?? a}`)),
+      };
+    });
+  }
 
   function emit() {
     const m = stateToModel({ groups, expr, unit }, eventName || 'event');
@@ -661,12 +685,6 @@
     changed();
   }
 
-  function setUnit(u: Unit) {
-    unit = u;
-    scale = u === 'seconds' ? 4 : 4;
-    changed();
-  }
-
   function setScale(v: number) {
     scale = v;
   }
@@ -712,8 +730,6 @@
     <span class="text-muted-foreground">Zoom</span>
     <input type="range" min="2" max="48" value={scale} oninput={(e) => setScale(Number((e.currentTarget as HTMLInputElement).value))} class="w-32" />
     <span class="font-mono text-muted-foreground">{scale}px</span>
-
-    <UnitToggle class="ml-2" {unit} onUnitChange={setUnit} />
   </div>
 
   <p class="shrink-0 text-xs text-muted-foreground">
@@ -722,7 +738,7 @@
 
   <!-- main area -->
   <div class="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden lg:flex-row">
-    <div class="min-h-0 flex-1 overflow-auto rounded-md border">
+    <div class="min-h-0 flex-1 overflow-auto rounded-md border" data-tour="editor-canvas">
       <canvas
         bind:this={canvas}
         class="block touch-none select-none"
@@ -745,7 +761,7 @@
       ></canvas>
     </div>
 
-    <div class="flex w-full shrink-0 flex-col gap-2 overflow-y-auto rounded-md border p-2 lg:w-80">
+    <div class="flex w-full shrink-0 flex-col gap-2 overflow-y-auto rounded-md border p-2 lg:w-80" data-tour="editor-intervals">
       <!-- Intervals card -->
       <div class="rounded-md border p-2">
         <div class="mb-1 flex items-center gap-1">
@@ -754,6 +770,7 @@
           <Input class="h-6 min-w-0 flex-1 font-mono text-xs" placeholder="Search intervals…" value={intervalSearch} oninput={(e) => (intervalSearch = (e.currentTarget as HTMLInputElement).value)} />
           <button type="button" class="shrink-0 rounded border px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted" title="Add interval" disabled={activeGroupIdx < 0} onclick={() => addInterval(activeGroupIdx)}>＋</button>
         </div>
+        <DeleteHint />
         <div class="max-h-40 space-y-1 overflow-y-auto pr-1">
           {#each filteredFlat as f (f.globalIndex)}
             <button
@@ -779,6 +796,7 @@
           <Input class="h-6 min-w-0 flex-1 font-mono text-xs" placeholder="Search sets…" value={setSearch} oninput={(e) => (setSearch = (e.currentTarget as HTMLInputElement).value)} />
           <button type="button" class="shrink-0 rounded border px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted" title="Add set" onclick={newGroup}>＋</button>
         </div>
+        <DeleteHint />
         <div class="max-h-40 space-y-1 overflow-y-auto pr-1">
           {#each filteredSetNames as name (name)}
             <button
@@ -844,14 +862,14 @@
   {#if ctxMenu}
     <div class="fixed inset-0 z-50" role="presentation" onclick={() => (ctxMenu = null)} oncontextmenu={(e) => { e.preventDefault(); ctxMenu = null; }}></div>
     <div class="fixed z-50 w-44 rounded-md border bg-background py-1 text-xs shadow-lg" style="left: {ctxMenu.x}px; top: {ctxMenu.y}px">
-      <button type="button" class="block w-full px-3 py-1 text-left hover:bg-muted" onclick={() => { removeInterval(ctxMenu!.gi, ctxMenu!.ii); ctxMenu = null; }}>Delete</button>
+      <button type="button" class="block w-full px-3 py-1 text-left hover:bg-muted" onclick={async () => { if (await askConfirm('Delete this interval?', { title: 'Delete interval' })) removeInterval(ctxMenu!.gi, ctxMenu!.ii); ctxMenu = null; }}>Delete</button>
     </div>
   {/if}
 
   {#if setCtxMenu}
     <div class="fixed inset-0 z-50" role="presentation" onclick={() => (setCtxMenu = null)} oncontextmenu={(e) => { e.preventDefault(); setCtxMenu = null; }}></div>
     <div class="fixed z-50 w-44 rounded-md border bg-background py-1 text-xs shadow-lg" style="left: {setCtxMenu.x}px; top: {setCtxMenu.y}px">
-      <button type="button" class="block w-full px-3 py-1 text-left hover:bg-muted" onclick={() => { deleteSetByName(setCtxMenu!.name); setCtxMenu = null; }}>Delete</button>
+      <button type="button" class="block w-full px-3 py-1 text-left hover:bg-muted" onclick={async () => { if (await askConfirm(`Delete set '${setCtxMenu!.name}'? Its intervals move to the unassigned lane.`, { title: 'Delete set' })) deleteSetByName(setCtxMenu!.name); setCtxMenu = null; }}>Delete</button>
     </div>
   {/if}
 </div>

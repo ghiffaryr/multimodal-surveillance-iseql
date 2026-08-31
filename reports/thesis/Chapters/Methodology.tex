@@ -81,7 +81,7 @@ The visual pipeline (Figure~\ref{fig:visual_pipeline}) samples video frames at a
     \addlinespace
     \texttt{gunshot\_visible} & \texttt{(PersonID)} & Person holding or firing a gun: visible muzzle flash, gun in hand, recoil motion, or barrel smoke \\
     \addlinespace
-    \texttt{explosion\_visible} & \texttt{(VehicleID?, ObjectID?)} & Visible explosion: fireball, large smoke cloud, debris flying, or shattered windows \\
+    \texttt{explosion\_visible} & \texttt{(VehicleID$\vee$ObjectID)} & Visible explosion: fireball, large smoke cloud, debris flying, or shattered windows \\
     \bottomrule
   \end{tabular}
 \end{table}

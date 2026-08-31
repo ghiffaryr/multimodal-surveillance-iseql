@@ -181,7 +181,7 @@ export const DEFAULT_RELATION_VOCAB_TEMPLATE: RelationVocabConfig = {
     ['physical_altercation', '(PersonID, PersonID)'],
     ['vehicle_collision', '(VehicleID)'],
     ['gunshot_visible', '(PersonID)'],
-    ['explosion_visible', '(VehicleID?, ObjectID?)'],
+    ['explosion_visible', '(VehicleID∨ObjectID)'],
   ],
   relation_descriptions: {
     running: "The person's body is in a running posture: legs visibly apart, arms extended away from the body, or the person is clearly moving fast. WALKING is NOT running. Look at leg and arm positions carefully.",

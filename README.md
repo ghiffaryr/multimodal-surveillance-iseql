@@ -1,5 +1,11 @@
 # WATCHOUT ISEQL - Forensic Multimodal Surveillance
 
+[![CI](https://github.com/ghiffaryr/multimodal-surveillance-iseql/actions/workflows/ci.yml/badge.svg)](https://github.com/ghiffaryr/multimodal-surveillance-iseql/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/ghiffaryr/multimodal-surveillance-iseql/main/coverage/coverage.json)](https://github.com/ghiffaryr/multimodal-surveillance-iseql/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/ghiffaryr/multimodal-surveillance-iseql)](https://github.com/ghiffaryr/multimodal-surveillance-iseql/releases)
+[![Platforms](https://img.shields.io/badge/platforms-Linux%20%7C%20macOS%20%7C%20WSL2%20%7C%20Docker%20%7C%20HPC-6f42c1)](#running-per-profile)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+
 > **W**hole-scene **A**udio-visual **T**emporal **C**omplex-event
 > **H**andler using **O**ntological **U**nderstanding of **T**emporal ISEQL
 
@@ -291,8 +297,8 @@ directly, e.g. `PROFILE=hpc bash scripts/start.sh backend`.
 The ISEQL engine (parser, compiler, args<->ClassID mapping, text<->model
 round-trips) has a pytest suite that runs without the full ML stack; the
 frontend builder's model-conversion logic has a Vitest suite. Both are wired
-into the Makefile and run automatically on GitHub Actions (with coverage
-uploaded to Codecov).
+into the Makefile and run automatically on GitHub Actions, which also updates
+the self-hosted coverage badge above.
 
 ```bash
 make test          # backend (pytest) + frontend (vitest)
@@ -315,9 +321,10 @@ Test layout: `backend/tests/` (pytest) and `frontend/src/lib/iseql-model.test.ts
 
 CI: `.github/workflows/ci.yml` runs the backend suite (Python 3.10, minimal
 `pytest` + `pytest-cov`) and the frontend suite (typecheck, tests, build) on
-push/PR, then uploads `backend/coverage.xml` and `frontend/coverage/lcov.info`
-to [Codecov](https://codecov.io). Public repos use GitHub OIDC for the upload;
-private repos need a `CODECOV_TOKEN` secret.
+push/PR. On the `main` branch a follow-up job combines `backend/coverage.xml`
+and `frontend/coverage/lcov.info` into `coverage/coverage.json`
+(`scripts/coverage_badge.py`) and commits it back, which feeds the shields.io
+coverage badge at the top of this README (no third-party coverage service).
 
 ---
 
@@ -332,7 +339,7 @@ multimodal-surveillance-iseql/
 │       ├── service/         ABC interfaces (audio, visual, events, interval, ...)
 │       │   └── impl/        service implementations (only *_service_impl.py)
 │       ├── iseql/           ISEQL engine: helpers (operators+SQL), parser, compiler, facade
-│       └── utils/           database, config, VLM client, geometry_helpers, logger
+│       └── utils/           database, config, VLM client, object memory (RAG), GPU allocator, logger
 ├── frontend/            SvelteKit + TypeScript + shadcn-svelte
 ├── docs/                iseql_event_queries.md (canonical event queries)
 ├── experiments/         Evaluation notebooks and scene definitions
@@ -343,7 +350,7 @@ multimodal-surveillance-iseql/
 │   └── thesis/           Master's thesis (LaTeX)
 ├── data/                Runtime artefacts (uploads, DBs, analysis XLSX, audio)
 │   ├── analysis_*/       Per-VLM/audio ablation results
-│   ├── geometry_plugins/ User-uploaded Python geometry event plugins
+│   ├── vector_db/        Per-scene Chroma object-memory collections
 │   └── videos/eval/      30 curated evaluation scenes
 ├── Makefile             Root convenience
 ├── docker-compose.yml
@@ -369,9 +376,14 @@ OpenAPI docs are auto-generated at `/docs` and `/redoc` when the backend is runn
 | `POST` | `/api/db/upload`            | Upload a pre-existing `.db`                                         |
 | `GET/POST/PUT/PATCH/DELETE` | `/api/events` + `/api/events/{id}` | Author events in the ISEQL registry (`condition`, `enabled`, `model_json`) |
 | `POST` | `/api/iseql/compile`        | Compile ISEQL query text to SQL (editor preview)                    |
+| `POST` | `/api/iseql/model/compile`  | Compile a stored event model directly to SQL (visual builder)       |
 | `POST` | `/api/iseql/preview`        | Render a stored event model back to ISEQL text                      |
+| `GET`  | `/api/iseql/vocabulary`     | Predicate + participant-class vocabulary for the event builder      |
+| `GET/PUT` | `/api/relations`         | Read/write the visual relation vocabulary (name, args, description) |
 | `GET/PUT` | `/api/config/{section}`  | Read/write config sections (identity, preprocessing, audio_taxonomy, relation_vocab, prompts) |
-| `GET/POST/DELETE` | `/api/geometry/plugins` | List, upload, and delete track-geometry Python plugins            |
+| `GET`  | `/api/analysis/{id}/video`  | Stream the analyzed video                                           |
+| `GET`  | `/api/analysis/{id}/memory/stats`    | Object-memory statistics (frames, objects, classes)      |
+| `GET`  | `/api/analysis/{id}/memory/objects`  | Object-memory objects (query by class/time)              |
 
 ---
 

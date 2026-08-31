@@ -121,6 +121,17 @@ def default_deltas_for(model_json: str | dict, event_id: str,
         except Exception:
             parsed_dm = {}
 
+    # A single-set model renders/parses as a flat chain, so its stored delta_map
+    # keys are "<side>.<i>" while the authored text parses back to flat "<i>".
+    # Rebind the flat parsed keys to the single set side so the two maps align.
+    named_sides = {str(k).split(".", 1)[0] for k in named_dm if "." in str(k)}
+    if len(named_sides) == 1:
+        side = named_sides.pop()
+        parsed_dm = {
+            (f"{side}.{k}" if "." not in str(k) else str(k)): v
+            for k, v in parsed_dm.items()
+        }
+
     def _entry(dm, key):
         e = dm.get(key)
         return e if isinstance(e, dict) else {}
@@ -232,6 +243,43 @@ def _compile_event_sql(
     return sql
 
 
+def _model_result_fields(model: dict) -> list[str] | None:
+    """Full (padded) projection field list matching the emitted SQL SELECT order.
+
+    Handles the flat (``custom_projection``), single-set (leaf ``projection``)
+    and multi-set (``set_expression`` branch) forms. For a multi-set expression
+    the left-most (audio) leaf is padded to the max arity, mirroring the
+    compiler's ``_pad_fields``.
+    """
+    ivs = model.get("intervals", [])
+    if not ivs:
+        return None
+    if any(iv.get("set_side") for iv in ivs):
+        return model.get("left_projection")
+    fields = model.get("custom_projection")
+    if fields:
+        return fields
+    se = model.get("set_expression")
+    if not se:
+        return None
+    if "group" in se:
+        return se.get("projection") or None
+    leaves: list[list[str]] = []
+
+    def _walk(node: dict) -> None:
+        if "group" in node:
+            leaves.append(node.get("projection") or [])
+        else:
+            for c in node.get("children", []):
+                _walk(c)
+
+    _walk(se)
+    if not leaves:
+        return None
+    arity = max(len(p) for p in leaves)
+    return leaves[0] + [f"__p{i}" for i in range(1, arity - len(leaves[0]) + 1)]
+
+
 def _result_column_labels(model: dict) -> list[str] | None:
     """Ordered result column labels for an event model's projection.
 
@@ -246,10 +294,7 @@ def _result_column_labels(model: dict) -> list[str] | None:
     ivs = model.get("intervals", [])
     if not ivs:
         return None
-    if any(iv.get("set_side") for iv in ivs):
-        fields = model.get("left_projection")
-    else:
-        fields = model.get("custom_projection")
+    fields = _model_result_fields(model)
     if not fields:
         return None
 

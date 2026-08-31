@@ -50,12 +50,12 @@
       .map((p) => ({ value: p.name, label: p.name })),
   );
 
-  function vocabArgs(name: string): string[] {
+  function vocabSlots(name: string): string[][] {
     return vocabulary.predicates.find((p) => p.name === name)?.args ?? [];
   }
 
   function labelOf(name: string): string {
-    return predicateLabel(name, vocabArgs(name));
+    return predicateLabel(name, vocabSlots(name));
   }
 
   function openPredicate(name: string) {
@@ -66,10 +66,10 @@
   function unionArgsMap(preds: string[]): Record<string, string[]> {
     const map: Record<string, string[]> = {};
     preds.forEach((p) => {
-      vocabArgs(p).forEach((c, i) => {
-        if (!c) return;
+      vocabSlots(p).forEach((slot, i) => {
+        if (!slot.length) return;
         const k = String(i + 1);
-        (map[k] ??= []).push(c);
+        (map[k] ??= []).push(...slot);
       });
     });
     for (const k of Object.keys(map)) map[k] = [...new Set(map[k])];
@@ -84,8 +84,8 @@
       .filter(Boolean);
   }
 
-  function predArgsMap(preds: string[]): Record<string, string[]> {
-    return Object.fromEntries(preds.map((p) => [p, vocabArgs(p)]));
+  function predArgsMap(preds: string[]): Record<string, string[][]> {
+    return Object.fromEntries(preds.map((p) => [p, vocabSlots(p)]));
   }
 
   const tokens = $derived<EditorToken[] | null>(mapTokens(tokenizeBoolExpr(text)));
@@ -106,7 +106,10 @@
     const first = allPreds[0];
     let selection: Record<string, unknown> | null = null;
     if (parsed.length === 1 && parsed[0].length === 1) {
-      selection = null;
+      const slots = vocabSlots(first);
+      selection = slots.some((s) => s.length > 1)
+        ? { preds: [first], args: unionArgsMap([first]), pred_args: { [first]: slots } }
+        : null;
     } else if (parsed.length === 1) {
       selection = { preds: parsed[0], args: unionArgsMap(parsed[0]), pred_args: predArgsMap(parsed[0]) };
     } else {
@@ -133,7 +136,7 @@
       <div class="space-y-3">
         <Field>
           <Label>Predicates Expression</Label>
-          <ExprEditor {text} {tokens} options={predOptions.map((p) => p.value)} operators={['∧', '∨']} kind="pred" {onText} onOpen={openPredicate} {labelOf} />
+          <ExprEditor {text} {tokens} options={predOptions.map((p) => p.value)} operators={['∨']} kind="pred" {onText} onOpen={openPredicate} {labelOf} />
         </Field>
         <div class="grid grid-cols-2 gap-3">
           <Field>

@@ -11,6 +11,7 @@ from service.relation_vocab import (
     args_to_classid,
     classid_to_args,
     signature_classes,
+    signature_slots,
 )
 
 
@@ -68,3 +69,35 @@ def test_signature_classes_empty():
 def test_invalid_optional_only():
     # A lone '?' token produces no class; it should be ignored gracefully.
     assert classid_to_args("(?)") == ""
+
+
+# ---------------------------------------------------------------------------
+# alternatives (∨ = one slot with several allowed classes)
+# ---------------------------------------------------------------------------
+
+def test_args_to_classid_alternatives():
+    assert args_to_classid("vehicle ∨ object") == "(VehicleID∨ObjectID)"
+
+
+def test_classid_to_args_alternatives():
+    assert classid_to_args("(VehicleID∨ObjectID)") == "vehicle ∨ object"
+
+
+def test_alternatives_roundtrip():
+    assert classid_to_args(args_to_classid("vehicle ∨ object")) == "vehicle ∨ object"
+
+
+def test_alternatives_with_other_slots():
+    # alternatives mixed with a required arg
+    assert args_to_classid("person, vehicle ∨ object") == "(PersonID, VehicleID∨ObjectID)"
+    assert classid_to_args("(PersonID, VehicleID∨ObjectID)") == "person, vehicle ∨ object"
+
+
+def test_signature_slots_flat_and_alternatives():
+    assert signature_slots("(PersonID)") == [["person"]]
+    assert signature_slots("(PersonID, VehicleID)") == [["person"], ["vehicle"]]
+    assert signature_slots("(VehicleID∨ObjectID)") == [["vehicle", "object"]]
+
+
+def test_signature_classes_flattens_alternatives():
+    assert signature_classes("(VehicleID∨ObjectID)") == ["vehicle", "object"]

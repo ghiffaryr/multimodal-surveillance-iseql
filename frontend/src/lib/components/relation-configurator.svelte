@@ -3,6 +3,8 @@
   import { longpress } from '$lib/actions/longpress';
   import Input from '$lib/components/ui/input.svelte';
   import CountBadge from '$lib/components/ui/count-badge.svelte';
+  import DeleteHint from '$lib/components/delete-hint.svelte';
+  import { askConfirm } from '$lib/confirm.svelte';
   import Label from '$lib/components/ui/label.svelte';
   import Field from '$lib/components/ui/field.svelte';
   import Button from '$lib/components/ui/button.svelte';
@@ -28,6 +30,33 @@
   let modal = $state<{ mode: 'new' } | { mode: 'edit'; index: number } | null>(null);
   let ctxMenu = $state<{ x: number; y: number; index: number } | null>(null);
   let draft = $state<RelationRow>({ name: '', args: '', description: '' });
+  let argsTa = $state<HTMLTextAreaElement | null>(null);
+
+  const argsWarn = $derived((() => {
+    const a = draft.args;
+    if (!a) return null;
+    if (a.includes('|')) return 'Use ∨ (logical OR) instead of | between alternatives.';
+    if (a.includes('V')) return 'Use ∨ (logical OR) instead of V between alternatives.';
+    if (/(^|\s)v(\s|$)/.test(a)) return 'Use ∨ (logical OR) instead of v between alternatives.';
+    return null;
+  })());
+
+  function insertOr() {
+    const ta = argsTa;
+    if (!ta) {
+      draft = { ...draft, args: `${draft.args} ∨ `.trimStart() };
+      return;
+    }
+    const start = ta.selectionStart ?? draft.args.length;
+    const end = ta.selectionEnd ?? start;
+    const next = draft.args.slice(0, start) + ' ∨ ' + draft.args.slice(end);
+    draft = { ...draft, args: next };
+    requestAnimationFrame(() => {
+      ta.focus();
+      const caret = start + 3;
+      ta.setSelectionRange(caret, caret);
+    });
+  }
 
   async function load() {
     error = null;
@@ -98,6 +127,8 @@
   }
 
   async function remove(index: number) {
+    const name = rows[index]?.name ?? `#${index + 1}`;
+    if (!(await askConfirm(`Delete visual relation '${name}'?`, { title: 'Delete relation' }))) return;
     const next = rows.filter((_, idx) => idx !== index);
     try {
       await api.putJson('/api/relations', toPayload(next));
@@ -122,6 +153,7 @@
     <Input class="h-7 flex-1 font-mono text-xs" placeholder="Search predicates…" value={search} oninput={(e) => (search = (e.currentTarget as HTMLInputElement).value)} />
     <button type="button" class="rounded border px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted" title="Add relation" onclick={openNew}>＋</button>
   </div>
+  <DeleteHint />
 
   <div class="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
     {#each filtered as r, i (r.name)}
@@ -159,8 +191,22 @@
         </Field>
         <Field>
           <Label>Args</Label>
-          <textarea class={textareaClass} rows={2} placeholder="arg1, arg2" value={draft.args}
+          <textarea bind:this={argsTa} class={textareaClass} rows={2} placeholder="arg1, arg2 ∨ arg3" value={draft.args}
             onchange={(e) => (draft = { ...draft, args: (e.currentTarget as HTMLTextAreaElement).value })}></textarea>
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              class="rounded border border-input px-1.5 py-0.5 font-mono text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
+              title="Insert OR (∨)"
+              onclick={insertOr}
+            >∨</button>
+            <p class="text-xs text-muted-foreground">
+              Separate arguments with a comma; use <span class="font-mono">∨</span> for OR within an argument, e.g. <span class="font-mono">person, vehicle ∨ object</span>.
+            </p>
+          </div>
+          {#if argsWarn}
+            <p class="text-xs text-amber-600">{argsWarn}</p>
+          {/if}
         </Field>
         <Field>
           <Label>Description</Label>

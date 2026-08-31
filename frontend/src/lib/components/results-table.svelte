@@ -6,7 +6,7 @@
   import Input from '$lib/components/ui/input.svelte';
   import CountBadge from '$lib/components/ui/count-badge.svelte';
   import UnitToggle from '$lib/components/unit-toggle.svelte';
-  import { DatabaseZap } from 'lucide-svelte';
+  import { DatabaseZap, MousePointerClick, Hand } from 'lucide-svelte';
   import { cn } from '$lib/utils';
   import type { DetectionResult, Unit } from '$lib/types';
 
@@ -45,6 +45,7 @@
   );
 
   let search = $state('');
+  let showClickHint = $state(true);
 
   const filteredRows = $derived(
     (result?.rows ?? []).map((row, i) => ({ row, i })).filter(({ row }) => {
@@ -132,7 +133,10 @@
         Results
         {#if result}<CountBadge filtered={filteredRows.length} total={result.rows.length} filtering={search.trim() !== ''} />{/if}
       </CardTitle>
-      <UnitToggle class="shrink-0 sm:order-4" {unit} {onUnitChange} secondsLabel="Time" />
+      <div class="flex shrink-0 items-center gap-1.5 sm:order-4">
+        <span class="text-xs text-muted-foreground">Unit</span>
+        <UnitToggle {unit} {onUnitChange} secondsLabel="Time" />
+      </div>
     </div>
     <div class="flex flex-col gap-2 sm:contents">
       <Input class="h-7 w-full min-w-0 font-mono text-xs sm:order-2 sm:flex-1" placeholder="Search results…" value={search} oninput={(e) => (search = (e.currentTarget as HTMLInputElement).value)} />
@@ -140,7 +144,7 @@
         <button
           type="button"
           title="View object memory"
-          class="inline-flex shrink-0 self-start items-center gap-1.5 rounded-md border border-input bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:order-3 sm:self-auto"
+          class="inline-flex h-7 shrink-0 self-start items-center gap-1.5 rounded-md border border-input bg-background px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:order-3 sm:self-auto"
           onclick={onMemory}
         >
           <DatabaseZap class="size-3.5" /> Object memory
@@ -148,6 +152,21 @@
       {/if}
     </div>
   </CardHeader>
+
+  {#if showClickHint && result && result.rows.length > 0}
+    <div class="flex shrink-0 items-center gap-1.5 border-b border-border/60 bg-muted/30 px-4 py-1 text-[10px] leading-tight text-muted-foreground">
+      <MousePointerClick class="size-3 shrink-0" />
+      <Hand class="size-3 shrink-0" />
+      <span>Click or tap a row to play the video from that event's start to end</span>
+      <button
+        type="button"
+        class="ml-auto shrink-0 rounded px-0.5 text-muted-foreground hover:text-foreground"
+        title="Dismiss"
+        aria-label="Dismiss row click hint"
+        onclick={() => (showClickHint = false)}
+      >✕</button>
+    </div>
+  {/if}
 
   {#if analysisId && result && result.rows.length > 0}
     <div class="shrink-0 border-b border-border/50 px-4 pb-3">

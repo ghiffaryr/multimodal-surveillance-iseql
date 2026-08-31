@@ -19,6 +19,7 @@ _RELATION_VOCAB = {
         ["enter_or_exit_vehicle", "(PersonID, VehicleID)"],
         ["walking", "(PersonID)"],
         ["carrying", "(PersonID, ObjectID)"],
+        ["explosion_visible", "(VehicleID∨ObjectID)"],
     ]
 }
 

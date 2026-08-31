@@ -189,15 +189,6 @@ def test_operator_unbounded_delta():
     assert model["delta_map"]["0"]["delta"] is None
 
 
-def test_operator_named_delta_key():
-    model = parse_iseql(
-        f'{_P2} (σ_{{pred="running"}}(M1) Bef(δ:delta_visual_handoff) '
-        f'σ_{{pred="walking"}}(M2))',
-        name="e",
-    )
-    assert model["delta_map"]["0"]["delta"] == "delta_visual_handoff"
-
-
 def test_operator_unicode_strictness_aliases():
     model = parse_iseql(
         f'{_P2} (σ_{{pred="running"}}(M1) Bef(ζ:≤, η:≥; ρ:3) '
@@ -229,6 +220,45 @@ def test_error_invalid_operator_parameter():
             f'{_P2} (σ_{{pred="running"}}(M1) Bef(foo:1) σ_{{pred="walking"}}(M2))',
             name="e",
         )
+
+
+def test_error_invalid_delta_value():
+    with pytest.raises(IseqlParseError):
+        parse_iseql(
+            f'{_P2} (σ_{{pred="running"}}(M1) Bef(δ:k; ρ:f) σ_{{pred="walking"}}(M2))',
+            name="e",
+        )
+
+
+def test_error_named_delta_key_rejected():
+    # Named per-detect keys are backend-only and must not appear in ISEQL text.
+    with pytest.raises(IseqlParseError):
+        parse_iseql(
+            f'{_P2} (σ_{{pred="running"}}(M1) Bef(δ:delta_visual_handoff) '
+            f'σ_{{pred="walking"}}(M2))',
+            name="e",
+        )
+    with pytest.raises(IseqlParseError):
+        parse_iseql(
+            f'{_P2} (σ_{{pred="running"}}(M1) DJ(δ:5, ε:epsilon_audio_handoff) '
+            f'σ_{{pred="walking"}}(M2))',
+            name="e",
+        )
+    with pytest.raises(IseqlParseError):
+        parse_iseql(
+            f'{_P2} (σ_{{pred="running"}}(M1) Bef(δ:5; ρ:rho_visual_handoff) '
+            f'σ_{{pred="walking"}}(M2))',
+            name="e",
+        )
+
+
+def test_operator_unbounded_and_number_accepted():
+    model = parse_iseql(
+        f'{_P2} (σ_{{pred="running"}}(M1) Bef(δ:∞; ρ:3) σ_{{pred="walking"}}(M2))',
+        name="e",
+    )
+    assert model["delta_map"]["0"]["delta"] is None
+    assert model["delta_map"]["0"]["rho"] == 3
 
 
 def test_error_invalid_cross_condition():

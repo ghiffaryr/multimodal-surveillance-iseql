@@ -15,6 +15,21 @@ def _resolve_audio_predicates(conn) -> set[str]:
     return set(str(c) for c in classes)
 
 
+def _resolve_predicate_vocab(conn) -> dict[str, list[list[str]]]:
+    """Predicate name -> argument slots (visual relations + audio classes)."""
+    from service.impl.config_store_service_impl import ConfigStoreServiceImpl
+    from service.relation_vocab import signature_slots
+    store = ConfigStoreServiceImpl()
+    relation_vocab = store.get_section(conn, "relation_vocab") or {}
+    audio_taxonomy = store.get_section(conn, "audio_taxonomy") or {}
+    vocab: dict[str, list[list[str]]] = {}
+    for name, sig in (relation_vocab.get("relation_classids") or []):
+        vocab[str(name)] = signature_slots(str(sig))
+    for name in (audio_taxonomy.get("classes") or []):
+        vocab[str(name)] = []
+    return vocab
+
+
 def _config_conn():
     from service.impl.config_store_service_impl import _config_conn as _conn
     return _conn()
@@ -47,7 +62,7 @@ def render_model(model_json: str | dict) -> str:
 _STRICTNESS = {"<=", "<", ">=", ">", "≤", "≥", "⩽", "⩾"}
 
 
-def _compile_model_result(model: dict) -> dict:
+def _compile_model_result(model: dict, condition: str | None = None) -> dict:
     """Compile a model (already parsed/loaded) into {iseql, sql, model}.
 
     Named δ/ε/ρ keys resolve per-detect; for the preview they are treated as
@@ -67,25 +82,30 @@ def _compile_model_result(model: dict) -> dict:
     conn = _config_conn()
     try:
         audio_predicates = _resolve_audio_predicates(conn)
+        predicate_vocab = _resolve_predicate_vocab(conn)
     finally:
         conn.close()
     iseql, sql = _compile(model, preview_deltas, "__analysis__", fps="__fps__",
-                          audio_predicates=audio_predicates)
+                          audio_predicates=audio_predicates,
+                          predicate_vocab=predicate_vocab,
+                          condition=condition)
     return {"iseql": render_iseql(_normalized_model(model)), "sql": sql, "model": model}
 
 
-def compile_query(query: str, name: str = "event", delta_unit: str = "seconds") -> dict:
+def compile_query(query: str, name: str = "event", delta_unit: str = "seconds",
+                  condition: str | None = None) -> dict:
     """Compile an ISEQL query written as text into (iseql, sql, model).
 
     Raises ValueError with a human-readable message on syntax/compile errors.
     ``delta_unit`` is the unit of the authored δ/ε thresholds (seconds/frames).
+    ``condition`` (A/B/C) restricts the allowed predicate modality.
     """
     from iseql.parser import parse_iseql
     model = parse_iseql(query, name=name, delta_unit=delta_unit)
-    return _compile_model_result(model)
+    return _compile_model_result(model, condition)
 
 
-def compile_model(model_json: str | dict) -> dict:
+def compile_model(model_json: str | dict, condition: str | None = None) -> dict:
     """Compile an event model directly into (iseql, sql, model).
 
     Used by the visual builder, which edits the model in place (groups,
@@ -94,7 +114,7 @@ def compile_model(model_json: str | dict) -> dict:
     """
     from iseql.compiler import _load_model, _normalized_model
     model = _normalized_model(_load_model(model_json))
-    return _compile_model_result(model)
+    return _compile_model_result(model, condition)
 
 
 def vocabulary() -> dict:
@@ -104,7 +124,7 @@ def vocabulary() -> dict:
     participant signature); audio predicates from ``audio_taxonomy.classes``.
     """
     from service.impl.config_store_service_impl import ConfigStoreServiceImpl
-    from service.relation_vocab import signature_classes
+    from service.relation_vocab import signature_slots
     conn = _config_conn()
     try:
         store = ConfigStoreServiceImpl()
@@ -118,14 +138,15 @@ def vocabulary() -> dict:
         predicates.append({
             "name": str(name),
             "modality": "visual",
-            "args": signature_classes(str(sig)),
+            "args": signature_slots(str(sig)),
         })
     for name in (audio_taxonomy.get("classes") or []):
         predicates.append({"name": str(name), "modality": "audio", "args": []})
 
     participant_classes: set[str] = set()
     for p in predicates:
-        participant_classes.update(p["args"])
+        for slot in p["args"]:
+            participant_classes.update(slot)
     return {
         "predicates": predicates,
         "participant_classes": sorted(participant_classes),

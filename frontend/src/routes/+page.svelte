@@ -41,6 +41,19 @@
 
   import UnitToggle from '$lib/components/unit-toggle.svelte';
   import type { Unit } from '$lib/types';
+  import { registerTourSteps, startTour, hasSeenTour, tour, type TourStep } from '$lib/tour.svelte';
+  import { askConfirm } from '$lib/confirm.svelte';
+
+  const LANDING_TOUR: TourStep[] = [
+    { target: '', title: 'Welcome to WATCHOUT ISEQL', body: 'This guided tour walks you through the app. Use Next / Back to move around, or Skip to close it at any time. You can reopen it anytime with the ? button at the bottom right.' },
+    { target: 'landing-video', title: 'Upload a video', body: 'Start here: upload the surveillance video you want to analyze.' },
+    { target: 'landing-condition', title: 'Pick an ablation condition', body: 'A = visual only, B = audio only, C = visual + audio. This controls which models run.' },
+    { target: 'landing-config', title: 'Model settings', body: 'Configure the VLM (conditions A/C) and audio model (conditions B/C) used for detection.' },
+    { target: 'landing-deltas', title: 'Operator parameters', body: 'Fine-tune the δ/ε/ζ/η/ρ parameters for each event operator, in seconds or frames.' },
+    { target: 'landing-start', title: 'Run the analysis', body: 'Click Start analysis to detect events from the uploaded video.' },
+    { target: 'landing-results', title: 'Review the results', body: 'Detected events appear here with a searchable table and a video player. Click or tap a row to play the video from that event start to end.' },
+    { target: 'landing-events-config', title: 'Define your events', body: 'Use Events Configuration to author your own ISEQL events, visual relations and audio classes. You can delete any item by right-clicking (desktop) or long-pressing (touch).' },
+  ];
 
   function convertValues(values: Deltas, from: Unit, to: Unit, fps: number): Deltas {
     if (from === to || fps <= 0) return values;
@@ -163,6 +176,7 @@
   }
 
   async function deleteAnalysis(id: string) {
+    if (!(await askConfirm('Delete this analysis? Its video, detections, and object memory will be removed.', { title: 'Delete analysis' }))) return;
     try {
       await api.post(`/api/analysis/${id}/delete`);
     } catch { /* non-fatal */ }
@@ -174,7 +188,7 @@
   const resetDisabled = $derived(busy || RESET_ACTIVE_STAGES.includes(stage));
 
   async function resetDatabase() {
-    if (!confirm('Clear analysis data? This deletes all analyses and detections. Your settings and events are kept.')) return;
+    if (!(await askConfirm('Clear analysis data? This deletes all analyses and detections. Your settings and events are kept.', { title: 'Clear analysis data' }))) return;
     try {
       await api.post('/api/db/reset');
       reset();
@@ -185,6 +199,9 @@
   }
 
   onMount(async () => {
+    registerTourSteps(LANDING_TOUR, 'landing');
+    if (!hasSeenTour('landing') && !tour.active) startTour(LANDING_TOUR, 'landing');
+
     try {
       eventTypes = await api.get<EventTypesResponse>('/api/events/types');
       deltas = { ...collectDefaultDeltas(eventTypes) };
@@ -401,18 +418,18 @@
   <main class="flex flex-1 flex-col gap-4 overflow-y-auto p-4 lg:overflow-hidden">
     <div class="grid grid-cols-1 gap-4 lg:min-h-0 lg:flex-1 lg:grid-cols-12 lg:grid-rows-[minmax(0,1fr)]">
       <section class="col-span-12 flex flex-col gap-4 overflow-y-auto pr-1 lg:col-span-5">
-        <Button href="/events-config" variant="outline" class="w-full">
+        <Button href="/events-config" variant="outline" class="w-full" data-tour="landing-events-config">
           Events Configuration →
         </Button>
 
-        <Card>
+        <Card data-tour="landing-video">
           <CardHeader><CardTitle>1. Video</CardTitle></CardHeader>
           <CardContent>
             <VideoUploader file={video} onChange={handleVideoChange} disabled={busy} />
           </CardContent>
         </Card>
 
-        <Card>
+        <Card data-tour="landing-condition">
           <CardHeader><CardTitle>2. Ablation condition</CardTitle></CardHeader>
           <CardContent>
             <ConditionSelector
@@ -423,7 +440,7 @@
           </CardContent>
         </Card>
 
-        <Card>
+        <Card data-tour="landing-config">
           <CardHeader><CardTitle>3. VLM (conditions A and C)</CardTitle></CardHeader>
           <CardContent class="space-y-4">
             <VlmConfigForm
@@ -458,9 +475,9 @@
           </CardContent>
         </Card>
 
-        <Card>
+        <Card data-tour="landing-deltas">
           <CardHeader class="flex flex-row items-center justify-between">
-            <CardTitle>5. Deltas</CardTitle>
+            <CardTitle>5. Parameters</CardTitle>
             <UnitToggle {unit} onUnitChange={(u) => { convertDeltasUnit(unit, u); unit = u; }} />
           </CardHeader>
           <CardContent>
@@ -477,7 +494,7 @@
           </CardContent>
         </Card>
 
-        <div class="flex gap-2">
+        <div class="flex gap-2" data-tour="landing-start">
           {#if canStop}
             <Button class="flex-1" variant="destructive" onclick={stopAnalysis}>
               <Square class="size-4" /> Stop analysis
@@ -505,7 +522,7 @@
         {/if}
       </section>
 
-      <section class="col-span-12 flex flex-col lg:min-h-0 lg:col-span-7">
+      <section class="col-span-12 flex flex-col lg:min-h-0 lg:col-span-7" data-tour="landing-results">
         <Tabs bind:value={rightTab} class="flex h-[75vh] min-h-0 flex-col overflow-hidden rounded-md border lg:h-auto lg:flex-1">
           <TabsList class="shrink-0 border-b px-2 py-1">
             <TabsTrigger value="logs">Logs</TabsTrigger>

@@ -952,15 +952,199 @@ def _render_expression(node: dict, model: dict, analysis_id: str, deltas: dict,
     )
 
 
+def _validate_predicates(model: dict, predicate_vocab: dict[str, list[list[str]]]) -> None:
+    """Validate every predicate in a model against the configured vocabulary.
+
+    ``predicate_vocab`` maps a predicate name to its argument slots (a list of
+    lists of allowed classes; audio predicates have ``[]``). Raises
+    ``ModelValidationError`` when a predicate is undefined or its arguments do
+    not match its signature, so the editor can point the user at the mistake.
+    """
+    for iv in model["intervals"]:
+        pred = iv.get("pred") or {}
+        pred_name = pred.get("name")
+        selection = iv.get("selection")
+
+        if selection:
+            branches = selection.get("branches") or [{
+                "preds": list(selection.get("preds") or [pred_name]),
+                "args": {str(k): list(v) for k, v in (selection.get("args") or {}).items()},
+            }]
+        else:
+            branches = [{
+                "preds": [pred_name],
+                "args": {str(k + 1): [v] for k, v in enumerate(pred.get("arguments") or [])},
+            }]
+
+        for branch in branches:
+            preds = [p for p in (branch.get("preds") or []) if p]
+            for p in preds:
+                if p not in predicate_vocab:
+                    raise ModelValidationError(
+                        f"predicate '{p}' is not defined; create it in Events Configuration"
+                    )
+            if len(preds) == 1:
+                _validate_predicate_args(preds[0], predicate_vocab[preds[0]], branch.get("args") or {})
+
+
+def _validate_predicate_args(name: str, slots: list[list[str]], args: dict[str, list[str]]) -> None:
+    expected = ", ".join(" ∨ ".join(slot) for slot in slots)
+    provided = sorted(int(k) for k in args if k and str(k).isdigit())
+    if len(provided) != len(slots):
+        raise ModelValidationError(
+            f"predicate '{name}' expects {len(slots)} argument(s): {name}({expected}); "
+            f"got {len(provided)}"
+        )
+    for idx in provided:
+        allowed = slots[idx - 1]
+        for cls in args[str(idx)]:
+            if cls not in allowed:
+                raise ModelValidationError(
+                    f"predicate '{name}' arg{idx}='{cls}' is invalid; expected {name}({expected})"
+                )
+
+
+def _interval_pred_names(iv: dict) -> list[str]:
+    pred = iv.get("pred") or {}
+    sel = iv.get("selection")
+    if sel:
+        if sel.get("branches"):
+            return [p for b in sel["branches"] for p in (b.get("preds") or []) if p]
+        return [p for p in (sel.get("preds") or [pred.get("name")]) if p]
+    name = pred.get("name")
+    return [name] if name else []
+
+
+def _interval_arg_count(iv: dict, predicate_vocab: dict[str, list[list[str]]]) -> int:
+    preds = _interval_pred_names(iv)
+    if not preds:
+        return 0
+    return max((len(predicate_vocab.get(p, [])) for p in preds), default=0)
+
+
+def _validate_projection_fields(fields: list[str], ivs: list[dict],
+                                predicate_vocab: dict[str, list[list[str]]]) -> None:
+    n = len(ivs)
+    for f in fields:
+        parts = f.split(".")
+        if len(parts) != 2:
+            continue  # already-aliased or Ref.* fields
+        alias, attr = parts[0], parts[1]
+        idx = _alias_index(alias)
+        if idx is None:
+            continue
+        if idx >= n:
+            raise ModelValidationError(
+                f"projection field '{f}' references interval {alias}, which does not exist"
+            )
+        if attr in ("sf", "ef", "st", "et"):
+            continue
+        m = re.match(r"^arg(\d+)$", attr)
+        if not m:
+            raise ModelValidationError(
+                f"projection field '{f}' is invalid: unknown attribute '{attr}'"
+            )
+        k = int(m.group(1))
+        if k > _interval_arg_count(ivs[idx], predicate_vocab):
+            names = "/".join(_interval_pred_names(ivs[idx])) or "interval"
+            raise ModelValidationError(
+                f"projection field '{f}' is invalid: {names} has no arg{k}"
+            )
+
+
+def _validate_projection(model: dict, predicate_vocab: dict[str, list[list[str]]]) -> None:
+    """Validate projection fields (M{n}.arg{k} / M{n}.sf/ef/st/et) against the model."""
+    if model.get("custom_projection"):
+        _validate_projection_fields(model["custom_projection"], model["intervals"], predicate_vocab)
+    if model.get("left_projection"):
+        left = [iv for iv in model["intervals"] if iv.get("set_side") == "left"]
+        _validate_projection_fields(model["left_projection"], left, predicate_vocab)
+    if model.get("right_projection"):
+        right = [iv for iv in model["intervals"] if iv.get("set_side") == "right"]
+        _validate_projection_fields(model["right_projection"], right, predicate_vocab)
+
+    def walk(node: dict) -> None:
+        if "group" in node:
+            if node.get("projection"):
+                _validate_projection_fields(
+                    node["projection"], _group_intervals(model, node["group"]), predicate_vocab)
+        else:
+            for c in node.get("children", []):
+                walk(c)
+
+    if model.get("set_expression"):
+        walk(model["set_expression"])
+
+
+def _validate_cross_conditions(model: dict, predicate_vocab: dict[str, list[list[str]]]) -> None:
+    """Validate cross-condition attribute references (M{n}.arg{k} / M{n}.sf/ef/st/et)."""
+    n = len(model["intervals"])
+    for cc in model.get("cross_conditions") or []:
+        if not isinstance(cc, dict):
+            continue
+        for side in ("left", "right"):
+            alias = cc.get(f"{side}_alias")
+            attr = cc.get(f"{side}_attr")
+            idx = _alias_index(alias) if isinstance(alias, str) else None
+            if idx is None:
+                continue
+            if idx >= n:
+                raise ModelValidationError(
+                    f"cross-condition '{alias}.{attr}' references interval {alias}, which does not exist"
+                )
+            if attr in ("sf", "ef", "st", "et"):
+                continue
+            m = re.match(r"^arg(\d+)$", attr) if isinstance(attr, str) else None
+            if not m:
+                raise ModelValidationError(
+                    f"cross-condition '{alias}.{attr}' is invalid: unknown attribute '{attr}'"
+                )
+            k = int(m.group(1))
+            if k > _interval_arg_count(model["intervals"][idx], predicate_vocab):
+                names = "/".join(_interval_pred_names(model["intervals"][idx])) or "interval"
+                raise ModelValidationError(
+                    f"cross-condition '{alias}.arg{k}' is invalid: {names} has no arg{k}"
+                )
+
+
+def _validate_predicate_modalities(model: dict, audio_predicates: set[str],
+                                   condition: str | None) -> None:
+    """Reject predicates whose modality doesn't match the event's condition.
+
+    Condition A is visual-only, B is audio-only, C is multimodal. ``condition``
+    of None skips the check (used when the caller doesn't know the modality).
+    """
+    if condition not in ("A", "B", "C"):
+        return
+    for iv in model["intervals"]:
+        for p in _interval_pred_names(iv):
+            is_audio = p in audio_predicates
+            if condition == "A" and is_audio:
+                raise ModelValidationError(
+                    f"predicate '{p}' is an audio predicate; it cannot be used in "
+                    "a visual (condition A) event"
+                )
+            if condition == "B" and not is_audio:
+                raise ModelValidationError(
+                    f"predicate '{p}' is a visual predicate; it cannot be used in "
+                    "an audio (condition B) event"
+                )
+
+
 def compile_event(model_json: str | dict, deltas: dict, analysis_id: str,
-                  fps: int | str = 1, audio_predicates: set[str] | None = None
+                  fps: int | str = 1, audio_predicates: set[str] | None = None,
+                  predicate_vocab: dict[str, list[list[str]]] | None = None,
+                  condition: str | None = None
                   ) -> tuple[str, str]:
     """Compile a model to (iseql_text, sql). Raises ModelValidationError on invalid input.
 
     ``fps`` converts authored δ/ε in seconds to frames (``delta_unit`` = seconds).
     ``audio_predicates`` is the set of predicate names that read from
     AudioPerInterval (from the configured audio taxonomy); None is not allowed
-    (no silent defaults) - callers must resolve it.
+    (no silent defaults) - callers must resolve it. ``predicate_vocab`` (name ->
+    argument slots) is optional; when provided, predicates and their arguments
+    are validated against it. ``condition`` (A/B/C) restricts the allowed
+    predicate modality (visual-only / audio-only / both).
     """
     if audio_predicates is None:
         raise ModelValidationError(
@@ -969,6 +1153,12 @@ def compile_event(model_json: str | dict, deltas: dict, analysis_id: str,
     audio_predicates = set(audio_predicates)
     model = validate_model(model_json)
     model = _normalized_model(model)
+    if predicate_vocab is not None:
+        _validate_predicates(model, predicate_vocab)
+        _validate_projection(model, predicate_vocab)
+        _validate_cross_conditions(model, predicate_vocab)
+    if condition is not None:
+        _validate_predicate_modalities(model, audio_predicates, condition)
     has_set_side = any(iv.get("set_side") for iv in model["intervals"])
     if model.get("set_expression") is not None:
         sql = _render_expression(model["set_expression"], model, analysis_id, deltas,

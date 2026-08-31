@@ -3,6 +3,8 @@
   import { longpress } from '$lib/actions/longpress';
   import Input from '$lib/components/ui/input.svelte';
   import CountBadge from '$lib/components/ui/count-badge.svelte';
+  import DeleteHint from '$lib/components/delete-hint.svelte';
+  import { askConfirm } from '$lib/confirm.svelte';
   import type { Condition, EventTypeInfo } from '$lib/types';
 
   type Props = {
@@ -38,7 +40,7 @@
   );
 
   async function remove(e: EventTypeInfo) {
-    if (!confirm(`Delete event '${e.id}' for condition ${condition}?`)) return;
+    if (!(await askConfirm(`Delete event '${e.id}' for condition ${condition}?`, { title: 'Delete event' }))) return;
     try {
       await api.del(`/api/events/${e.id}?condition=${condition}`);
       await load();
@@ -60,10 +62,11 @@
     <span class="text-sm font-semibold">Events</span>
     <CountBadge filtered={filtered.length} total={events.length} filtering={search.trim() !== ''} />
     <Input class="h-7 flex-1 font-mono text-xs" placeholder="Search events…" value={search} oninput={(e) => (search = (e.currentTarget as HTMLInputElement).value)} />
-    <button type="button" class="rounded border px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted" title="Add event" onclick={onNew}>＋</button>
+    <button type="button" class="rounded border px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted" title="Add event" onclick={onNew} data-tour="events-config-new-event">＋</button>
   </div>
+  <DeleteHint />
 
-  <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+  <div class="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3" data-tour="events-config-list">
     {#each filtered as e (e.id)}
       <div
         role="button"

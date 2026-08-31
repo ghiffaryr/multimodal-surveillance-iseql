@@ -97,8 +97,8 @@ describe('expr tree', () => {
 // ---------------------------------------------------------------------------
 
 describe('bool expressions', () => {
-  it('parses AND conjunction', () => {
-    expect(parseBoolExpr('running ∧ walking')).toEqual([['running', 'walking']]);
+  it('rejects AND conjunction', () => {
+    expect(parseBoolExpr('running ∧ walking')).toBeNull();
   });
 
   it('parses OR branches', () => {
@@ -106,7 +106,7 @@ describe('bool expressions', () => {
   });
 
   it('tokenizes into predicates', () => {
-    const tokens = tokenizeBoolExpr('running ∧ walking');
+    const tokens = tokenizeBoolExpr('running ∨ walking');
     const preds = (tokens ?? []).filter((t) => t.type === 'pred').map((t) => t.name);
     expect(preds).toEqual(['running', 'walking']);
   });
@@ -154,10 +154,10 @@ describe('empty state and labels', () => {
     expect(intervalLabel(iv)).toBe('gunshot()');
   });
 
-  it('intervalLabel shows args for an AND selection', () => {
+  it('intervalLabel shows args for a multi-predicate selection', () => {
     const iv = makeInterval('running', ['person']);
     iv.selection = { preds: ['running', 'walking'], args: { 1: ['person'] } };
-    expect(intervalLabel(iv)).toBe('running(person) ∧ walking(person)');
+    expect(intervalLabel(iv)).toBe('running(person) ∨ walking(person)');
   });
 
   it('intervalLabel shows args for OR branches', () => {
@@ -171,10 +171,10 @@ describe('empty state and labels', () => {
     expect(intervalLabel(iv)).toBe('running(person) ∨ walking(person)');
   });
 
-  it('intervalLabel falls back to interval args for AND without selection args', () => {
+  it('intervalLabel falls back to interval args for multi-predicate without selection args', () => {
     const iv = makeInterval('running', ['person']);
     iv.selection = { preds: ['running', 'walking'], args: {} };
-    expect(intervalLabel(iv)).toBe('running(person) ∧ walking(person)');
+    expect(intervalLabel(iv)).toBe('running(person) ∨ walking(person)');
   });
 
   it('intervalLabel renders per-predicate args from pred_args', () => {
@@ -182,9 +182,19 @@ describe('empty state and labels', () => {
     iv.selection = {
       preds: ['running', 'carrying'],
       args: { 1: ['person'], 2: ['object'] },
-      pred_args: { running: ['person'], carrying: ['person', 'object'] },
+      pred_args: { running: [['person']], carrying: [['person'], ['object']] },
     };
-    expect(intervalLabel(iv)).toBe('running(person) ∧ carrying(person, object)');
+    expect(intervalLabel(iv)).toBe('running(person) ∨ carrying(person, object)');
+  });
+
+  it('intervalLabel renders a single predicate with alternatives', () => {
+    const iv = makeInterval('explosion_visible', ['vehicle']);
+    iv.selection = {
+      preds: ['explosion_visible'],
+      args: { 1: ['vehicle', 'object'] },
+      pred_args: { explosion_visible: [['vehicle', 'object']] },
+    };
+    expect(intervalLabel(iv)).toBe('explosion_visible(vehicle ∨ object)');
   });
 
   it('intervalLabel renders a single predicate with args', () => {
@@ -217,13 +227,14 @@ describe('state <-> model', () => {
     expect(m.delta_map).toHaveProperty('g1.0');
   });
 
-  it('modelToState collapses a single set into the unassigned lane', () => {
+  it('modelToState keeps a single set as a named group', () => {
     const m = stateToModel(flatState(), 'e');
     const st = modelToState(m);
-    expect(st.groups).toHaveLength(1);
-    expect(st.groups[0].name).toBe(UNASSIGNED_GROUP);
-    expect(st.groups[0].intervals).toHaveLength(2);
-    expect(st.groups[0].intervals[0].pred).toBe('running');
+    const named = st.groups.filter((g) => g.name !== UNASSIGNED_GROUP);
+    expect(named).toHaveLength(1);
+    expect(named[0].intervals).toHaveLength(2);
+    expect(named[0].intervals[0].pred).toBe('running');
+    expect(st.groups.find((g) => g.name === UNASSIGNED_GROUP)?.intervals).toHaveLength(0);
   });
 
   it('round-trips numeric thresholds', () => {
@@ -249,17 +260,35 @@ describe('state <-> model', () => {
 // ---------------------------------------------------------------------------
 
 describe('normalizeModel', () => {
-  it('keeps a flat model flat (no synthesized set)', () => {
+  it('keeps a flat model flat when there is no custom projection', () => {
+    const m: IseqlModel = {
+      event_name: 'e',
+      intervals: [
+        { pred: { name: 'running', arguments: ['person'] }, ts: 10, te: 20 },
+      ],
+    };
+    const n = normalizeModel(m);
+    expect(n.set_expression).toBeNull();
+    expect(n.intervals[0].group).toBeNull();
+    expect(n.custom_projection).toBeNull();
+  });
+
+  it('wraps a flat model with a custom projection into a single set', () => {
     const m: IseqlModel = {
       event_name: 'e',
       intervals: [
         { pred: { name: 'running', arguments: ['person'] }, ts: 10, te: 20 },
       ],
       custom_projection: ['M1.arg1', 'M1.sf', 'M1.ef'],
+      delta_map: { '0': { delta: 5 } },
+      operator_overrides: [{ side: 'none', pair_idx: 1, operator: 'Bef' }],
     };
     const n = normalizeModel(m);
-    expect(n.set_expression).toBeNull();
-    expect(n.intervals[0].group).toBeNull();
+    expect(n.set_expression).toEqual({ group: 's1', projection: ['M1.arg1', 'M1.sf', 'M1.ef'] });
+    expect(n.intervals[0].group).toBe('s1');
+    expect(n.custom_projection).toBeNull();
+    expect(n.delta_map).toEqual({ 's1.0': { delta: 5 } });
+    expect(n.operator_overrides).toEqual([{ side: 's1', pair_idx: 1, operator: 'Bef' }]);
   });
 
   it('migrates legacy left/right set sides to s1/s2', () => {
@@ -314,26 +343,27 @@ describe('expression tokens', () => {
 // ---------------------------------------------------------------------------
 
 describe('boolean helpers', () => {
-  it('boolBranchesToText renders OR of ANDs', () => {
-    expect(boolBranchesToText([['running', 'walking'], ['carrying']])).toBe(
-      '(running ∧ walking) ∨ carrying',
+  it('boolBranchesToText renders an OR of predicates', () => {
+    expect(boolBranchesToText([['running'], ['walking'], ['carrying']])).toBe(
+      'running ∨ walking ∨ carrying',
     );
   });
 
   it('boolTextFromSelection handles branches / preds / fallback', () => {
     expect(boolTextFromSelection({ branches: [{ preds: ['running'] }, { preds: ['walking'] }] }, 'x')).toBe('running ∨ walking');
-    expect(boolTextFromSelection({ preds: ['running', 'walking'] }, 'x')).toBe('running ∧ walking');
+    expect(boolTextFromSelection({ preds: ['running', 'walking'] }, 'x')).toBe('running ∨ walking');
     expect(boolTextFromSelection(null, 'running')).toBe('running');
   });
 
   it('predTokensToText renders tokens compactly', () => {
-    expect(predTokensToText([{ type: 'pred', name: 'running' }, { type: 'op', op: '∧' }, { type: 'pred', name: 'walking' }])).toBe('running ∧ walking');
+    expect(predTokensToText([{ type: 'pred', name: 'running' }, { type: 'op', op: '∨' }, { type: 'pred', name: 'walking' }])).toBe('running ∨ walking');
   });
 
   it('parseBoolExpr handles parentheses', () => {
-    expect(parseBoolExpr('(running ∨ walking) ∧ carrying')).toEqual([
-      ['running', 'carrying'],
-      ['walking', 'carrying'],
+    expect(parseBoolExpr('(running ∨ walking) ∨ carrying')).toEqual([
+      ['running'],
+      ['walking'],
+      ['carrying'],
     ]);
   });
 });
@@ -439,7 +469,7 @@ describe('multi-group state <-> model', () => {
 // ---------------------------------------------------------------------------
 
 describe('flat model handling', () => {
-  it('modelToState keeps a flat model unassigned with custom projection', () => {
+  it('modelToState treats a flat model with custom projection as auto (no set)', () => {
     const m: IseqlModel = {
       event_name: 'e',
       delta_unit: 'frames',
@@ -452,11 +482,11 @@ describe('flat model handling', () => {
       custom_projection: ['M1.arg1', 'M1.sf', 'M1.ef'],
     };
     const st = modelToState(m);
-    expect(st.groups).toHaveLength(1);
-    expect(st.groups[0].name).toBe(UNASSIGNED_GROUP);
-    expect(st.groups[0].intervals).toHaveLength(2);
-    expect(st.groups[0].ops[0].op).toBe('Bef');
-    expect(st.groups[0].projection).toEqual(['M1.arg1', 'M1.sf', 'M1.ef']);
+    const unassigned = st.groups.find((g) => g.name === UNASSIGNED_GROUP);
+    expect(unassigned).toBeDefined();
+    expect(unassigned!.intervals).toHaveLength(2);
+    expect(unassigned!.ops[0].op).toBe('Bef');
+    expect(unassigned!.projection).toBeNull();
   });
 
   it('normalizeModel migrates legacy g1/g2 groups to s1/s2', () => {
