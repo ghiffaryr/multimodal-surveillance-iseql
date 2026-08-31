@@ -243,14 +243,36 @@ def _compile_event_sql(
     return sql
 
 
+def _set_expression_leaves(se: dict) -> list[dict]:
+    """Leaf nodes of a set_expression tree, in left-to-right order."""
+    leaves: list[dict] = []
+
+    def _walk(node: dict) -> None:
+        if "group" in node:
+            leaves.append(node)
+        else:
+            for c in node.get("children", []):
+                _walk(c)
+
+    _walk(se)
+    return leaves
+
+
+def _is_multiset(model: dict) -> bool:
+    se = model.get("set_expression")
+    return isinstance(se, dict) and "children" in se
+
+
 def _model_result_fields(model: dict) -> list[str] | None:
-    """Full (padded) projection field list matching the emitted SQL SELECT order.
+    """Full (aligned) projection field list matching the emitted SQL SELECT order.
 
     Handles the flat (``custom_projection``), single-set (leaf ``projection``)
     and multi-set (``set_expression`` branch) forms. For a multi-set expression
-    the left-most (audio) leaf is padded to the max arity, mirroring the
-    compiler's ``_pad_fields``.
+    the operands are aligned by field kind (args, start, end), mirroring the
+    compiler's kind-aligned UNION.
     """
+    from iseql.compiler import _canonical_schema, _field_kind
+
     ivs = model.get("intervals", [])
     if not ivs:
         return None
@@ -264,20 +286,52 @@ def _model_result_fields(model: dict) -> list[str] | None:
         return None
     if "group" in se:
         return se.get("projection") or None
-    leaves: list[list[str]] = []
-
-    def _walk(node: dict) -> None:
-        if "group" in node:
-            leaves.append(node.get("projection") or [])
-        else:
-            for c in node.get("children", []):
-                _walk(c)
-
-    _walk(se)
+    leaves = _set_expression_leaves(se)
     if not leaves:
         return None
-    arity = max(len(p) for p in leaves)
-    return leaves[0] + [f"__p{i}" for i in range(1, arity - len(leaves[0]) + 1)]
+    leaf_fields = [l.get("projection") or [] for l in leaves]
+    schema = _canonical_schema(leaf_fields)
+    by_kind: dict[str, str] = {}
+    for kinds in leaf_fields:
+        for f in kinds:
+            by_kind.setdefault(_field_kind(f), f)
+    return [by_kind.get(k, f"M1.{k}") for k in schema]
+
+
+def _multimodal_labels(model: dict) -> list[str]:
+    """Result column labels for a multi-set (multimodal) event.
+
+    Matches the kind-aligned UNION columns: args become ``M1_<class>``, temporal
+    fields keep the left (audio) operand's ``M1.st``/``M2.et`` names.
+    """
+    from iseql.compiler import _canonical_schema, _field_kind, _interval_arg_class
+
+    leaves = _set_expression_leaves(model["set_expression"])
+    ivs_by_group: dict[str, list[dict]] = {}
+    for iv in model.get("intervals", []):
+        ivs_by_group.setdefault(iv.get("group"), []).append(iv)
+    leaf_fields = [l.get("projection") or [] for l in leaves]
+    schema = _canonical_schema(leaf_fields)
+    labels: list[str] = []
+    for kind in schema:
+        m = re.match(r"^arg(\d+)$", kind)
+        if m:
+            k = int(m.group(1))
+            cls = None
+            for l in leaves:
+                if any(_field_kind(f) == kind for f in (l.get("projection") or [])):
+                    for iv in ivs_by_group.get(l.get("group"), []):
+                        c = _interval_arg_class(iv, k)
+                        if c and c != kind:
+                            cls = c
+                            break
+                if cls:
+                    break
+            labels.append(f"M1_{cls}" if cls else kind)
+        else:
+            field = next((f for f in leaf_fields[0] if _field_kind(f) == kind), kind)
+            labels.append(field)
+    return labels
 
 
 def _result_column_labels(model: dict) -> list[str] | None:
@@ -294,6 +348,8 @@ def _result_column_labels(model: dict) -> list[str] | None:
     ivs = model.get("intervals", [])
     if not ivs:
         return None
+    if _is_multiset(model):
+        return _multimodal_labels(model)
     fields = _model_result_fields(model)
     if not fields:
         return None

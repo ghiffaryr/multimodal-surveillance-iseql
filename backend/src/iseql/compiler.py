@@ -925,15 +925,61 @@ def _expression_arity(node: dict, model: dict) -> int:
     return max(_expression_arity(c, model) for c in node["children"])
 
 
+def _field_kind(field: str) -> str:
+    """Semantic column kind of a projection field: 'M1.arg1' -> 'arg1', 'M2.st' -> 'st'."""
+    return field.rsplit(".", 1)[-1]
+
+
+def _kind_sort_key(kind: str) -> tuple:
+    m = re.match(r"^arg(\d+)$", kind)
+    if m:
+        return (0, int(m.group(1)))
+    return (1, {"st": 0, "sf": 0, "et": 1, "ef": 1}.get(kind, 2), kind)
+
+
+def _canonical_schema(leaf_fields: list[list[str]]) -> list[str]:
+    """Union of field kinds across operands, in a stable order (args, then start, then end)."""
+    kinds: list[str] = []
+    seen: set[str] = set()
+    for fields in leaf_fields:
+        for f in fields:
+            k = _field_kind(f)
+            if k not in seen:
+                seen.add(k)
+                kinds.append(k)
+    kinds.sort(key=_kind_sort_key)
+    return kinds
+
+
+def _align_fields(fields: list[str], schema: list[str]) -> list[str]:
+    """Map an operand's fields onto the schema, NULL for missing kinds."""
+    by_kind = {_field_kind(f): f for f in fields}
+    return [by_kind.get(k, f"NULL AS {k}") for k in schema]
+
+
+def _collect_leaf_fields(node: dict, model: dict, analysis_id: str, deltas: dict,
+                         fps: int | str, audio_predicates: set[str]) -> list[list[str]]:
+    """Projection fields of every leaf in a set-expression subtree (one list per leaf)."""
+    if "group" in node:
+        ivs = _group_intervals(model, node["group"])
+        gm = _group_model(model, node["group"], ivs, node.get("projection"))
+        _, fields, _ = _render_chain(gm, ivs, analysis_id, deltas, side=node["group"],
+                                     fps=fps, audio_predicates=audio_predicates)
+        return [fields]
+    out: list[list[str]] = []
+    for c in node.get("children", []):
+        out.extend(_collect_leaf_fields(c, model, analysis_id, deltas, fps, audio_predicates))
+    return out
+
+
 def _render_expression(node: dict, model: dict, analysis_id: str, deltas: dict,
                        fps: int | str = 1,
                        audio_predicates: set[str] | None = None,
-                       arity: int | None = None) -> str:
+                       schema: list[str] | None = None) -> str:
     """Render a set_expression tree to SQL (leaves are group chains, internal
-    nodes are UNION/EXCEPT/INTERSECT). Every operand is padded to the subtree's
-    arity so the columns align across all branches."""
-    if arity is None:
-        arity = _expression_arity(node, model)
+    nodes are UNION/EXCEPT/INTERSECT). Operands are aligned by field kind so
+    heterogeneous projections (e.g. audio start/end vs visual arg/start/end)
+    produce consistent, NULL-padded columns."""
     if "group" in node:
         ivs = _group_intervals(model, node["group"])
         if not ivs:
@@ -943,11 +989,16 @@ def _render_expression(node: dict, model: dict, analysis_id: str, deltas: dict,
         ctes, fields, conditions = _render_chain(
             gm, ivs, analysis_id, deltas, side=node["group"], fps=fps,
             audio_predicates=audio_predicates)
-        return _build_inline(ctes, _pad_fields(fields, arity), conditions)
+        if schema is not None:
+            fields = _align_fields(fields, schema)
+        return _build_inline(ctes, fields, conditions)
     keyword = _SET_SQL[node["op"]]
+    if schema is None:
+        schema = _canonical_schema(_collect_leaf_fields(
+            node, model, analysis_id, deltas, fps, audio_predicates))
     return f"\n{keyword}\n".join(
         _render_expression(c, model, analysis_id, deltas, fps=fps,
-                           audio_predicates=audio_predicates, arity=arity)
+                           audio_predicates=audio_predicates, schema=schema)
         for c in node["children"]
     )
 
