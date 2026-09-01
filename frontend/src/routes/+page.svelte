@@ -44,6 +44,7 @@
   import type { Unit } from '$lib/types';
   import { registerTourSteps, startTour, hasSeenTour, tour, type TourStep } from '$lib/tour.svelte';
   import { askConfirm } from '$lib/confirm.svelte';
+  import { backendStatus } from '$lib/backend-status.svelte';
 
   const LANDING_TOUR: TourStep[] = [
     { target: '', title: 'Welcome to WATCHOUT ISEQL', body: 'This guided tour walks you through the app. Use Next / Back to move around, or Skip to close it at any time. You can reopen it anytime with the ? button at the bottom right.' },
@@ -190,10 +191,20 @@
     }
   }
 
-  onMount(async () => {
+  onMount(() => {
     registerTourSteps(LANDING_TOUR, 'landing');
-    if (!hasSeenTour('landing') && !tour.active) startTour(LANDING_TOUR, 'landing');
+  });
 
+  let initialized = false;
+  $effect(() => {
+    if (backendStatus.ready && !initialized) {
+      initialized = true;
+      if (!hasSeenTour('landing') && !tour.active) startTour(LANDING_TOUR, 'landing');
+      loadInitialData();
+    }
+  });
+
+  async function loadInitialData() {
     try {
       eventTypes = await api.get<EventTypesResponse>('/api/events/types');
       deltas = { ...collectDefaultDeltas(eventTypes) };
@@ -209,7 +220,7 @@
       const cfg = await api.get<{ sections: Record<string, object> }>('/api/config');
     } catch { /* non-fatal */ }
     await refreshAnalysisList();
-  });
+  }
 
   function appendLog(stage: string, message: string) {
     logs = [...logs, { ts: Date.now() / 1000, stage, message }];

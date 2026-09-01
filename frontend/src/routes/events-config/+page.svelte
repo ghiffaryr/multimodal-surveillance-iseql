@@ -12,6 +12,7 @@
   import { ArrowLeft } from 'lucide-svelte';
   import type { Condition } from '$lib/types';
   import { registerTourSteps, startTour, hasSeenTour, tour, type TourStep } from '$lib/tour.svelte';
+  import { backendStatus } from '$lib/backend-status.svelte';
 
   let active = $state('predicates');
   let condition = $state<Condition>('A');
@@ -32,7 +33,14 @@
 
   onMount(() => {
     registerTourSteps(CONFIG_TOUR, 'config');
-    if (!hasSeenTour('config') && !tour.active) startTour(CONFIG_TOUR, 'config');
+  });
+
+  let initialized = false;
+  $effect(() => {
+    if (backendStatus.ready && !initialized) {
+      initialized = true;
+      if (!hasSeenTour('config') && !tour.active) startTour(CONFIG_TOUR, 'config');
+    }
   });
 </script>
 
@@ -47,7 +55,8 @@
     <Button href="/" variant="outline" size="sm"><ArrowLeft /> Back to analysis</Button>
   </header>
 
-  <Tabs bind:value={active} class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border">
+  {#if backendStatus.ready}
+    <Tabs bind:value={active} class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-md border">
     <TabsList class="shrink-0 border-b px-2 py-1" data-tour="events-config-tabs">
       <TabsTrigger value="predicates">Predicates</TabsTrigger>
       <TabsTrigger value="events" data-tour="events-config-events-tab">Events (ISEQL)</TabsTrigger>
@@ -111,5 +120,6 @@
         </div>
       </TabsContent>
     {/if}
-  </Tabs>
+    </Tabs>
+  {/if}
 </div>

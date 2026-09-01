@@ -140,7 +140,7 @@
       <div class="mt-3 flex items-center justify-between gap-3">
         <button
           type="button"
-          class="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+          class="rounded border px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted"
           onclick={tourEnd}
         >Skip</button>
         <div class="flex items-center gap-2">

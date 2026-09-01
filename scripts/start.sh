@@ -164,6 +164,7 @@ run_frontend() {
   # idempotent: clear a stray vite from a previous run so :5173 is free
   pkill -f "vite.*5173" 2>/dev/null || true
   sleep 1
+  export PUBLIC_PROFILE="$PROFILE"
   pnpm dev --host 0.0.0.0 --port 5173 &
   FRONT_PID=$!
 }

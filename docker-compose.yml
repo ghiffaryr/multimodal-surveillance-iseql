@@ -27,6 +27,7 @@ services:
       - "5173:5173"
     environment:
       PUBLIC_API_URL: "http://localhost:8000"
+      PUBLIC_PROFILE: "docker"
     depends_on:
       backend:
         condition: service_healthy
