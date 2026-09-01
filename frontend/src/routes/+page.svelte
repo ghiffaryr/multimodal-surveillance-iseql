@@ -5,6 +5,7 @@
   import { openLogStream } from '$lib/sse';
   import { APP_NAME, APP_VERSION } from '$lib/app';
   import type {
+    AnalysisRecord,
     AnalysisStartResponse,
     AnalysisStatusResponse,
     AudioConfig,
@@ -64,15 +65,6 @@
       })
     );
   }
-
-  type AnalysisRecord = {
-    id: string;
-    video_filename: string;
-    condition: string;
-    stage: string;
-    sampling_rate: number;
-    created_at: string;
-  };
 
   let video = $state<File | null>(null);
   let condition = $state<Condition>('A');
@@ -261,6 +253,36 @@
     condition = item.condition as Condition;
     stage = item.stage;
     detectedFps = item.sampling_rate ?? 0;
+
+    if (item.vlm_provider) {
+      vlmConfig = {
+        provider: item.vlm_provider,
+        model: item.model ?? '',
+        grid_rows: item.grid_rows ?? 2,
+        grid_cols: item.grid_cols ?? 4,
+        vlm_delay: item.vlm_delay ?? 0.0,
+        quantization: item.vlm_quantization ?? 'none',
+        max_retries: item.max_retries ?? 3,
+        embed_provider: item.embed_provider ?? 'huggingface',
+        embed_model: item.embed_model ?? 'google/siglip-base-patch16-224',
+        memory_n: item.memory_n ?? 3,
+        memory_top_k: item.memory_top_k ?? 5,
+      };
+    }
+    if (item.audio_provider) {
+      audioConfig = {
+        provider: item.audio_provider,
+        model: item.audio_model ?? '',
+        quantization: item.audio_quantization ?? 'none',
+        window: item.audio_window ?? 2.5,
+        hop: item.audio_hop ?? 1.25,
+      };
+    }
+    if (item.deltas) {
+      deltas = { ...item.deltas };
+      unit = item.delta_unit === 'frames' ? 'frames' : 'seconds';
+    }
+
     appendLog('info', `>>> Loaded previous analysis ${item.id} (condition ${item.condition}, stage ${item.stage})`);
     if (item.stage === 'done') {
       lastConfigSnapshot = takeConfigSnapshot();

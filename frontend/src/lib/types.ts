@@ -114,6 +114,34 @@ export interface AudioConfig {
   hop: number;
 }
 
+export interface AnalysisRecord {
+  id: string;
+  video_filename: string;
+  condition: string;
+  stage: string;
+  sampling_rate: number;
+  created_at: string;
+  completed_at?: string;
+  vlm_provider?: string;
+  model?: string;
+  grid_rows?: number;
+  grid_cols?: number;
+  vlm_delay?: number;
+  vlm_quantization?: string;
+  max_retries?: number;
+  embed_provider?: string;
+  embed_model?: string;
+  memory_n?: number;
+  memory_top_k?: number;
+  audio_provider?: string;
+  audio_model?: string;
+  audio_quantization?: string;
+  audio_window?: number;
+  audio_hop?: number;
+  deltas?: Record<string, number | string> | null;
+  delta_unit?: string;
+}
+
 export const DEFAULT_AUDIO_CLASSES = [
   'shout',
   'impact',

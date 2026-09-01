@@ -400,12 +400,17 @@ class AnalysisServiceImpl(AnalysisService):
             conn = _get_db_conn(cfg)
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
-                "SELECT ID, VideoFilename, Condition, VLMProvider, Model, Stage, SamplingRate, CreatedAt, CompletedAt "
+                "SELECT ID, VideoFilename, Condition, VLMProvider, Model, Stage, SamplingRate, "
+                "GridRows, GridCols, VLMDelay, VLMQuantization, MaxRetries, "
+                "EmbedProvider, EmbedModel, MemoryN, MemoryTopK, "
+                "AudioProvider, AudioModel, AudioQuantization, AudioWindow, AudioHop, "
+                "DeltasJson, DeltaUnit, CreatedAt, CompletedAt "
                 "FROM Analyses ORDER BY CreatedAt DESC"
             ).fetchall()
             conn.close()
-            return [
-                {
+            out = []
+            for r in rows:
+                item = {
                     "id": r["ID"],
                     "video_filename": r["VideoFilename"],
                     "condition": r["Condition"],
@@ -413,11 +418,36 @@ class AnalysisServiceImpl(AnalysisService):
                     "model": r["Model"],
                     "stage": r["Stage"],
                     "sampling_rate": r["SamplingRate"],
+                    "grid_rows": r["GridRows"],
+                    "grid_cols": r["GridCols"],
+                    "vlm_delay": r["VLMDelay"],
+                    "vlm_quantization": r["VLMQuantization"],
+                    "max_retries": r["MaxRetries"],
+                    "embed_provider": r["EmbedProvider"],
+                    "embed_model": r["EmbedModel"],
+                    "memory_n": r["MemoryN"],
+                    "memory_top_k": r["MemoryTopK"],
+                    "audio_provider": r["AudioProvider"],
+                    "audio_model": r["AudioModel"],
+                    "audio_quantization": r["AudioQuantization"],
+                    "audio_window": r["AudioWindow"],
+                    "audio_hop": r["AudioHop"],
                     "created_at": r["CreatedAt"],
                     "completed_at": r["CompletedAt"],
                 }
-                for r in rows
-            ]
+                if r["DeltasJson"]:
+                    try:
+                        data = json.loads(r["DeltasJson"])
+                        item["deltas"] = data.get("deltas", {})
+                        item["delta_unit"] = data.get("unit", "seconds")
+                    except Exception:
+                        item["deltas"] = None
+                        item["delta_unit"] = "seconds"
+                else:
+                    item["deltas"] = None
+                    item["delta_unit"] = "seconds"
+                out.append(item)
+            return out
         except Exception as e:
             log.warning("Failed to list Analyses: %s", e)
             return []
@@ -432,6 +462,19 @@ class AnalysisServiceImpl(AnalysisService):
             raise HTTPException(status_code=409, detail=f"analysis {analysis_id} is not done")
 
         from service.impl.events_service_impl import events_for_condition, run_sql_detection
+
+        # Persist the raw operator parameters (pre-conversion) so the frontend
+        # can restore them when this analysis is loaded again.
+        try:
+            conn = _get_db_conn(cfg)
+            conn.execute(
+                "UPDATE Analyses SET DeltasJson = ?, DeltaUnit = ? WHERE ID = ?",
+                (json.dumps({"deltas": deltas, "unit": unit}), unit, analysis_id),
+            )
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            log.warning("Failed to persist analysis deltas: %s", e)
 
         if unit == "seconds":
             fps = run.sampling_rate
@@ -563,13 +606,14 @@ class AnalysisServiceImpl(AnalysisService):
                 "INSERT INTO Analyses (ID, VideoPath, VideoFilename, Condition, VLMProvider, Model, "
                 "GridRows, GridCols, SamplingRate, VLMDelay, VLMQuantization, MaxRetries, "
                 "EmbedProvider, EmbedModel, MemoryN, MemoryTopK, "
-                "AudioProvider, AudioModel, AudioQuantization, Stage, CreatedAt) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "AudioProvider, AudioModel, AudioQuantization, AudioWindow, AudioHop, Stage, CreatedAt) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (run.id, str(run.video_path), run.video_filename, run.condition,
                  run.vlm_provider, run.model, run.grid_rows, run.grid_cols,
                  run.sampling_rate, run.vlm_delay, run.vlm_quantization, run.max_retries,
                  run.embed_provider, run.embed_model, run.memory_n, run.memory_top_k,
                  run.audio_provider, run.audio_model, run.audio_quantization,
+                 run.audio_window, run.audio_hop,
                  run.stage.value, datetime.datetime.now().isoformat()),
             )
             conn.commit()

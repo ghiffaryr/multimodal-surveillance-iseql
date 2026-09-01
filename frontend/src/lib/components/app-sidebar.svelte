@@ -6,15 +6,7 @@
   import type { BadgeVariant } from '$lib/components/ui/badge';
   import { cn } from '$lib/utils';
   import { Clock, FileVideo, Trash2, Database, DatabaseZap, PanelLeftClose, PanelLeftOpen } from 'lucide-svelte';
-
-  type AnalysisRecord = {
-    id: string;
-    video_filename: string;
-    condition: string;
-    stage: string;
-    sampling_rate: number;
-    created_at: string;
-  };
+  import type { AnalysisRecord } from '$lib/types';
 
   const STAGE_VARIANT: Record<string, BadgeVariant> = {
     done: 'default',

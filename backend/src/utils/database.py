@@ -198,6 +198,10 @@ def setup_database(db_path: Path) -> Tuple[sqlite3.Connection, sqlite3.Cursor]:
         "EmbedModel": "TEXT DEFAULT 'google/siglip-base-patch16-224'",
         "MemoryN": "INTEGER DEFAULT 3",
         "MemoryTopK": "INTEGER DEFAULT 5",
+        "AudioWindow": "REAL DEFAULT 2.5",
+        "AudioHop": "REAL DEFAULT 1.25",
+        "DeltasJson": "TEXT",
+        "DeltaUnit": "TEXT DEFAULT 'seconds'",
     })
     conn.commit()
     return conn, cursor
