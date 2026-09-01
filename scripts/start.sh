@@ -114,7 +114,7 @@ run_backend() {
       ensure_ffmpeg
       cd "$ROOT/backend"
       echo ">> [backend] installing deps if needed..."
-      pipenv install --dev --quiet 2>/dev/null || true
+      pipenv sync --dev --quiet 2>/dev/null || true
       echo ">> [backend] starting on $REMOTE_GPU..."
       # clear any stale tunnel + remote backend left by a previous run (ssh -f
       # double-forks and can survive Ctrl-C), otherwise :8000 is held or points
@@ -133,7 +133,7 @@ run_backend() {
       ensure_ffmpeg
       cd "$ROOT/backend"
       echo ">> [backend] installing deps if needed..."
-      pipenv --python "$(py310_env)/bin/python" install --dev --quiet 2>/dev/null || true
+      pipenv --python "$(py310_env)/bin/python" sync --dev --quiet 2>/dev/null || true
       if [ -f "$ROOT/backend/.env" ]; then set -a; source "$ROOT/backend/.env"; set +a; fi
       echo ">> [backend] starting uvicorn (pipenv)..."
       # idempotent: clear a stray backend from a previous run so :8000 is free

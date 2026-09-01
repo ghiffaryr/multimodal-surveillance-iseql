@@ -55,7 +55,7 @@ help:
 	@echo "  make ngrok              - Start a public tunnel to the frontend (:5173)"
 	@echo "  make ngrok-stop         - Stop the ngrok tunnel"
 	@echo "  make ngrok-status       - Show the public ngrok URL"
-	cd backend && pipenv install --dev
+	cd backend && pipenv sync --dev
 
 frontend:
 	cd frontend && pnpm install

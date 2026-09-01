@@ -26,6 +26,7 @@ wheels/
 # --- Pipenv ---
 .venv/
 Pipfile.lock.bak
+Pipfile.mac.lock
 
 # --- Node / pnpm / SvelteKit ---
 node_modules/
