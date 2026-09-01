@@ -9,6 +9,7 @@
   import Field from '$lib/components/ui/field.svelte';
   import Button from '$lib/components/ui/button.svelte';
   import { inputStr } from '$lib/dom-helpers';
+  import { CircleCheck } from 'lucide-svelte';
 
   interface RelationRow {
     name: string;
@@ -145,7 +146,12 @@
 
 <div class="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
   {#if error}<p class="text-sm text-destructive">{error}</p>{/if}
-  {#if savedMsg}<p class="text-sm text-emerald-600">{savedMsg}</p>{/if}
+  {#if savedMsg}
+    <div class="flex shrink-0 items-start gap-2.5 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2.5" role="status">
+      <CircleCheck class="mt-0.5 size-4 shrink-0 text-emerald-400" />
+      <p class="min-w-0 flex-1 break-words text-xs leading-relaxed text-emerald-300">{savedMsg}</p>
+    </div>
+  {/if}
 
   <div class="flex shrink-0 items-center gap-2">
     <span class="text-sm font-semibold">Visual</span>
