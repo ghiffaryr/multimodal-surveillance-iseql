@@ -45,6 +45,8 @@ out/
 # --- Data and runtime artefacts (must NOT be committed) ---
 data/uploads/*
 !data/uploads/.gitkeep
+# Runtime analysis DB (events/config seeded from data/analysis.seed.db on first run)
+data/analysis.db
 # Runtime artefacts: never committed.
 data/experiments/
 data/audio/

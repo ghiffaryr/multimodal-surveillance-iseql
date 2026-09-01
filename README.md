@@ -349,6 +349,7 @@ multimodal-surveillance-iseql/
 │   ├── slides/           Defense slides (Beamer)
 │   └── thesis/           Master's thesis (LaTeX)
 ├── data/                Runtime artefacts (uploads, DBs, analysis XLSX, audio)
+│   ├── analysis.seed.db  Committed default DB (events + config, empty results)
 │   ├── analysis_*/       Per-VLM/audio ablation results
 │   ├── vector_db/        Per-scene Chroma object-memory collections
 │   └── videos/eval/      30 curated evaluation scenes
@@ -356,6 +357,14 @@ multimodal-surveillance-iseql/
 ├── docker-compose.yml
 └── LICENSE
 ```
+
+The runtime `data/analysis.db` is **gitignored** (it accumulates analysis
+history). On a fresh checkout it is seeded automatically from the committed
+`data/analysis.seed.db` (defined events + config, empty results) on first
+backend start or first evaluation-notebook run. To update the default events,
+edit them in the app, then regenerate the seed by copying `data/analysis.db`
+and emptying the analysis tables (or use the app's *Clear analysis data* which
+keeps events/config).
 
 ---
 

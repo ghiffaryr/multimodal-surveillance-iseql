@@ -9,6 +9,27 @@ from utils.api_logger import get_logger
 
 log = get_logger(__name__)
 
+
+def ensure_default_db() -> bool:
+    """Copy the committed default seed DB into place on a fresh checkout.
+
+    The runtime ``data/analysis.db`` is gitignored (it accumulates analysis
+    history); the seed template ``data/analysis.seed.db`` holds the defined
+    events + config with empty results. Returns True if a seed was applied.
+    """
+    from utils.config import Config
+
+    cfg = Config.get()
+    db_path = Path(cfg.data.db_path)
+    seed_path = Path(cfg.data.dir) / "analysis.seed.db"
+    if db_path.exists() or not seed_path.exists():
+        return False
+    import shutil
+
+    shutil.copy(seed_path, db_path)
+    log.info("Seeded default database from %s", seed_path)
+    return True
+
 SCHEMA_STATEMENTS: list[str] = [
     "PRAGMA journal_mode=WAL;",
     "PRAGMA busy_timeout=60000;",

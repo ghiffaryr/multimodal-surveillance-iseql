@@ -27,9 +27,12 @@ async def lifespan(app: FastAPI):
     log.info("Database: %s", cfg.data.db_path)
     log.info("Available VLM providers: %s", Config.get_available_providers())
 
-    # Ensure schema is present (events/config are user-defined, no auto-seed)
+    # Ensure schema is present (events/config are user-defined, no auto-seed).
+    # On a fresh checkout, seed the runtime DB from the committed default
+    # template (defined events + config, empty analysis results).
     try:
-        from utils.database import setup_database
+        from utils.database import ensure_default_db, setup_database
+        ensure_default_db()
         conn, _ = setup_database(Path(cfg.data.db_path))
         conn.close()
     except Exception as e:
