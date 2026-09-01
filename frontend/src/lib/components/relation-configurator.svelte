@@ -144,7 +144,7 @@
     'w-full resize-y rounded-md border border-input bg-background px-3 py-2 font-mono text-xs leading-relaxed ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
 </script>
 
-<div class="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
+<div class="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden pt-1">
   {#if error}<p class="text-sm text-destructive">{error}</p>{/if}
   {#if savedMsg}
     <div class="flex shrink-0 items-start gap-2.5 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2.5" role="status">

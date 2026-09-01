@@ -108,7 +108,7 @@
     'w-full resize-y rounded-md border border-input bg-background px-3 py-2 font-mono text-xs leading-relaxed ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2';
 </script>
 
-<div class="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
+<div class="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden pt-1">
   {#if error}<p class="text-sm text-destructive">{error}</p>{/if}
   {#if savedMsg}
     <div class="flex shrink-0 items-start gap-2.5 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2.5" role="status">
@@ -120,7 +120,7 @@
   <div class="flex shrink-0 items-center gap-2">
     <span class="text-sm font-semibold">Audio</span>
     <CountBadge filtered={filtered.length} total={rows.length} filtering={search.trim() !== ''} />
-    <Input class="h-7 flex-1 font-mono text-xs" placeholder="Search predicates…" value={search} oninput={(e) => (search = (e.currentTarget as HTMLInputElement).value)} />
+    <Input class="h-7 flex-1 font-mono text-xs" placeholder="Search audio classes…" value={search} oninput={(e) => (search = (e.currentTarget as HTMLInputElement).value)} />
     <button type="button" class="rounded border px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted" title="Add class" onclick={openNew}>＋</button>
   </div>
   <DeleteHint />
