@@ -51,7 +51,7 @@
     { target: 'landing-config', title: 'Model settings', body: 'Configure the VLM (conditions A/C) and audio model (conditions B/C) used for detection.' },
     { target: 'landing-deltas', title: 'Operator parameters', body: 'Fine-tune the δ/ε/ζ/η/ρ parameters for each event operator, in seconds or frames.' },
     { target: 'landing-start', title: 'Run the analysis', body: 'Click Start analysis to detect events from the uploaded video.' },
-    { target: 'landing-results', title: 'Review the results', body: 'Detected events appear here with a searchable table and a video player. Click or tap a row to play the video from that event start to end.' },
+    { target: 'landing-results', title: 'Review the results', body: 'Detected events appear here with a searchable table and a video player. Click or tap a row to play the video from that event start to end.', action: () => { rightTab = 'results'; } },
     { target: 'landing-events-config', title: 'Define your events', body: 'Use Events Configuration to author your own ISEQL events, visual relations and audio classes. You can delete any item by right-clicking (desktop) or long-pressing (touch).' },
   ];
 
@@ -478,7 +478,10 @@
         <Card data-tour="landing-deltas">
           <CardHeader class="flex flex-row items-center justify-between">
             <CardTitle>5. Parameters</CardTitle>
+            <div class="flex shrink-0 items-center gap-1.5 sm:order-4">
+            <span class="text-xs text-muted-foreground">Unit</span>
             <UnitToggle {unit} onUnitChange={(u) => { convertDeltasUnit(unit, u); unit = u; }} />
+            </div>
           </CardHeader>
           <CardContent>
             <EventPicker
@@ -522,7 +525,7 @@
         {/if}
       </section>
 
-      <section class="col-span-12 flex flex-col lg:min-h-0 lg:col-span-7" data-tour="landing-results">
+      <section class="col-span-12 flex flex-col lg:min-h-0 lg:col-span-7">
         <Tabs bind:value={rightTab} class="flex h-[75vh] min-h-0 flex-col overflow-hidden rounded-md border lg:h-auto lg:flex-1">
           <TabsList class="shrink-0 border-b px-2 py-1">
             <TabsTrigger value="logs">Logs</TabsTrigger>
@@ -532,12 +535,14 @@
             <LogConsole entries={logs} onClear={clearLogs} />
           </TabsContent>
           <TabsContent value="results" class="mt-0 flex min-h-0 flex-1 flex-col overflow-hidden">
-            <ResultsTable result={result} running={detecting} error={null}
-              unit={unit}
-              analysisId={analysisId}
-              fps={detectedFps}
-              onMemory={() => (showMemory = true)}
-              onUnitChange={(u) => { convertDeltasUnit(unit, u); unit = u; }} />
+            <div class="flex min-h-0 flex-1 flex-col" data-tour="landing-results">
+              <ResultsTable result={result} running={detecting} error={null}
+                unit={unit}
+                analysisId={analysisId}
+                fps={detectedFps}
+                onMemory={() => (showMemory = true)}
+                onUnitChange={(u) => { convertDeltasUnit(unit, u); unit = u; }} />
+            </div>
           </TabsContent>
         </Tabs>
       </section>
