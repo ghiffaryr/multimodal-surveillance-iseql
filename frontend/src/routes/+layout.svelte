@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { env } from '$env/dynamic/public';
   import '../app.css';
   import { ModeWatcher } from 'mode-watcher';
@@ -7,7 +7,7 @@
   import TourOverlay from '$lib/components/tour-overlay.svelte';
   import ConfirmDialog from '$lib/components/confirm-dialog.svelte';
   import { restartTour } from '$lib/tour.svelte';
-  import { backendStatus, startBackendHealthCheck } from '$lib/backend-status.svelte';
+  import { backendStatus, startBackendHealthCheck, stopBackendHealthCheck } from '$lib/backend-status.svelte';
   let { children } = $props();
 
   const isHpc = env.PUBLIC_PROFILE === 'hpc';
@@ -22,6 +22,10 @@
   onMount(() => {
     pos = { x: window.innerWidth - MARGIN - SIZE, y: window.innerHeight - MARGIN - SIZE };
     startBackendHealthCheck();
+  });
+
+  onDestroy(() => {
+    stopBackendHealthCheck();
   });
 
   function onPointerDown(e: PointerEvent) {

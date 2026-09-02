@@ -44,7 +44,7 @@
   import type { Unit } from '$lib/types';
   import { registerTourSteps, startTour, hasSeenTour, tour, type TourStep } from '$lib/tour.svelte';
   import { askConfirm } from '$lib/confirm.svelte';
-  import { backendStatus } from '$lib/backend-status.svelte';
+  import { backendStatus, markBackendDown } from '$lib/backend-status.svelte';
 
   const LANDING_TOUR: TourStep[] = [
     { target: '', title: 'Welcome to WATCHOUT ISEQL', body: 'This guided tour walks you through the app. Use Next / Back to move around, or Skip to close it at any time. You can reopen it anytime with the ? button at the bottom right.' },
@@ -209,6 +209,8 @@
       eventTypes = await api.get<EventTypesResponse>('/api/events/types');
       deltas = { ...collectDefaultDeltas(eventTypes) };
     } catch (e) {
+      initialized = false;
+      markBackendDown();
       error = `Failed to load event types: ${(e as Error).message}`;
     }
     try {
