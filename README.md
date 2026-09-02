@@ -31,7 +31,7 @@ A multimodal forensic surveillance framework that detects events through a **thr
 
 ## Demo
 
-[▶ Watch the full demo playlist](https://www.youtube.com/playlist?list=PLFLgVwjKtX80)
+[Watch the full demo playlist on YouTube](https://www.youtube.com/playlist?list=PLFLgVwjKtX80)
 
 | Interface intro | Event configuration | Visual only | Audio only | Multimodal |
 |---|---|---|---|---|
