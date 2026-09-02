@@ -29,6 +29,16 @@ A multimodal forensic surveillance framework that detects events through a **thr
 
 ---
 
+## Demo
+
+[▶ Watch the full demo playlist](https://www.youtube.com/playlist?list=PLFLgVwjKtX80)
+
+| Interface intro | Event configuration | Visual only | Audio only | Multimodal |
+|---|---|---|---|---|
+| [![Interface intro](https://img.youtube.com/vi/oWuyWzViMl8/hqdefault.jpg)](https://youtu.be/oWuyWzViMl8) | [![Event configuration](https://img.youtube.com/vi/JMat0--Z8jk/hqdefault.jpg)](https://youtu.be/JMat0--Z8jk) | [![Visual only - handoff](https://img.youtube.com/vi/unqINQLVee4/hqdefault.jpg)](https://youtu.be/unqINQLVee4) | [![Audio only - vehicle collision](https://img.youtube.com/vi/sVu-axy33kE/hqdefault.jpg)](https://youtu.be/sVu-axy33kE) | [![Multimodal - vehicle collision](https://img.youtube.com/vi/ttDML0rBw0o/hqdefault.jpg)](https://youtu.be/ttDML0rBw0o) |
+
+---
+
 ## Architecture
 
 ```mermaid
