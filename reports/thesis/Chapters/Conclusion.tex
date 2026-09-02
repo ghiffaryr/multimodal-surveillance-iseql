@@ -25,6 +25,10 @@ The present work establishes the framework and a controlled benchmark, but sever
 
 \textbf{Denser visual sampling.} The current $\approx$1.1 Hz frame rate is too sparse for fast events. A YOLO-based pre-filter \citep{redmon2016yolo} could identify actor bounding boxes and trigger denser VLM sampling on those regions, improving temporal resolution without increasing the total number of VLM calls.
 
+\textbf{Scalability analysis.} The evaluation uses 10-second single-scene clips. Analysing longer and more complex videos with more actors and simultaneous events would test how the interval representation, ISEQL query cost, and per-window audio pipeline scale, and whether the union design still holds under denser event loads.
+
+\textbf{Trained multimodal fusion.} Condition C currently combines modalities with unweighted set union. A trained fusion mechanism that assigns reliability weights to visual-only and audio-only detections could suppress the false positives inherited from the weaker modality and further improve precision, while preserving the state-of-the-art recall of the union.
+
 \textbf{Online parameter tuning.} The per-query delta parameters and confidence thresholds are static. An online loop that adjusts these based on operator feedback would improve adaptability to different environments.
 
 \textbf{Multi-camera support.} The interval representation extends naturally to multiple cameras and PTZ configurations, but the VLM prompt must handle changing viewpoints and the temporal join logic must account for inter-camera alignment.
