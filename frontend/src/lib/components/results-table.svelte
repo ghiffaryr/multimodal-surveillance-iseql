@@ -176,7 +176,7 @@
         src={`/api/analysis/${analysisId}/video`}
         controls
         preload="metadata"
-        class="max-h-[35vh] w-full rounded-md bg-black"
+        class="max-h-[35dvh] w-full rounded-md bg-black"
         ontimeupdate={onTimeUpdate}
         onloadedmetadata={onLoadedMetadata}
       ></video>

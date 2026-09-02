@@ -437,7 +437,7 @@
   }
 </script>
 
-<div class="flex h-screen w-screen overflow-hidden bg-background text-foreground">
+<div class="flex h-dvh w-full overflow-hidden bg-background text-foreground">
   <AppSidebar
     currentStage={stage}
     {previousAnalyses}
@@ -561,7 +561,7 @@
       </section>
 
       <section class="col-span-12 flex flex-col lg:min-h-0 lg:col-span-7">
-        <Tabs bind:value={rightTab} class="flex h-[75vh] min-h-0 flex-col overflow-hidden rounded-md border lg:h-auto lg:flex-1">
+        <Tabs bind:value={rightTab} class="flex h-[75dvh] min-h-0 flex-col overflow-hidden rounded-md border lg:h-auto lg:flex-1">
           <TabsList class="shrink-0 border-b px-2 py-1">
             <TabsTrigger value="logs">Logs</TabsTrigger>
             <TabsTrigger value="results">Results</TabsTrigger>
@@ -591,7 +591,7 @@
       onclick={(e) => { if (e.target === e.currentTarget) showMemory = false; }}
       onkeydown={(e) => { if (e.key === 'Escape') showMemory = false; }}
     >
-      <div class="flex h-[85vh] w-full max-w-4xl flex-col rounded-lg border bg-background shadow-xl">
+      <div class="flex h-[85dvh] w-full max-w-4xl flex-col rounded-lg border bg-background shadow-xl">
         <header class="flex items-center justify-between border-b px-4 py-3">
           <div>
             <h2 class="text-sm font-semibold">Object Memory</h2>

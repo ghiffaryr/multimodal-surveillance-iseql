@@ -44,7 +44,7 @@
   });
 </script>
 
-<div class="mx-auto flex h-screen w-full max-w-7xl flex-col gap-3 p-4">
+<div class="mx-auto flex h-dvh w-full max-w-7xl flex-col gap-3 p-4">
   <header class="flex items-center justify-between">
     <div>
       <h1 class="text-lg font-semibold">Events Configuration</h1>
