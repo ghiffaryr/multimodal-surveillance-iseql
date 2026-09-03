@@ -454,11 +454,194 @@ PANNs (Kong et al.) and Qwen2-Audio authors
 \Large Thank you.\\[0.3em]
 \normalsize Questions?
 \end{columns}
+
+\vspace{1em}
+{\normalsize Code: \url{https://github.com/ghiffaryr/multimodal-surveillance-iseql}}
 \end{frame}
 
 % ── APPENDIX: COMPLETE ABLATION ──
 \appendix
 \section*{Appendix}
+
+% ── APPENDIX: DETAILED ARCHITECTURE ──
+\begin{frame}{Appendix: Detailed System Architecture}
+\centering
+\resizebox{0.92\textwidth}{!}{%
+\begin{tikzpicture}[
+  box/.style={rectangle,draw=blue!60,fill=blue!5,rounded corners=3pt,align=center,minimum height=0.42cm,font=\tiny,inner sep=2pt},
+  db/.style={cylinder,draw=blue!60,fill=blue!10,shape border rotate=90,aspect=0.2,minimum height=0.48cm,minimum width=1.55cm,align=center,font=\tiny,inner sep=2pt},
+  arrow/.style={-Stealth,thick,blue!60},
+  run/.style={font=\tiny,align=center,text=blue!50!black,fill=white,draw=blue!30,inner sep=1pt,rounded corners=1pt},
+]
+% INPUT + PERCEPTION
+\node[box] (video) at (0.6,3.9) {\textbf{Input video}};
+\node[box] (vlm) at (-2.0,2.5) {VLM visual reasoning\\Gemini 3.6 Flash, Ministral 3-14B\\Pixtral 12B, Gemini 2.5 Flash};
+\node[box] (ff) at (4.2,2.5) {ffmpeg extract\\16 kHz mono wav};
+
+% STORAGE LEVEL (database cylinders)
+\node[db] (vpf) at (-4.2,0.9) {VisualPerFrame\\(SQLite)};
+\node[db] (vrel) at (0.0,0.9) {VisualRelation\\(SQLite)};
+\node[box] (aud) at (4.2,1.5) {audio detection\\PANNs CNN14 / Qwen2-Audio-7B};
+\node[db] (aint) at (4.2,-0.7) {AudioPerInterval\\(SQLite)};
+
+% INTERVALS + OUTPUT
+\node[db] (vint) at (0.0,-0.7) {VisualPerInterval\\+ VisualParticipant\\(SQLite)};
+\node[box] (det) at (1.8,-2.0) {High-level event detector\\ISEQL SQL queries};
+\node[box] (ev) at (1.8,-3.2) {Events by condition\\A: 6 visual, B: 4 audio, C: 6 (UNION)};
+
+% RAG SUBTREE (wide shaded panel)
+\fill[blue!8] (-9.8,0.9) rectangle (-5.8,-4.0);
+\draw[blue!40,dashed,thick] (-9.8,0.9) rectangle (-5.8,-4.0);
+\node[font=\tiny\bfseries,text=blue!70!black,anchor=south] at (-7.8,0.9) {Object Re-Identification (RAG object memory)};
+\node[box] (sig) at (-7.8,0.0) {SigLIP embedding\\of grid-block crops};
+\node[db] (chroma) at (-7.8,-1.4) {Chroma vector store\\per-scene collection};
+\node[box] (retr) at (-7.8,-2.7) {top-5 similar retrieval\\+ last-3-frame recency};
+\node[box] (track) at (-7.8,-3.6) {tracking prompt\\ID reuse + reconciliation};
+
+% EDGES
+\draw[arrow] (video.south) -- (vlm.north);
+\draw[arrow] (video.south) -- (ff.north);
+\draw[arrow] (vlm.south) -- (vpf.north) node[pos=0.5,run]{objects per frame};
+\draw[arrow] (vlm.south) -- (vrel.north) node[pos=0.5,run]{relations per frame};
+\draw[arrow] (ff.south) -- (aud.north);
+\draw[arrow] (aud.south) -- (aint.north) node[midway,yshift=1.5mm,run]{condition B / C};
+\draw[arrow] (vrel.south) -- (vint.north);
+\draw[arrow] (vint.south) -- (det.north) node[midway,run]{condition A / C};
+\draw[arrow] (aint.south) -- (det.north);
+\draw[arrow] (det.south) -- (ev.north);
+\draw[arrow] (vpf.south) -- (sig.north);
+\draw[arrow] (sig.south) -- (chroma.north);
+\draw[arrow] (chroma.south) -- (retr.north);
+\draw[arrow] (retr.south) -- (track.north);
+\draw[arrow] (track.west) -- ++(-0.7,0) |- (vlm.west);
+\node[font=\tiny,text=blue!70!black,anchor=east] at (-10.1,-1.4) {reuse IDs};
+\end{tikzpicture}}
+\end{frame}
+
+% ── APPENDIX: DATABASE SCHEMA ──
+\begingroup
+\setlength{\fboxsep}{0.5pt}  % minimal padding so PK/FK boxes don't add row height
+\begin{frame}{Appendix: Database Schema}
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  tbl/.style={rectangle,draw=blue!60,fill=blue!5,rounded corners=2pt,align=left,inner sep=4pt,font=\tiny},
+  arrow/.style={-Stealth,thick,blue!60},
+  hd/.style={font=\tiny\bfseries,text=blue!70!black},
+  run/.style={font=\tiny,text=blue!50!black,fill=white,draw=blue!30,inner sep=1pt,rounded corners=1pt},
+]
+% ANALYSES (tall, left column)
+\node[tbl] (analyses) at (-5.3,0.4) {%
+\begin{tabular}{@{}l@{\quad}l@{\quad}l@{}}
+\multicolumn{3}{@{}l@{}}{\textbf{Analyses}}\\
+\hline
+\strut \texttt{A-Z} & ID & \colorbox{yellow!40}{\textbf{PK}}\\
+\strut \texttt{A-Z} & VideoPath & \\
+\strut \texttt{A-Z} & VideoFilename & \\
+\strut \texttt{A-Z} & Condition & \\
+\strut \texttt{A-Z} & VLMProvider & \\
+\strut \texttt{A-Z} & Model & \\
+\strut \texttt{123} & GridRows & \\
+\strut \texttt{123} & GridCols & \\
+\strut \texttt{123} & SamplingRate & \\
+\strut \texttt{0.5} & VLMDelay & \\
+\strut \texttt{A-Z} & VLMQuantization & \\
+\strut \texttt{123} & MaxRetries & \\
+\strut \texttt{A-Z} & AudioProvider & \\
+\strut \texttt{A-Z} & AudioModel & \\
+\strut \texttt{A-Z} & AudioQuantization & \\
+\strut \texttt{123} & MemoryN & \\
+\strut \texttt{123} & MemoryTopK & \\
+\strut \texttt{A-Z} & EmbedProvider & \\
+\strut \texttt{A-Z} & EmbedModel & \\
+\strut \texttt{0.5} & AudioWindow & \\
+\strut \texttt{0.5} & AudioHop & \\
+\strut \texttt{A-Z} & DeltasJson & \\
+\strut \texttt{A-Z} & DeltaUnit & \\
+\strut \texttt{A-Z} & Stage & \\
+\strut \texttt{A-Z} & CreatedAt & \\
+\strut \texttt{A-Z} & CompletedAt & \\
+\end{tabular}};
+
+% TOP ROW
+\node[tbl] (vpf) at (-1.6,2.2) {%
+\begin{tabular}{@{}l@{\quad}l@{\quad}l@{}}
+\multicolumn{3}{@{}l@{}}{\textbf{VisualPerFrame}}\\
+\hline
+\strut \texttt{A-Z} & AnalysisID & \colorbox{yellow!40}{\textbf{PK}}\\
+\strut \texttt{123} & Frame & \colorbox{yellow!40}{\textbf{PK}}\\
+\strut \texttt{123} & ClassID & \colorbox{yellow!40}{\textbf{PK}}\\
+\strut \texttt{123} & Block & \colorbox{yellow!40}{\textbf{PK}}\\
+\strut \texttt{A-Z} & Class & \\
+\strut \texttt{A-Z} & Description & \\
+\end{tabular}};
+\node[tbl] (vint) at (1.7,2.2) {%
+\begin{tabular}{@{}l@{\quad}l@{\quad}l@{}}
+\multicolumn{3}{@{}l@{}}{\textbf{VisualPerInterval}}\\
+\hline
+\strut \texttt{123} & RelationID & \colorbox{yellow!40}{\textbf{PK}}\\
+\strut \texttt{A-Z} & AnalysisID & \\
+\strut \texttt{123} & StartFrame & \\
+\strut \texttt{123} & EndFrame & \\
+\strut \texttt{A-Z} & RelationType & \\
+\end{tabular}};
+\node[tbl] (vpart) at (5.8,2.2) {%
+\begin{tabular}{@{}l@{\quad}l@{\quad}l@{}}
+\multicolumn{3}{@{}l@{}}{\textbf{VisualParticipant}}\\
+\hline
+\strut \texttt{123} & RelationID & \colorbox{yellow!40}{PK}\hspace{1pt}\colorbox{cyan!25}{FK}\\
+\strut \texttt{123} & ClassID & \colorbox{yellow!40}{\textbf{PK}}\\
+\strut \texttt{A-Z} & Class & \\
+\end{tabular}};
+
+% MIDDLE ROW
+\node[tbl] (vrel) at (-1.6,-0.2) {%
+\begin{tabular}{@{}l@{\quad}l@{\quad}l@{}}
+\multicolumn{3}{@{}l@{}}{\textbf{VisualRelation}}\\
+\hline
+\strut \texttt{A-Z} & AnalysisID & \colorbox{yellow!40}{\textbf{PK}}\\
+\strut \texttt{123} & Frame & \colorbox{yellow!40}{\textbf{PK}}\\
+\strut \texttt{123} & RelationID & \colorbox{yellow!40}{\textbf{PK}}\\
+\strut \texttt{123} & ClassID & \colorbox{yellow!40}{\textbf{PK}}\\
+\strut \texttt{A-Z} & RelationType & \\
+\end{tabular}};
+\node[tbl] (aint) at (2.0,-0.2) {%
+\begin{tabular}{@{}l@{\quad}l@{\quad}l@{}}
+\multicolumn{3}{@{}l@{}}{\textbf{AudioPerInterval}}\\
+\hline
+\strut \texttt{123} & AudioIntervalID & \colorbox{yellow!40}{\textbf{PK}}\\
+\strut \texttt{A-Z} & AnalysisID & \\
+\strut \texttt{123} & StartFrame & \\
+\strut \texttt{123} & EndFrame & \\
+\strut \texttt{A-Z} & AudioClass & \\
+\strut \texttt{0.5} & Confidence & \\
+\end{tabular}};
+
+% BOTTOM ROW
+\node[tbl] (config) at (-1.6,-2.5) {%
+\begin{tabular}{@{}l@{\quad}l@{\quad}l@{}}
+\multicolumn{3}{@{}l@{}}{\textbf{AppConfig}}\\
+\hline
+\strut \texttt{A-Z} & key & \colorbox{yellow!40}{\textbf{PK}}\\
+\strut \texttt{A-Z} & value\_json & \\
+\strut \texttt{A-Z} & updated\_at & \\
+\end{tabular}};
+\node[tbl] (espec) at (2.2,-2.5) {%
+\begin{tabular}{@{}l@{\quad}l@{\quad}l@{}}
+\multicolumn{3}{@{}l@{}}{\textbf{EventSpec}}\\
+\hline
+\strut \texttt{A-Z} & id & \colorbox{yellow!40}{\textbf{PK}}\\
+\strut \texttt{A-Z} & condition & \colorbox{yellow!40}{\textbf{PK}}\\
+\strut \texttt{A-Z} & model\_json & \\
+\strut \texttt{A-Z} & created\_at & \\
+\strut \texttt{A-Z} & updated\_at & \\
+\end{tabular}};
+
+% FOREIGN KEY (only declared FK in the schema)
+\draw[arrow] (vint.east) -- (vpart.west);\end{tikzpicture}}
+\end{frame}
+\endgroup
+
 \begin{frame}{Appendix: Complete Multimodal Ablation (Condition C), Rows 1-16}
 \centering
 \footnotesize
@@ -570,6 +753,7 @@ VLM + Audio Model & Window (s) & Hop (s) & F1 & Precision & Recall & TP & FP & F
 \bottomrule
 \end{tabular}}
 \end{frame}
+
 
 % ── BIBLIOGRAPHY ──
 \begin{frame}{References}

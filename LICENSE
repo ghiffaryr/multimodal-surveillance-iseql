@@ -2,7 +2,7 @@
                            Version 2.0, January 2004
                         http://www.apache.org/licenses/
 
-   Copyright 2026 The WATCHOUT ISEQL Authors
+   Copyright 2026 Ghiffary Rifqialdi
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -18,7 +18,16 @@
 
    ----------------------------------------------------------------------------
 
-   This product includes software developed at
-   The University of L'Aquila, Hitachi Research & Development Group, and
-   elsewhere (the "ISEQL Authors"). The WATCHOUT ISEQL authors add the
-   surrounding multimodal framework under the same Apache 2.0 license.
+   All source code in this repository, including the interval-based event
+   query engine (ISEQL), the visual and audio pipelines, object
+   re-identification, and the evaluation benchmark, was developed by and is
+   released here under the Apache 2.0 license by Ghiffary Rifqialdi.
+
+   The ISEQL+ query language and the interval-algebra operators used here are
+   based on published research, which is cited in the project documentation but
+   is not bundled or derived from any third-party source code:
+
+   F. Persia, A. Dignos, S. Helmer, J. Gamper, and D. D'Auria, "Modeling and
+   detecting high-level events in healthcare applications exploiting ISEQL+,"
+   Soft Computing, vol. 30, no. 5, pp. 3667-3690, 2026.
+   doi: 10.1007/s00500-025-10716-7
