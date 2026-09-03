@@ -143,8 +143,8 @@ First ISEQL-based event detector using VLM perception.
 \node[box,fill=green!5,draw=green!60,text width=4.2cm] (B) at (3.8,-2.2) {\textbf{Condition B (Audio)}\\Qwen2-Audio / PANNs\\4 SQL queries};
 \node[box,fill=blue!5,draw=blue!80,text width=4.8cm] (C) at (0,-4.4) {\textbf{Condition C (Multimodal)}\\$C = A \cup B$ (UNION), 6 SQL queries\\No temporal cross-modal joins};
 
-\draw[arrow] (video.south) -| (A.north);
-\draw[arrow] (video.south) -| (B.north);
+\draw[arrow] (video.south) -- (A.north);
+\draw[arrow] (video.south) -- (B.north);
 \draw[arrow] (A.south) -- (C.north);
 \draw[arrow] (B.south) -- (C.north);
 
