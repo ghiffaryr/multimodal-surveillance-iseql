@@ -173,7 +173,7 @@
       </Badge>
     </div>
     <p class="text-[10px]">
-      {APP_NAME} v{APP_VERSION} · © 2026 Ghiffary Rifqialdi
+      {APP_NAME} v{APP_VERSION} © 2026 Ghiffary Rifqialdi
     </p>
   </div>
 </aside>
