@@ -47,6 +47,9 @@
   type MenuItem = { label: string; insert: string; hint?: string };
   let menu = $state<{ start: number; end: number; items: MenuItem[] } | null>(null);
   let menuPos = $state<{ left: number; top: number }>({ left: 8, top: 8 });
+  let menuIndex = $state(0);
+  let menuEl = $state<HTMLDivElement | null>(null);
+  let prevMenuRange = $state<{ start: number; end: number } | null>(null);
 
   const MENU_LIMIT = 5;
   let caretMirror: HTMLDivElement | null = null;
@@ -155,12 +158,18 @@
 
   function updatePredMenu() {
     const ta = taRef;
-    if (!ta) { menu = null; return; }
+    if (!ta) { menu = null; prevMenuRange = null; return; }
     const pos = ta.selectionStart ?? text.length;
     const before = text.slice(0, pos);
     const result = predicateMenu(before, pos) ?? projectionMenu(before, pos) ?? operatorMenu(before, pos);
     menu = result;
-    if (!result) return;
+    if (!result) { prevMenuRange = null; return; }
+    // Reset the highlight only when the suggestion context actually changes
+    // (caret moved or the partial token changed), not on arrow navigation.
+    if (!prevMenuRange || prevMenuRange.start !== result.start || prevMenuRange.end !== result.end) {
+      menuIndex = 0;
+    }
+    prevMenuRange = { start: result.start, end: result.end };
     const c = caretCoords(ta, pos);
     const container = ta.parentElement as HTMLElement | null;
     const cr = container?.getBoundingClientRect();
@@ -295,11 +304,32 @@
   }
 
   function onTextareaKeydown(e: KeyboardEvent) {
-    if (e.key === 'Tab' && menu && menu.items.length === 1) {
+    if (!menu || menu.items.length === 0) return;
+    if (e.key === 'ArrowDown') {
       e.preventDefault();
-      insertMenuItem(menu.items[0]);
+      menuIndex = (menuIndex + 1) % menu.items.length;
+      return;
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      menuIndex = (menuIndex - 1 + menu.items.length) % menu.items.length;
+      return;
+    }
+    if (e.key === 'Tab' || e.key === 'Enter') {
+      e.preventDefault();
+      const item = menu.items[menuIndex];
+      if (item) insertMenuItem(item);
     }
   }
+
+  // Keep the highlighted suggestion in view while navigating with the keyboard.
+  $effect(() => {
+    void menuIndex;
+    void menu;
+    if (!menu || !menuEl) return;
+    const active = menuEl.querySelectorAll('button')[menuIndex];
+    if (active) (active as HTMLElement).scrollIntoView({ block: 'nearest' });
+  });
 
   let textTimer: ReturnType<typeof setTimeout> | null = null;
   function scheduleTextCompile() {
@@ -536,12 +566,13 @@
             onblur={() => setTimeout(() => (menu = null), 150)}
           ></textarea>
           {#if menu}
-            <div class="absolute z-20 max-h-56 w-72 overflow-y-auto rounded-md border bg-background py-1 shadow-lg" style="left: {menuPos.left}px; top: {menuPos.top}px;">
+            <div bind:this={menuEl} class="absolute z-20 max-h-56 w-72 overflow-y-auto rounded-md border bg-background py-1 shadow-lg" style="left: {menuPos.left}px; top: {menuPos.top}px;">
               {#each menu.items as item, i (`${item.label}-${i}`)}
                 <button
                   type="button"
-                  class="block w-full px-3 py-1 text-left font-mono text-xs hover:bg-muted"
+                  class={['block w-full px-3 py-1 text-left font-mono text-xs', menuIndex === i ? 'bg-muted' : 'hover:bg-muted'].join(' ')}
                   onmousedown={(e) => e.preventDefault()}
+                  onmouseenter={() => (menuIndex = i)}
                   onclick={() => insertMenuItem(item)}
                 >{item.label}</button>
               {:else}

@@ -182,6 +182,59 @@ def test_all_operators_parse(op):
     assert "ts" in model["intervals"][1] and "te" in model["intervals"][1]
 
 
+# ---------------------------------------------------------------------------
+# canvas synthesis geometry (ts/te layout from text)
+# ---------------------------------------------------------------------------
+
+def _synthesized(model):
+    ivs = model["intervals"]
+    assert len(ivs) == 2
+    a, b = ivs[0], ivs[1]
+    assert a["ts"] >= 0 and a["te"] >= 0 and b["ts"] >= 0 and b["te"] >= 0
+    assert a["ts"] <= a["te"] and b["ts"] <= b["te"]
+    return a, b
+
+
+def test_synthesize_aft_is_fully_before():
+    # Aft(r, s): s lies entirely before r (reverse of Bef), not clamped to 0.
+    model = parse_iseql(
+        f'{_P2} (σ_{{pred="running"}}(M1) Aft σ_{{pred="walking"}}(M2))', name="e"
+    )
+    a, b = _synthesized(model)
+    assert b["te"] <= a["ts"]
+    assert b["te"] - b["ts"] > 1  # not a degenerate sliver
+
+
+def test_synthesize_roj_overlaps_on_right():
+    # ROJ(r, s): s starts before r and ends before r (right overlap), not nested.
+    model = parse_iseql(
+        f'{_P2} (σ_{{pred="running"}}(M1) ROJ σ_{{pred="walking"}}(M2))', name="e"
+    )
+    a, b = _synthesized(model)
+    assert b["ts"] < a["ts"]
+    assert b["te"] < a["te"]
+    assert b["te"] > a["ts"]  # genuine overlap, not disjoint
+
+
+def test_synthesize_ef_second_ends_before_first():
+    # EF(r, s): s shares r's start and ends before r (r is the longer interval).
+    model = parse_iseql(
+        f'{_P2} (σ_{{pred="running"}}(M1) EF σ_{{pred="walking"}}(M2))', name="e"
+    )
+    a, b = _synthesized(model)
+    assert b["ts"] == a["ts"]
+    assert b["te"] < a["te"]
+
+
+def test_synthesize_bef_honours_delta_gap():
+    # Bef(δ:5): s starts δ after r ends, not touching.
+    model = parse_iseql(
+        f'{_P2} (σ_{{pred="running"}}(M1) Bef(δ:5) σ_{{pred="walking"}}(M2))', name="e"
+    )
+    a, b = _synthesized(model)
+    assert b["ts"] == a["te"] + 5
+
+
 def test_operator_unbounded_delta():
     model = parse_iseql(
         f'{_P2} (σ_{{pred="running"}}(M1) Bef(δ:∞) σ_{{pred="walking"}}(M2))', name="e"

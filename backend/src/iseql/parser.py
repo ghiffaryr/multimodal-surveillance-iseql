@@ -510,7 +510,15 @@ class _Parser:
 
     @staticmethod
     def _synthesize(intervals: list[dict], ops: list[dict]) -> None:
-        """Assign concrete ts/te to intervals from the operator sequence."""
+        """Assign concrete ts/te to intervals from the operator sequence.
+
+        Geometry follows the ISEQL operator definitions (Table tab:iseql_ops):
+        Bef/Aft honour the δ gap, SP/EF honour δ/ε, and DJ/RDJ/LOJ/ROJ place the
+        next interval relative to the current one per their overlap semantics.
+        Intervals are laid out left-to-right without clamping so operators that
+        place the next interval to the left (Aft, ROJ) keep their shape; the whole
+        chain is shifted non-negative at the end.
+        """
         if not intervals:
             return
         length = 100
@@ -524,16 +532,16 @@ class _Parser:
             a0, a1 = cur_ts, cur_te
             op = o["op"]
             if op == "Bef":
-                b0 = a1
+                b0 = a1 + (d if d is not None else 0)
                 b1 = b0 + length
             elif op == "Aft":
-                b1 = a0
+                b1 = a0 - (d if d is not None else 0)
                 b0 = b1 - length
             elif op == "SP":
-                b0 = a0 + length // 2
+                b0 = a0 + (d if d is not None else length // 2)
                 b1 = b0 + length
             elif op == "EF":
-                b1 = a1 + length // 2
+                b1 = a1 - (e if e is not None else length // 2)
                 b0 = a0
             elif op == "DJ":
                 b0 = a0 - (d if d is not None else length // 4)
@@ -549,12 +557,19 @@ class _Parser:
                 b1 = a1 - (e if e is not None else length // 2)
             else:
                 raise IseqlParseError(f"unsupported operator '{op}'")
-            b0 = max(0, b0)
             if b1 <= b0:
                 b1 = b0 + 1
             intervals[i + 1]["ts"] = b0
             intervals[i + 1]["te"] = b1
             cur_ts, cur_te = b0, b1
+
+        # Shift the whole chain so the earliest start is 0 (keeps leftward
+        # operators like Aft/ROJ visible on the 0-based timeline).
+        shift = min(iv["ts"] for iv in intervals)
+        if shift != 0:
+            for iv in intervals:
+                iv["ts"] -= shift
+                iv["te"] -= shift
 
 
 class Operand:
