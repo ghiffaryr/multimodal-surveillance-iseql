@@ -5,7 +5,7 @@ This appendix provides supplementary material referenced in the main text, inclu
 
 \section{Event Query Definitions}
 
-The listings below are the SQL queries the frontend ISEQL configurator generates for each event (condition A visual, condition B audio, condition C multimodal union). In each listing, \texttt{\_\_fps\_\_} is a placeholder for the video's auto-detected frame rate, used to express the frame-valued \texttt{StartFrame}/\texttt{EndFrame} columns in seconds, and \texttt{\_\_analysis\_\_} is the analysis identifier. The ISEQL operators are realized inline as SQL predicates over these time columns, with temporal thresholds in seconds converted to frames by the backend before execution.
+The listings below are the SQL queries the frontend ISEQL configurator generates for each event (condition A visual, condition B audio, condition C multimodal union). In each listing, \texttt{\_\_fps\_\_} is a placeholder for the video's auto-detected frame rate, used to express the frame-valued \texttt{StartFrame}/\texttt{EndFrame} columns in seconds, and \texttt{\_\_analysis\_\_} is the analysis identifier. The ISEQL+ operators are realized inline as SQL predicates over these time columns, with temporal thresholds in seconds converted to frames by the backend before execution.
 
 \subsection{Visual Queries (Condition A)}
 \begin{lstlisting}[language=SQL, caption=Fight visual.]

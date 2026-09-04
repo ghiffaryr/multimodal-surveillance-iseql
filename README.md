@@ -22,7 +22,7 @@ A multimodal forensic surveillance framework that detects events through a **thr
 - **Object re-identification** via a persistent RAG object memory (SigLIP image embeddings in ChromaDB) - enables tracking-dependent events (suspicious near vehicle, vehicle escape, handoff)
 - **First labeled multimodal forensic surveillance dataset** - 30 scenes generated with Dreamina Seedance (ByteDance) Seedance 2.0, with per-frame ground truth
 - **UNION-based multimodal** - C = A U B, no temporal cross-modal JOINs (which reduce recall)
-- **Auditable SQL pipeline** - every event is output of a SQL query; no black-box reasoning
+- **Auditable ISEQL pipeline** - every event is authored as an ISEQL query and compiled to SQL; no black-box reasoning
 
 ### Best result
 > **Gemini 3.6 Flash + Qwen2-Audio-7B achieved 30/30 events (F1=0.938)**
@@ -68,7 +68,7 @@ flowchart TB
 
     VREL --> VINT[("VisualPerInterval<br/>+ VisualParticipant<br/>(SQLite)")]
 
-    AINT --> DET["High-level event detector<br/>ISEQL SQL queries"]
+    AINT --> DET["High-level event detector<br/>ISEQL queries"]
     VINT -->|condition A / C| DET
 
     DET --> COND["Events by condition<br/>A: 6 visual, B: 4 audio, C: 6 (UNION)"]
@@ -156,9 +156,9 @@ Thesis claim C >= max(A, B) holds on all scenes across all providers.
 
 |       | Condition       | Query set                                                                                                                    |
 | ----- | --------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| **A** | Visual only     | 6 visual SQL queries (fight, vehicle_escape, suspicious_near_vehicle, handoff, vehicle_collision, gunshot_or_explosion) |
-| **B** | Audio only      | 4 audio-only SQL queries (fight, gunshot_or_explosion, vehicle_escape, vehicle_collision)                                             |
-| **C** | Full multimodal | 6 SQL queries (4 via UNION of AUB, 2 visual-only for events with no audio correlate) |
+| **A** | Visual only     | 6 visual ISEQL queries (fight, vehicle_escape, suspicious_near_vehicle, handoff, vehicle_collision, gunshot_or_explosion) |
+| **B** | Audio only      | 4 audio-only ISEQL queries (fight, gunshot_or_explosion, vehicle_escape, vehicle_collision)                                             |
+| **C** | Full multimodal | 6 ISEQL queries (4 via UNION of AUB, 2 visual-only for events with no audio correlate) |
 
 The full set is authored in the **Events (ISEQL)** configurator, stored in the
 `EventSpec` registry (SQLite), and exposed via `GET /api/events/types`.

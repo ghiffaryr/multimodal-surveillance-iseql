@@ -158,7 +158,7 @@ Both perception pipelines write to a shared SQLite database with the schema show
   \end{tabular}
 \end{table}
 
-The reasoning layer executes high-level event detection through SQL queries. Each event type has a formal ISEQL definition (Section~\ref{sec:event-definitions}) that is compiled to a SQL query; the corresponding SQL implementations are provided in Appendix~\ref{AppendixA}. Each condition has its own query set: condition A runs six visual queries, condition B runs four audio-only queries, and condition C runs six multimodal union queries.
+The reasoning layer applies the ISEQL+ operators to detect high-level events. Each event type has a formal ISEQL definition (Section~\ref{sec:event-definitions}) that is compiled to a SQL query; the corresponding SQL implementations are provided in Appendix~\ref{AppendixA}. Each condition has its own query set: condition A runs six visual queries, condition B runs four audio-only queries, and condition C runs six multimodal union queries.
 
 \section{Event Definitions}
 \label{sec:event-definitions}
