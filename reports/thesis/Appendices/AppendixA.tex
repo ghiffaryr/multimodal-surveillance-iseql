@@ -168,7 +168,7 @@ Each multimodal query is the set union of the corresponding condition A (visual)
 
 The hand-curated ontology maps AudioSet labels to the event query AudioClass values used in the condition B and C queries.
 
-\begin{table}[h]
+\begin{table}[H]
   \centering
   \caption{Ontology mapping from AudioSet labels to event queries.}
   \label{tab:ontology}
@@ -208,7 +208,7 @@ The shared SQLite database uses the following tables:
 
 The evaluation dataset consists of 30 scenes, with 5 positive instances per event type. Table~\ref{tab:per_event_f1} shows the per-event F1 scores for the best performing models. Audio results use the 5.0 s window / 2.5 s hop configuration (the audio-optimal setting; 20 audio-relevant scenes). The multimodal combination uses UNION of visual and audio results without temporal cross-modal joins.
 
-\begin{table}[h]
+\begin{table}[H]
   \centering
   \caption{Per-event F1 for Gemini 3.6 Flash (best visual), Qwen2-Audio (best audio, 5.0 s / 2.5 s), and their UNION.}
   \label{tab:per_event_f1}

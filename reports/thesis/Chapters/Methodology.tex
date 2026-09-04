@@ -9,9 +9,9 @@ This chapter describes the research design, system architecture, and implementat
 The study is a three-condition ablation in which each condition isolates a different perception stack while sharing the same temporal database and high-level event detector:
 
 \begin{itemize}
-  \item \textbf{Condition A (visual-only).} A VLM with object re-identification extracts spatial relation triples from sampled frames, constructs temporal intervals, and the event detector runs six visual SQL queries.
-  \item \textbf{Condition B (audio-only).} PANNs CNN14 or Qwen2-Audio-7B-Instruct extracts environmental audio events, persists them as temporal intervals, and the event detector runs four audio-only SQL queries.
-  \item \textbf{Condition C (multimodal).} Both pipelines run. The event detector runs six multimodal SQL queries that take the union of visual and audio results. Events with no acoustic correlate (handoff, suspicious near vehicle) reuse the visual queries from condition A.
+  \item \textbf{Condition A (visual-only).} A VLM with object re-identification extracts spatial relation triples from sampled frames, constructs temporal intervals, and the event detector runs six visual ISEQL queries.
+  \item \textbf{Condition B (audio-only).} PANNs CNN14 or Qwen2-Audio-7B-Instruct extracts environmental audio events, persists them as temporal intervals, and the event detector runs four audio-only ISEQL queries.
+  \item \textbf{Condition C (multimodal).} Both pipelines run. The event detector runs six multimodal ISEQL queries that take the union of visual and audio results. Events with no acoustic correlate (handoff, suspicious near vehicle) reuse the visual queries from condition A.
 \end{itemize}
 
 The design is summarised in Table~\ref{tab:three_conditions}.
@@ -24,9 +24,9 @@ The design is summarised in Table~\ref{tab:three_conditions}.
     \toprule
     Condition & Provider & Queries \\
     \midrule
-    A (visual)  & Gemini 3.6 Flash (best of 4) & 6 visual SQL \\
-    B (audio)   & PANNs / Qwen2-Audio-7B & 4 audio-only SQL \\
-    C (union)   & Gemini 3.6 Flash + audio & 6 multimodal SQL \\
+    A (visual)  & Gemini 3.6 Flash (best of 4) & 6 visual ISEQL \\
+    B (audio)   & PANNs / Qwen2-Audio-7B & 4 audio-only ISEQL \\
+    C (union)   & Gemini 3.6 Flash + audio & 6 multimodal ISEQL \\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -285,8 +285,8 @@ F1 = \frac{2 \cdot \mathrm{Precision} \cdot \mathrm{Recall}}{\mathrm{Precision} 
 
 F1 is preferred over accuracy because each event type has 5 positive and 25 negative instances per condition; accuracy would be dominated by true negatives. In forensic surveillance, both precision (avoiding false alarms that waste operator attention) and recall (avoiding missed events) are critical. Per-event TP/FP/FN counts are also reported. The evaluation follows the clip-level paradigm of the TRECVID Multimedia Event Detection (MED) task \citep{over2014trecvid}: each scene is treated as a whole clip, and the correctness measure asks whether the event occurs anywhere in the scene, without requiring temporal alignment of a detected interval against a ground-truth interval. This is appropriate because the events are compositional (spanning multiple intervals across modalities) and the ground truth does not define a single composite event interval.
 
-\textbf{Correctness criteria.} Under condition A (visual), an event is a true positive (TP) if the corresponding ISEQL SQL query returns at least one result interval on a scene annotated as positive for that event in the ground truth. The ISEQL operators enforce the internal temporal relationships between constituent intervals, so no additional interval-level matching against ground truth is applied. Under condition B (audio), a detected audio interval must temporally overlap the ground-truth audio interval with a matching audio class to be counted as TP; any non-zero overlap is accepted, and the interval with the highest overlap is selected when multiple detections coincide. Under condition C (multimodal), visual-only events (handoff, suspicious near vehicle) use the condition A criterion, and events with an audio component use the criterion of whichever modality produced the detection. False positives (FP) are detections on scenes not annotated as positive for the event; false negatives (FN) are missed events on positive scenes.
+\textbf{Correctness criteria.} Under condition A (visual), an event is a true positive (TP) if the corresponding ISEQL query returns at least one result interval on a scene annotated as positive for that event in the ground truth. The ISEQL+ operators enforce the internal temporal relationships between constituent intervals, so no additional interval-level matching against ground truth is applied. Under condition B (audio), a detected audio interval must temporally overlap the ground-truth audio interval with a matching audio class to be counted as TP; any non-zero overlap is accepted, and the interval with the highest overlap is selected when multiple detections coincide. Under condition C (multimodal), visual-only events (handoff, suspicious near vehicle) use the condition A criterion, and events with an audio component use the criterion of whichever modality produced the detection. False positives (FP) are detections on scenes not annotated as positive for the event; false negatives (FN) are missed events on positive scenes.
 
 \section{Implementation}
 
-The system is implemented in Python 3.10 with FastAPI (backend) and SvelteKit with TypeScript (front end). Four VLM models were evaluated: Pixtral 12B (Mistral API), Ministral 3-14B, Gemini 2.5 Flash, and Gemini 3.6 Flash. PANNs CNN14 runs on CPU; Qwen2-Audio-7B-Instruct runs via HuggingFace with 4-bit normal float quantization \citep{dettmers2024qlora}. The system was tested on a laptop with an Intel Core i9-13900H, NVIDIA RTX 4060 (8 GB VRAM), and 32 GB RAM.
+The system is implemented in Python 3.10 with FastAPI (backend) and SvelteKit with TypeScript (front end). Four VLM models were evaluated: Pixtral 12B (Mistral API), Ministral 3-14B, Gemini 2.5 Flash, and Gemini 3.6 Flash. PANNs CNN14 runs on CPU; Qwen2-Audio-7B-Instruct runs via HuggingFace with 4-bit normal float quantization \citep{dettmers2024qlora}. The system was tested on a laptop with an Intel Core i9-13900H, NVIDIA RTX 4060 (8 GB VRAM), and 32 GB RAM. The complete source code of the implementation is publicly hosted on GitHub at \url{https://github.com/ghiffaryr/multimodal-surveillance-iseql}. For the reader's convenience, a running instance of the system is publicly accessible: a live deployment of the web interface is served at \href{https://foiled-aubrie-chiropodial.ngrok-free.dev}{https://foiled-aubrie-chiropodial.ngrok-free.dev} over an ngrok tunnel for interactive testing.

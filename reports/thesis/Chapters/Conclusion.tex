@@ -13,7 +13,7 @@ The evaluation on a 30-scene dataset across four VLM models and two audio provid
   \item \textbf{Multimodal union outperforms both unimodal baselines.} The best combination (Gemini 3.6 Flash + Qwen2-Audio) achieves 30/30 TP (F1 = 0.938, 4 FP, 0 FN), and the claim $C \ge \max(A, B)$ holds on all 30 scenes.
 \end{enumerate}
 
-The union approach, concatenating independent modality detections without temporal cross-modal joins ,  is shown to be more effective than fusion approaches that rely on temporal alignment, which reduce recall. Every detection is the output of a SQL query, providing a fully auditable pipeline suitable for forensic applications.
+The union approach, concatenating independent modality detections without temporal cross-modal joins, is shown to be more effective than fusion approaches that rely on temporal alignment, which reduce recall. Every detection is authored as an ISEQL query, providing a fully auditable pipeline suitable for forensic applications.
 
 \section{Future Work}
 

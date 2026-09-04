@@ -17,7 +17,7 @@ The per-event analysis reveals distinct model strengths. Qwen2-Audio is stronges
 \section{The Role of Union in Multimodal Design}
 \label{sec:disc-union}
 
-The design choice of union over temporal cross-modal join merits discussion. The conventional intuition is that multimodal fusion should require coincidence: an audio event is confirmed by a temporally proximate visual event, and vice versa. However, this approach has a fundamental asymmetry in forensic applications. The cost of a false negative (a missed event) far exceeds the cost of a false positive (an unnecessary operator review), because a missed event could mean a missed crime. Temporal join reduces false positives at the expense of increased false negatives ,  the opposite of what a forensic system should optimise for.
+The design choice of union over temporal cross-modal join merits discussion. The conventional intuition is that multimodal fusion should require coincidence: an audio event is confirmed by a temporally proximate visual event, and vice versa. However, this approach has a fundamental asymmetry in forensic applications. The cost of a false negative (a missed event) far exceeds the cost of a false positive (an unnecessary operator review), because a missed event could mean a missed crime. Temporal join reduces false positives at the expense of increased false negatives; the opposite of what a forensic system should optimise for.
 
 Union makes the opposite trade-off: it preserves every detection from every modality, at the cost of potentially more false positives. But the union approach is auditable: every detection carries a modality tag, so an operator reviewing the output can see whether a detection came from audio, visual, or both. The experiment demonstrates that union is the correct operation for forensic surveillance: $C$ consistently dominates $\max(A, B)$ with no exceptions.
 
@@ -46,5 +46,5 @@ This thesis makes seven contributions:
   \item \textbf{Union-based multimodal design.} $C = A \cup B$ preserves all detections while temporal joins reduce recall.
   \item \textbf{VLM benchmark across four models.} Gemini 3.6 Flash is the best performer (F1 = 0.885; 30/30 TP when combined with Qwen2-Audio).
   \item \textbf{Closed-vocabulary LALM prompt.} Forces the LALM to select from predetermined audio classes, eliminating post-hoc normalisation.
-  \item \textbf{Auditable forensic pipeline.} Every detection is the output of a readable, editable SQL query ,  no black-box reasoning.
+  \item \textbf{Auditable forensic pipeline.} Every detection is authored as a readable, editable ISEQL query; no black-box reasoning.
 \end{enumerate}

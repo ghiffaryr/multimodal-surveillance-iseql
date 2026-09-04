@@ -51,9 +51,7 @@
 
   This thesis presents WATCHOUT ISEQL, a forensic multimodal surveillance framework that combines visual perception from a vision-language model (VLM) with training-free object re-identification (prompt-based identity persistence over a memory of object embeddings, requiring no tracking model or fine-tuning) and environmental audio analysis from a large audio-language model (LALM), through a shared interval-based temporal representation. The study is organised as a three-condition ablation experiment: a visual-only condition (A) using a VLM with re-ID to extract frame-level relation triples, an audio-only condition (B) using either Qwen2-Audio-7B-Instruct (LALM) or PANNs CNN14, and a multimodal condition (C) that takes the UNION of A and B without temporal cross-modal joins.
 
-  The evaluation on a novel 30-scene dataset generated with Dreamina Seedance across four VLM models and two audio providers demonstrates that condition C achieves at least the accuracy of the better unimodal condition on every scene. With the best combination (Gemini 3.6 Flash + Qwen2-Audio-7B), the system achieves 30/30 TP (F1 = 0.938, 4 FP, 0 FN). Object re-identification is essential for the tracking-dependent events (suspicious near vehicle, vehicle escape, handoff): without it, these duration-gated queries rarely fire, and re-ID lifts the best visual F1 from 0.622 to 0.885. The LALM (Qwen2-Audio-7B) achieves perfect precision (1.000) and outperforms PANNs CNN14 on audio-only detection (micro F1 = 0.788 vs 0.400). The UNION-based multimodal design preserves all detections from both modalities without the recall loss inherent in temporal cross-modal joins. Every event is the output of a SQL query, providing a fully auditable forensic pipeline.
-
-  The implementation and the evaluation harness are available at \url{https://github.com/ghiffaryr/multimodal-surveillance-iseql}.
+  The evaluation on a novel 30-scene dataset generated with Dreamina Seedance across four VLM models and two audio providers demonstrates that condition C achieves at least the accuracy of the best unimodal condition on every scene. With the best combination (Gemini 3.6 Flash + Qwen2-Audio-7B), the system achieves 30/30 TP (F1 = 0.938, 4 FP, 0 FN). Object re-identification is essential for the tracking-dependent events (suspicious near vehicle, vehicle escape, handoff): without it, these duration-gated queries rarely fire, and re-ID lifts the best visual F1 from 0.622 to 0.885. The LALM (Qwen2-Audio-7B) achieves perfect precision (1.000) and outperforms PANNs CNN14 on audio-only detection (micro F1 = 0.788 vs 0.400). The UNION-based multimodal design preserves all detections from both modalities without the recall loss inherent in temporal cross-modal joins. Every event is authored as an ISEQL query, providing a fully auditable forensic pipeline.
 \end{abstract}
 
 %----------------------------------------------------------------------------------------
@@ -149,7 +147,7 @@
 % Uncomment the lines as you write the Appendices
 
 \include{Appendices/AppendixA}
-%\include{Appendices/AppendixB}
+\include{Appendices/AppendixB}
 %\include{Appendices/AppendixC}
 
 %----------------------------------------------------------------------------------------

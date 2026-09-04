@@ -1,12 +1,12 @@
 \chapter{Background}
 \label{Background}
 
-This chapter introduces the foundational concepts required for the thesis. Section~\ref{sec:domain} describes the surveillance domain and the challenge of detecting temporally extended events. Section~\ref{sec:allen} presents Allen's interval algebra, the formal calculus that underpins temporal reasoning in this work. Section~\ref{sec:iseql} defines the ISEQL operators and the general form of ISEQL query expressions; the concrete queries for the six event types evaluated in this thesis are given in the Methodology chapter. Section~\ref{sec:tech} covers the technical components: vision-language models, environmental audio classification, and interval-based video representation.
+This chapter introduces the foundational concepts required for the thesis. Section~\ref{sec:domain} describes the surveillance domain and the challenge of detecting temporally extended events. Section~\ref{sec:allen} presents Allen's interval algebra, the formal calculus that underpins temporal reasoning in this work. Section~\ref{sec:iseql} defines the ISEQL+ operators and the general form of ISEQL query expressions; the concrete queries for the six event types evaluated in this thesis are given in the Methodology chapter. Section~\ref{sec:tech} covers the technical components: vision-language models, environmental audio classification, and interval-based video representation.
 
 \section{The Surveillance Domain}
 \label{sec:domain}
 
-Video surveillance is the practice of monitoring behaviour and activities in a physical space using cameras. Traditional surveillance relies on human operators, but this approach suffers from well-documented scalability limitations: performance degrades after approximately twenty minutes of continuous attention, and detection probability decreases with the number of assigned cameras. Automated surveillance aims to detect security-relevant events without continuous human attention. An \textit{event} in this context is a temporally extended occurrence meaningful to an operator ,  a person handing over a package, inspecting a parked vehicle, or a vehicle collision.
+Video surveillance is the practice of monitoring behaviour and activities in a physical space using cameras. Traditional surveillance relies on human operators, but this approach suffers from well-documented scalability limitations: performance degrades after approximately twenty minutes of continuous attention, and detection probability decreases with the number of assigned cameras. Automated surveillance aims to detect security-relevant events without continuous human attention. An \textit{event} in this context is a temporally extended occurrence meaningful to an operator, a person handing over a package, inspecting a parked vehicle, or a vehicle collision.
 
 Traditional automated approaches used hand-crafted pipelines: background subtraction, object detection \citep{redmon2016yolo, ren2015fasterrcnn}, tracking algorithms, and rule-based reasoning. These worked in controlled environments but required per-scene calibration and failed to generalise. Deep learning improved object detection through CNNs and Transformer-based architectures \citep{carion2020detr}, and vision-language models (VLMs) now make it possible to extract rich semantic descriptions from video frames. However, VLMs introduce new challenges: they can hallucinate objects, operate at lower frame rates than traditional detectors, and their outputs require post-processing for temporal reasoning.
 
@@ -50,7 +50,7 @@ The \textbf{ISEQL+} operators are parametrised by distance thresholds $\delta$ (
 
 \begin{table}[h]
   \centering
-  \caption{ISEQL operators used for event detection.}
+  \caption{ISEQL+ operators used for event detection.}
   \label{tab:iseql_ops}
   \begin{tabular}{@{}>{\raggedright\arraybackslash}p{11em}p{5.5em}p{13em}@{}}
     \toprule
