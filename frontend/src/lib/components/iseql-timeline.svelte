@@ -59,6 +59,7 @@
   let hoverGroups = $state<string[]>([]);
 
   let canvas = $state<HTMLCanvasElement | null>(null);
+  let scroller = $state<HTMLDivElement | null>(null);
 
   // transient, non-reactive
   let drag: { gi: number; ii: number; mode: 'move' | 'resize_l' | 'resize_r'; x0: number; ts0: number; te0: number } | null = null;
@@ -66,6 +67,12 @@
   let ctxMenu = $state<{ x: number; y: number; gi: number; ii: number } | null>(null);
   let setCtxMenu = $state<{ x: number; y: number; name: string } | null>(null);
   let downPos: { x: number; y: number } | null = null;
+
+  // touch pan/zoom (two fingers) bookkeeping
+  const pointers = new Map<number, { x: number; y: number }>();
+  let panning = false;
+  let panStart: { sl: number; st: number; cx: number; cy: number } | null = null;
+  let pinchStart: { scale: number; dist: number } | null = null;
 
   const predModality = $derived.by(() => {
     const m = new Map<string, Modality>();
@@ -465,6 +472,28 @@
     if (e.button !== 0) return;
     ctxMenu = null;
     const { x, y } = canvasXY(e);
+    pointers.set(e.pointerId, { x, y });
+
+    // A second simultaneous touch enters pan/pinch mode (touch only).
+    if (pointers.size >= 2) {
+      drag = null;
+      drawDrag = null;
+      panning = true;
+      const pts = [...pointers.values()];
+      const cx = (pts[0].x + pts[1].x) / 2;
+      const cy = (pts[0].y + pts[1].y) / 2;
+      panStart = {
+        sl: scroller?.scrollLeft ?? 0,
+        st: scroller?.scrollTop ?? 0,
+        cx,
+        cy,
+      };
+      pinchStart = { scale, dist: Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) };
+      return;
+    }
+
+    if (panning) return;
+
     downPos = { x, y };
     const hit = hitTest(x, y);
     if (hit && hit.mode === 'badge') {
@@ -487,6 +516,24 @@
 
   function onPointerMove(e: PointerEvent) {
     const { x, y } = canvasXY(e);
+    pointers.set(e.pointerId, { x, y });
+
+    if (panning && pointers.size >= 2) {
+      const pts = [...pointers.values()];
+      const cx = (pts[0].x + pts[1].x) / 2;
+      const cy = (pts[0].y + pts[1].y) / 2;
+      if (panStart && pinchStart && scroller) {
+        scroller.scrollLeft = panStart.sl - (cx - panStart.cx);
+        scroller.scrollTop = panStart.st - (cy - panStart.cy);
+        const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+        if (pinchStart.dist > 0) {
+          const next = Math.max(2, Math.min(48, pinchStart.scale * (dist / pinchStart.dist)));
+          scale = next;
+        }
+      }
+      return;
+    }
+
     if (downPos && (Math.abs(x - downPos.x) + Math.abs(y - downPos.y)) > 4) downPos = null;
 
     if (drawDrag) {
@@ -512,6 +559,21 @@
   }
 
   function onPointerUp(e: PointerEvent) {
+    pointers.delete(e.pointerId);
+
+    if (panning && pointers.size < 2) {
+      panning = false;
+      panStart = null;
+      pinchStart = null;
+      if (pointers.size === 1) {
+        // Remaining finger should not suddenly start drawing/moving.
+        downPos = null;
+        drag = null;
+        drawDrag = null;
+      }
+      return;
+    }
+
     if (drawDrag) {
       const rawTs = pxTs(Math.min(drawDrag.x0, drawDrag.x1));
       const rawTe = pxTs(Math.max(drawDrag.x0, drawDrag.x1));
@@ -733,12 +795,12 @@
   </div>
 
   <p class="shrink-0 text-xs text-muted-foreground">
-    Drag on empty canvas to draw an interval · scroll to zoom · drag a block to move · drag its edges to resize · click an interval to edit · click a relation badge to set the operator.
+    Drag on empty canvas to draw an interval · scroll or pinch to zoom · two-finger drag to pan · drag a block to move · drag its edges to resize · click an interval to edit · click a relation badge to set the operator.
   </p>
 
   <!-- main area -->
   <div class="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden lg:flex-row">
-    <div class="min-h-0 flex-1 overflow-auto rounded-md border" data-tour="editor-canvas">
+    <div bind:this={scroller} class="min-h-0 flex-1 overflow-auto rounded-md border" data-tour="editor-canvas">
       <canvas
         bind:this={canvas}
         class="block touch-none select-none"
