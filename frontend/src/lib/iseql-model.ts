@@ -107,6 +107,10 @@ export interface IseqlModel {
   set_operator?: string | null;
   delta_unit?: string;
   iseql_text?: string;
+  // Set names authored in the editor that carry no intervals yet. They are kept
+  // out of set_expression (so the backend never tries to compile an empty
+  // group) but round-trip so empty sets survive a Text/Timeline mode switch.
+  empty_groups?: string[];
   [k: string]: unknown;
 }
 
@@ -556,10 +560,14 @@ export function stateToModel(state: BuilderState, eventName: string): IseqlModel
 
   // attach per-group projection to the tree leaves, pruning empty groups
   // (groups with no intervals carry no data and can't be compiled). The
-  // unassigned group is never part of the set expression.
+  // unassigned group is never part of the set expression. Empty sets are
+  // recorded separately (empty_groups) so they survive a mode switch.
   const sets = groups.filter((g) => g.name !== UNASSIGNED_GROUP);
   const validGroups = new Set(sets.filter((g) => g.intervals.length > 0).map((g) => g.name));
   const finalExpr = expr ? pruneExpr(attachProjections(expr, sets, unit), validGroups) : null;
+  const emptyGroups = sets
+    .filter((g) => g.intervals.length === 0)
+    .map((g) => g.name);
 
   for (const g of groups) {
     const isUnassigned = g.name === UNASSIGNED_GROUP;
@@ -614,6 +622,7 @@ export function stateToModel(state: BuilderState, eventName: string): IseqlModel
   };
   if (overrides.length) model.operator_overrides = overrides;
   if (Object.keys(deltaMap).length) model.delta_map = deltaMap;
+  if (emptyGroups.length) model.empty_groups = emptyGroups;
 
   // cross-conditions are authored per-group with local aliases (M1..Mn);
   // rebase them to the global flattened alias indices.
@@ -850,6 +859,10 @@ export function modelToState(model: IseqlModel): BuilderState {
   for (const iv of model.intervals) {
     const g = iv.group || null;
     if (g && !groupNames.includes(g)) groupNames.push(g);
+  }
+  // Re-add authored empty sets so they survive a Text/Timeline round-trip.
+  for (const name of model.empty_groups ?? []) {
+    if (name && !groupNames.includes(name)) groupNames.push(name);
   }
 
   // A set (even a single one) keeps its own projection; only the unassigned

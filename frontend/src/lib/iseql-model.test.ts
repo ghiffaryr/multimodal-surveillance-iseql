@@ -253,6 +253,25 @@ describe('state <-> model', () => {
     expect(flat).toHaveLength(2);
     expect(flat.map((f) => f.globalIndex)).toEqual([0, 1]);
   });
+
+  it('preserves empty sets (no intervals) across a round-trip', () => {
+    const filled = makeGroup('s1', [makeInterval('running', ['person'], 10, 20)]);
+    const empty = makeGroup('s2', []); // authored set with no intervals yet
+    const state: BuilderState = {
+      groups: [filled, empty],
+      expr: leaf('s1'),
+      unit: 'seconds',
+    };
+    const m = stateToModel(state, 'e');
+    // The empty set is kept out of set_expression and recorded separately.
+    expect(m.set_expression).toEqual({ group: 's1', projection: expect.any(Array) });
+    expect(m.empty_groups).toEqual(['s2']);
+
+    const st = modelToState(m);
+    const named = st.groups.filter((g) => g.name !== UNASSIGNED_GROUP);
+    expect(named.map((g) => g.name).sort()).toEqual(['s1', 's2']);
+    expect(named.find((g) => g.name === 's2')?.intervals).toHaveLength(0);
+  });
 });
 
 // ---------------------------------------------------------------------------
