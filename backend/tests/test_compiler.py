@@ -244,6 +244,47 @@ def test_domain_mixing_raises():
 
 
 # ---------------------------------------------------------------------------
+# set-less (unassigned) flat models honour delta_unit for the temporal domain
+# ---------------------------------------------------------------------------
+
+
+def _flat_unassigned_model(delta_unit):
+    return {
+        "event_name": "e",
+        "delta_unit": delta_unit,
+        "intervals": [
+            iv("carrying", ["person", "object"], 10, 20, None),
+        ],
+        "set_expression": None,
+    }
+
+
+def test_flat_unassigned_seconds_domain():
+    m = _flat_unassigned_model("seconds")
+    iseql, sql = render_iseql(m), compile_event(m, {}, "a1", fps=24, audio_predicates=AUDIO)[1]
+    # ISEQL text uses st/et
+    assert "M1.st" in iseql and "M1.et" in iseql
+    assert "M1.sf" not in iseql and "M1.ef" not in iseql
+    # SQL selects st/et directly, inline subquery, no WITH / StartFrame junk
+    assert "SELECT M1.arg1, M1.arg2, M1.st, M1.et" in sql
+    assert "CAST(VPI.StartFrame AS REAL)" in sql  # __fps__ division for seconds
+    assert "WITH " not in sql
+    assert "AS StartFrame" not in sql and "AS EndFrame" not in sql
+
+
+def test_flat_unassigned_frames_domain():
+    m = _flat_unassigned_model("frames")
+    iseql, sql = render_iseql(m), compile_event(m, {}, "a1", fps=24, audio_predicates=AUDIO)[1]
+    assert "M1.sf" in iseql and "M1.ef" in iseql
+    assert "M1.st" not in iseql and "M1.et" not in iseql
+    assert "SELECT M1.arg1, M1.arg2, M1.sf, M1.ef" in sql
+    assert "VPI.StartFrame AS sf" in sql  # raw frame columns
+    assert "WITH " not in sql
+    assert "AS StartFrame" not in sql and "AS EndFrame" not in sql
+    assert '"M1.sf"' not in sql and '"M1.ef"' not in sql
+
+
+# ---------------------------------------------------------------------------
 # extra validation branches
 # ---------------------------------------------------------------------------
 

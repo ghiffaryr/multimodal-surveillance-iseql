@@ -65,11 +65,11 @@ def test_compile_model_matches_query(config_db):
         "delta_map": {"g1.0": {"delta": 5, "zeta": "<=", "rho": 2}},
     }
     res = facade.compile_model(m)
-    assert "(M2.sf - M1.ef) <= 7" in res["sql"]
+    assert "(M2.st - M1.et) <= 7" in res["sql"]
 
     # The rendered ISEQL text round-trips back to an equivalent model.
-    text_res = facade.compile_query(res["iseql"], name="e", delta_unit="frames")
-    assert "(M2.sf - M1.ef) <= 7" in text_res["sql"]
+    text_res = facade.compile_query(res["iseql"], name="e", delta_unit="seconds")
+    assert "(M2.st - M1.et) <= 7" in text_res["sql"]
 
 
 def test_compile_query_invalid(config_db):

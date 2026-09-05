@@ -385,18 +385,28 @@ def _cross_condition_sql(c: dict, alias_map: dict[str, tuple[str, str | None]]) 
     return f"({left} {op} {right})"
 
 
-def _domain_cols(model: dict) -> tuple[str, str]:
-    """Which temporal column domain the event's authored projection uses.
+def _unit_domain(model: dict) -> tuple[str, str]:
+    """Temporal domain implied by the model's ``delta_unit`` (no authored projection).
 
-    ``sf``/``ef`` => frame domain (columns ``sf``/``ef``, deltas in frames);
-    ``st``/``et`` => time domain (columns ``st``/``et``, deltas in seconds).
-    Mixing frame and time attributes is invalid and raises an error.
+    ``seconds`` -> (``st``, ``et``); otherwise (frames) -> (``sf``, ``ef``).
+    """
+    return ("st", "et") if model.get("delta_unit") == "seconds" else ("sf", "ef")
+
+
+def _domain_cols(model: dict) -> tuple[str, str]:
+    """Which temporal column domain the event uses.
+
+    When an authored projection (``custom_projection`` / ``left_projection`` /
+    ``right_projection``) is present, its attributes decide the domain
+    (``sf``/``ef`` => frames, ``st``/``et`` => seconds; mixing raises). Otherwise
+    the model's ``delta_unit`` decides, so a set-less flat model respects the
+    Seconds/Frames toggle exactly like a single-set model.
     """
     fields = (model.get("custom_projection") or
               model.get("left_projection") or
               model.get("right_projection") or [])
     if not fields:
-        return ("sf", "ef")
+        return _unit_domain(model)
     frame = time_ = False
     for f in fields:
         attr = f.split(".")[-1]
@@ -428,7 +438,7 @@ def _needed_temporal(model: dict) -> frozenset[str]:
     if not (model.get("custom_projection") or
             model.get("left_projection") or
             model.get("right_projection")):
-        needed.update(("sf", "ef"))
+        needed.update(_unit_domain(model))
     for c in model.get("cross_conditions") or []:
         needed.update(_condition_temporal_attrs(c))
     for ccs in (model.get("group_cross_conditions") or {}).values():
@@ -522,23 +532,26 @@ def _translate_field(field: str) -> str:
 
 def _default_projection(model: dict, ivs: list[dict],
                         alias_map: dict[str, tuple[str, str | None]] = None) -> list[str]:
-    # Event extent: first interval's start -> last interval's end (matches the
-    # hand-written queries, e.g. F.StartFrame .. S.EndFrame for a 2-chain).
+    """Default flat-chain projection: each interval's argN then its temporal
+    start/end in the model's unit domain (st/et for seconds, sf/ef for frames).
+
+    This mirrors the projection a single-set leaf produces (``autoProjection``),
+    so a set-less flat model renders exactly like a one-set model.
+    """
     alias_map = alias_map or {f"M{i + 1}": (f"M{i + 1}", None) for i in range(len(ivs))}
-    last_alias = f"M{len(ivs)}"
-    fields = [f"{alias_map['M1'][0]}.sf AS StartFrame",
-              f"{alias_map[last_alias][0]}.ef AS EndFrame"]
+    cst, ced = _unit_domain(model)
+    fields: list[str] = []
     for i, iv in enumerate(ivs):
         alias = f"M{i + 1}"
         ref, col = alias_map.get(alias, (alias, None))
         if iv.get("query_ref"):
-            fields.append(f'{ref}.sf AS "{ref}.sf"')
-            fields.append(f'{ref}.ef AS "{ref}.ef"')
+            fields.append(f"{ref}.{cst}")
+            fields.append(f"{ref}.{ced}")
             continue
         for k in range(1, len(iv["pred"].get("arguments", [])) + 1):
             fields.append(_proj_col(ref, col, f"arg{k}"))
-        fields.append(_proj_col(ref, col, "sf"))
-        fields.append(_proj_col(ref, col, "ef"))
+        fields.append(f"{ref}.{cst}")
+        fields.append(f"{ref}.{ced}")
     return fields
 
 
@@ -733,7 +746,7 @@ def _render_flat_body(model: dict, ivs: list[dict], analysis_id: str, deltas: di
                       audio_predicates: set[str] | None = None) -> str:
     ctes, fields, conditions = _render_chain(model, ivs, analysis_id, deltas, side=side, fps=fps,
                                              audio_predicates=audio_predicates)
-    return _build_select(ctes, fields, conditions)
+    return _build_inline(ctes, fields, conditions)
 
 
 def _cte_body(cte: str) -> str:
@@ -1316,13 +1329,14 @@ def _render_projection(model: dict, ivs: list[dict]) -> str:
     proj = model.get("custom_projection")
     if proj:
         return ", ".join(proj)
+    cst, ced = _unit_domain(model)
     fields = []
     for i, iv in enumerate(ivs, start=1):
         alias = f"M{i}"
         for k in range(1, len(iv["pred"].get("arguments", [])) + 1):
             fields.append(f"{alias}.arg{k}")
-        fields.append(f"{alias}.sf")
-        fields.append(f"{alias}.ef")
+        fields.append(f"{alias}.{cst}")
+        fields.append(f"{alias}.{ced}")
     return ", ".join(fields)
 
 
