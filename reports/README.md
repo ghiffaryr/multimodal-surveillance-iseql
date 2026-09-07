@@ -6,7 +6,8 @@ Manuscripts and slide outlines for the WATCHOUT ISEQL multimodal forensic survei
 
 | File | Description |
 |------|-------------|
-| `slides/slides.tex` / `slides/slides.pdf` | Defense talk (Beamer, 19 slides, compiled via \texttt{lualatex}) |
+| `slides/slides.tex` / `slides/slides.pdf` | Defense talk, "Forensic Navy" custom Beamer theme (compiled via \texttt{lualatex}) |
+| `slides/Logos/` | Institution logos reused from `thesis/Figures/Logos/` |
 | `thesis/` | Master's thesis (LaTeX, 7 chapters) |
 
 ## Predecessor work

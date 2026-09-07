@@ -1,23 +1,119 @@
 \documentclass[aspectratio=169,10pt]{beamer}
-\usetheme{Madrid}
-\usecolortheme{dolphin}
+\usetheme{default}
 
 % Exclude appendix slides from the main slide-number count (main shows N/13,
 % appendix shows A-1/A-4).
 \setbeamertemplate{page number in head/foot}[appendixframenumber]
 
-\usepackage[utf8]{inputenc}
-\usepackage[T1]{fontenc}
+\usepackage{fontspec}
+\setmainfont{TeX Gyre Heros}
+\setsansfont{TeX Gyre Heros}
 \usepackage{booktabs}
 \usepackage{graphicx}
+\usepackage{qrcode}
 \usepackage{amsmath}
 \usepackage{amssymb}
 \usepackage{graphicx}
 \usepackage{tikz}
 \usetikzlibrary{shapes,arrows,arrows.meta,calc,math,positioning}
 
+% ============================================================
+%  CUSTOM THEME — "Forensic Navy"
+% ============================================================
+\definecolor{navy}{HTML}{163A5C}
+\definecolor{navylight}{HTML}{2E6199}
+\definecolor{navypale}{HTML}{EDF2F7}
+\definecolor{amber}{HTML}{D98424}
+\definecolor{amberpale}{HTML}{FBEEDD}
+\definecolor{teal}{HTML}{0E7C7B}
+\definecolor{tealpale}{HTML}{DFF0EE}
+\definecolor{slate}{HTML}{5B6472}
+\definecolor{inktext}{HTML}{22282E}
+
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{itemize item}{\small\raisebox{0.15ex}{\textcolor{amber}{$\blacktriangleright$}}}
+\setbeamertemplate{itemize subitem}{\footnotesize\textcolor{navylight}{$\bullet$}}
+\setbeamertemplate{enumerate item}{\color{navy}\bfseries\insertenumlabel.}
+\setbeamertemplate{caption}[numbered]
+
+\setbeamercolor{normal text}{fg=inktext}
+\setbeamercolor{structure}{fg=navy}
+\setbeamercolor{alerted text}{fg=amber!85!black}
+\setbeamercolor{palette primary}{bg=navy,fg=white}
+
+\setbeamercolor{title}{fg=navy}
+\setbeamercolor{subtitle}{fg=slate}
+\setbeamercolor{author}{fg=inktext}
+\setbeamercolor{institute}{fg=slate}
+\setbeamercolor{date}{fg=navylight}
+
+\setbeamercolor{frametitle}{bg=navy,fg=white}
+\setbeamerfont{frametitle}{series=\bfseries,size=\large}
+\setbeamerfont{framesubtitle}{series=\mdseries,size=\scriptsize}
+
+\setbeamercolor{block title}{bg=navypale,fg=navy}
+\setbeamercolor{block body}{bg=navypale!45,fg=inktext}
+\setbeamerfont{block title}{series=\bfseries}
+\setbeamercolor{block title alerted}{bg=amberpale,fg=amber!70!black}
+\setbeamercolor{block body alerted}{bg=amberpale!55,fg=inktext}
+\setbeamerfont{block title alerted}{series=\bfseries}
+
+\setbeamercolor{footline}{fg=slate}
+\setbeamerfont{footline}{size=\scriptsize}
+
+% Content margins match the slide-title margins (title text starts after the
+% 0.13cm amber tab + 0.4cm gap = 0.53cm; title rightskip is 0.55cm).
+\setbeamersize{text margin left=0.53cm,text margin right=0.55cm}
+
+% -- frame title: navy band with full-height amber tab --
+% Band height/depth are fixed so the amber tab spans the WHOLE band (no stub).
+\newlength{\ftbaht}\setlength{\ftbaht}{13pt}
+\newlength{\ftbadp}\setlength{\ftbadp}{5pt}
+\setbeamertemplate{frametitle}{%
+  \nointerlineskip
+  \begin{beamercolorbox}[wd=\paperwidth,ht=\ftbaht,dp=\ftbadp,leftskip=0pt,rightskip=0.55cm]{frametitle}%
+    {\color{amber}\vrule width 0.13cm height \ftbaht depth \ftbadp}%
+    \hspace{0.4cm}\usebeamerfont{frametitle}\insertframetitle%
+  \end{beamercolorbox}%
+}
+
+% -- footline: page count right only --
+\setbeamertemplate{footline}{%
+  \begin{beamercolorbox}[wd=\paperwidth,ht=2.0ex,dp=0.9ex,leftskip=0.53cm,rightskip=0.55cm]{footline}%
+    \usebeamerfont{footline}\hfill\usebeamertemplate*{page number in head/foot}%
+  \end{beamercolorbox}%
+}
+
+% -- title page: institution logos, clean centred block --
+\setbeamertemplate{title page}{%
+  \vspace*{0.4cm}
+  \begin{center}
+    \begin{tabular}{@{}c@{\hspace{0.6cm}}c@{\hspace{0.6cm}}c@{}}
+      \raisebox{0pt}[0pt][0pt]{\includegraphics[height=1.05cm,keepaspectratio]{Logos/univaq.png}} &
+      \raisebox{0.0ex}{\includegraphics[height=0.84cm,keepaspectratio]{Logos/mathmods.jpg}} &
+      \raisebox{0pt}[0pt][0pt]{\includegraphics[height=1.05cm,keepaspectratio]{Logos/uhh.jpg}}
+    \end{tabular}
+
+    \vskip0.28cm
+    {\color{navy!70}\rule{\linewidth}{0.8pt}}
+
+    \vskip0.45cm
+    {\usebeamercolor[fg]{title}\fontsize{20}{24}\selectfont\textbf{\inserttitle}\par}
+    \vskip0.12cm
+    {\usebeamercolor[fg]{subtitle}\fontsize{13}{16.5}\selectfont\insertsubtitle\par}
+
+    \vskip0.5cm
+    {\fontsize{16}{20}\selectfont\bfseries\color{navy}\insertauthor\par}
+    \vskip0.16cm
+    {\normalcolor\usebeamercolor[fg]{institute}\insertinstitute\par}
+  \end{center}
+  \vfill
+  {\hfill\small\usebeamercolor[fg]{date}\insertdate\hfill}
+  \vskip0.12cm
+}
+
 \tikzstyle{interval}            = [line width = 1pt, > = {Circle[length = 3.4pt]}, shorten > = -0pt]
-\tikzstyle{interval label}      = [font = {\small}]
+\tikzstyle{interval label}      = [font = {\footnotesize}]
 
 \newcommand*{\Interval}[5][]{%
     \draw[interval, #1] (#2, #4) -- (#3, #4);
@@ -30,31 +126,31 @@
 }
 
 \newcommand*{\DoodleSP}{%
-    \begin{tikzpicture}[xscale=0.4, yscale=0.16, baseline={($(current bounding box.north)-(0,7.5pt)$)}]
+    \begin{tikzpicture}[xscale=0.4, yscale=0.17, baseline={($(current bounding box.north)-(0,7.5pt)$)}]
         \RSIntervals{<-}{0}{3}{<-}{1}{3}
     \end{tikzpicture}%
 }
 
 \newcommand*{\DoodleBef}{%
-    \begin{tikzpicture}[xscale=0.4, yscale=0.16, baseline={($(current bounding box.north)-(0,7.5pt)$)}]
+    \begin{tikzpicture}[xscale=0.4, yscale=0.17, baseline={($(current bounding box.north)-(0,7.5pt)$)}]
         \RSIntervals{->}{0}{1}{<-}{2}{3}
     \end{tikzpicture}%
 }
 
 \newcommand*{\DoodleLOJ}{%
-    \begin{tikzpicture}[xscale=0.4, yscale=0.16, baseline={($(current bounding box.north)-(0,7.5pt)$)}]
+    \begin{tikzpicture}[xscale=0.4, yscale=0.17, baseline={($(current bounding box.north)-(0,7.5pt)$)}]
         \RSIntervals{<->}{0}{2}{<->}{1}{3}
     \end{tikzpicture}%
 }
 
 \newcommand*{\DoodleDJ}{%
-    \begin{tikzpicture}[xscale=0.4, yscale=0.16, baseline={($(current bounding box.north)-(0,7.5pt)$)}]
+    \begin{tikzpicture}[xscale=0.4, yscale=0.17, baseline={($(current bounding box.north)-(0,7.5pt)$)}]
         \RSIntervals{<->}{1}{2}{<->}{0}{3}
     \end{tikzpicture}%
 }
 
 \newcommand*{\DoodleEF}{%
-    \begin{tikzpicture}[xscale=0.4, yscale=0.16, baseline={($(current bounding box.north)-(0,7.5pt)$)}]
+    \begin{tikzpicture}[xscale=0.4, yscale=0.17, baseline={($(current bounding box.north)-(0,7.5pt)$)}]
         \RSIntervals{->}{0}{3}{->}{0}{2}
     \end{tikzpicture}%
 }
@@ -67,23 +163,14 @@
 \newcommand*{\EF}{\mathrm{EF}}
 \newcommand*{\size}{\mathrm{size}}
 
-\setbeamertemplate{navigation symbols}{}
-\setbeamertemplate{itemize item}{\scriptsize\raisebox{0.3ex}{$\blacktriangleright$}}
-\setbeamertemplate{itemize subitem}{$\bullet$}
-\setbeamercolor{frametitle}{bg=blue!85!black,fg=white}
-\setbeamercolor{title}{fg=blue!85!black}
-\setbeamerfont{frametitle}{series=\bfseries}
-
-
 \title[WATCHOUT ISEQL]{WATCHOUT ISEQL}
 \subtitle{Large Audio-Language Models and Object Re-Identification\\for Forensic Multimodal Surveillance Event Detection}
 \author[G. Rifqialdi]{Ghiffary Rifqialdi}
-\institute[UnivAQ \& UHH]{%
-  Joint Degree M.Sc.\ Mathematical Modelling in Engineering\\
-  Universit\`a degli Studi dell'Aquila \hspace{1cm} Universit\"at Hamburg\\[0.6em]
-  {\footnotesize Supervisor: Prof.\ Fabio Persia}\\[0.8em]
-  {\footnotesize\itshape Submitted for peer review at the IEEE/CVF Winter\\
-    Conference on Applications of Computer Vision (WACV), as first author}
+\institute[Universities]{%
+  {\footnotesize Joint Degree of Master of Science in Mathematical Modelling in Engineering: Theory, Numerics, Applications}\\[0.1em]
+  {\footnotesize Universit\`a degli Studi dell'Aquila and Universit\"at Hamburg}\\[0.15em]
+  {\footnotesize Supervisor: Prof.\ Fabio Persia}\\[0.15em]
+  {\scriptsize\itshape\color{slate} Submitted for peer review at the IEEE/CVF WACV 2027, as first author}
 }
 \date{Master's Thesis Defense}
 
@@ -94,9 +181,8 @@
 % ── MOTIVATION ──
 \section{Motivation}
 \begin{frame}{The Surveillance Problem}
-\begin{columns}[T]
+\begin{columns}[c,onlytextwidth]
 \column{0.52\textwidth}
-\vspace{0.5em}
 \textbf{900 million} surveillance cameras worldwide.\\
 \vspace{0.4em}
 A human operator watching \textbf{multiple feeds} experiences \alert{vigilance decrement} after approximately 20 minutes.\\
@@ -117,10 +203,11 @@ Critical events go unnoticed. A missed event could mean a missed crime.
 % ── PROBLEM & GAP ──
 \section{Problem and Gap}
 \begin{frame}{Prior Work: VIS MODE and Its Limitations}
+\footnotesize
 \begin{block}{VIS MODE (Crescitelli et al., ECCV 2026)}
 First ISEQL-based event detector using VLM perception.
 \end{block}
-\vspace{0.4em}
+\vspace{0.3em}
 \begin{alertblock}{Three problems identified}
 \begin{enumerate}
   \item \textbf{Missing re-identification:} VLM assigned new IDs every frame, intervals never spanned multiple frames, \alert{tracking-dependent events undetected}.
@@ -139,13 +226,13 @@ First ISEQL-based event detector using VLM perception.
 \footnotesize
 \begin{tikzpicture}[
   node distance=0.6cm,
-  box/.style={rectangle,draw=blue!60,fill=blue!5,rounded corners=3pt,align=center,minimum height=1.0cm,font=\footnotesize},
-  arrow/.style={-Stealth,thick,blue!60},
+  box/.style={rectangle,draw=navy!60,fill=navypale,rounded corners=3pt,align=center,minimum height=1.0cm,font=\footnotesize},
+  arrow/.style={-Stealth,thick,navy!35},
 ]
-\node[box] (video) at (0,0) {\textbf{Input Video}\quad 30 scenes, 10s, 24fps};
-\node[box,fill=red!5,draw=red!60,text width=4.2cm] (A) at (-3.8,-2.2) {\textbf{Condition A (Visual)}\\VLM + RAG re-ID\\(SigLIP + ChromaDB)\\6 ISEQL queries};
-\node[box,fill=green!5,draw=green!60,text width=4.2cm] (B) at (3.8,-2.2) {\textbf{Condition B (Audio)}\\Qwen2-Audio / PANNs\\4 ISEQL queries};
-\node[box,fill=blue!5,draw=blue!80,text width=4.8cm] (C) at (0,-4.4) {\textbf{Condition C (Multimodal)}\\$C = A \cup B$ (UNION), 6 ISEQL queries\\No temporal cross-modal joins};
+\node[box,fill=blue!5,draw=blue!35] (video) at (0,0) {\textbf{Input Video}\quad 30 scenes, 10s, 24fps};
+\node[box,fill=red!5,draw=red!35,text width=4.2cm] (A) at (-3.8,-2.2) {\textbf{Condition A (Visual)}\\VLM + RAG re-ID\\(SigLIP + ChromaDB)\\6 ISEQL queries};
+\node[box,fill=green!5,draw=green!35,text width=4.2cm] (B) at (3.8,-2.2) {\textbf{Condition B (Audio)}\\Qwen2-Audio / PANNs\\4 ISEQL queries};
+\node[box,fill=blue!5,draw=blue!50,text width=4.8cm] (C) at (0,-4.4) {\textbf{Condition C (Multimodal)}\\$C = A \cup B$ (UNION), 6 ISEQL queries\\No temporal cross-modal joins};
 
 \draw[arrow] (video.south) -- (A.north);
 \draw[arrow] (video.south) -- (B.north);
@@ -160,34 +247,37 @@ First ISEQL-based event detector using VLM perception.
 \section{ISEQL}
 \begin{frame}{ISEQL: Interval Operators}
 \scriptsize
+\renewcommand{\arraystretch}{0.85}
 \textbf{ISEQL (Helmer \& Persia, 2016; Persia et al., 2017; Persia et al., 2026):} interval-based query language; we adopt the ISEQL+ parameter set.\\
 \textbf{Notation:} $r$, $s$: interval operands; $T_s$, $T_e$: endpoints; $\delta,\varepsilon$: distance tolerances (default $\infty$); $\zeta,\eta \in \{\le,<\}$: strictness (default $\le$); $\rho$: robustness (default 0).
-\vspace{0.2em}
-\setlength{\abovedisplayskip}{2pt}
-\setlength{\belowdisplayskip}{2pt}
+\vspace{\baselineskip}
+\setlength{\abovedisplayskip}{1pt}
+\setlength{\belowdisplayskip}{1pt}
+\setlength{\topsep}{0pt}
+\setlength{\partopsep}{0pt}
 \begin{center}
-\begin{tabular}{@{}p{9.5em}p{6em}p{13em}@{}}
+\begin{tabular}{@{}p{9.5em}p{6em}p{13.8em}@{}}
   \toprule
   Operator & Diagram & Definition \\
   \midrule
-  \textsc{Before} $\Bef(\delta;\zeta,\rho)$ & \DoodleBef & $r.T_e\;\zeta\;(s.T_s+\rho)$\newline $(s.T_s-r.T_e)\le\delta+\rho$ \\
-  \addlinespace
-  \textsc{Start Preceding} $\SP(\delta;\zeta,\rho)$ & \DoodleSP & $(r.T_s-\rho)\;\zeta\;s.T_s<r.T_e+\rho$\newline $(s.T_s-r.T_s)\le\delta+\rho$ \\
-  \addlinespace
-  \textsc{Left Overlap Join} $\LOJ(\delta,\varepsilon;\zeta,\eta,\rho)$ & \DoodleLOJ & $(r.T_s-\rho)\;\zeta\;s.T_s<r.T_e+\rho$\newline $(s.T_s-\rho)<r.T_e\;\eta\;(s.T_e+\rho)$\newline $(s.T_s-r.T_s)\le\delta+\rho$\newline $(s.T_e-r.T_e)\le\varepsilon+\rho$ \\
-  \addlinespace
-  \textsc{During Join} $\DJoin(\delta,\varepsilon;\zeta,\eta,\rho)$ & \DoodleDJ & $(s.T_s-\rho)\;\zeta\;r.T_s\le s.T_e+\rho$\newline $(s.T_s-\rho)\le r.T_e\;\eta\;(s.T_e+\rho)$\newline $(r.T_s-s.T_s)\le\delta+\rho$\newline $(s.T_e-r.T_e)\le\varepsilon+\rho$ \\
-  \addlinespace
-  \textsc{End Following} $\EF(\varepsilon;\eta,\rho)$ & \DoodleEF & $(r.T_s-\rho)<s.T_e\;\eta\;(r.T_e+\rho)$\newline $(r.T_e-s.T_e)\le\varepsilon+\rho$ \\
+  \begin{tabular}[t]{@{}l@{}}\textsc{Before} \\ $\Bef(\delta;\zeta,\rho)$\end{tabular} & \DoodleBef & $r.T_e\;\zeta\;(s.T_s+\rho)$\newline $(s.T_s-r.T_e)\le\delta+\rho$ \\
+  \addlinespace[0.08em]
+  \begin{tabular}[t]{@{}l@{}}\textsc{Start Preceding} \\ $\SP(\delta;\zeta,\rho)$\end{tabular} & \DoodleSP & $(r.T_s-\rho)\;\zeta\;s.T_s<r.T_e+\rho$\newline $(s.T_s-r.T_s)\le\delta+\rho$ \\
+  \addlinespace[0.08em]
+  \begin{tabular}[t]{@{}l@{}}\textsc{Left Overlap Join} \\ $\LOJ(\delta,\varepsilon;\zeta,\eta,\rho)$\end{tabular} & \DoodleLOJ & $(r.T_s-\rho)\;\zeta\;s.T_s<r.T_e+\rho$\newline $(s.T_s-\rho)<r.T_e\;\eta\;(s.T_e+\rho)$\newline $(s.T_s-r.T_s)\le\delta+\rho$\newline $(s.T_e-r.T_e)\le\varepsilon+\rho$ \\
+  \addlinespace[0.08em]
+  \begin{tabular}[t]{@{}l@{}}\textsc{During Join} \\ $\DJoin(\delta,\varepsilon;\zeta,\eta,\rho)$\end{tabular} & \DoodleDJ & $(s.T_s-\rho)\;\zeta\;r.T_s\le s.T_e+\rho$\newline $(s.T_s-\rho)\le r.T_e\;\eta\;(s.T_e+\rho)$\newline $(r.T_s-s.T_s)\le\delta+\rho$\newline $(s.T_e-r.T_e)\le\varepsilon+\rho$ \\
+  \addlinespace[0.08em]
+  \begin{tabular}[t]{@{}l@{}}\textsc{End Following} \\ $\EF(\varepsilon;\eta,\rho)$\end{tabular} & \DoodleEF & $(r.T_s-\rho)<s.T_e\;\eta\;(r.T_e+\rho)$\newline $(r.T_e-s.T_e)\le\varepsilon+\rho$ \\
   \bottomrule
 \end{tabular}
 \end{center}
-\vspace{0.3em}
-This thesis uses primarily \textbf{Bef} and \textbf{SP}; Aft, ROJ, and RDJ are their reverse counterparts.
+\vspace{\baselineskip}
+\footnotesize{}This thesis uses primarily \textbf{Bef} and \textbf{SP}; Aft, ROJ, and RDJ are their reverse counterparts.
 \end{frame}
 
 \begin{frame}{ISEQL: Event Definitions (1/2)}
-\scriptsize
+\fontsize{7.5}{9}\selectfont
 \setlength{\jot}{2pt}
 \setlength{\abovedisplayskip}{4pt}
 \setlength{\belowdisplayskip}{4pt}
@@ -218,55 +308,57 @@ This thesis uses primarily \textbf{Bef} and \textbf{SP}; Aft, ROJ, and RDJ are t
 
 \par\vspace{0.4em}
 \noindent\textbf{Suspicious Near Vehicle}\par\vspace{2pt}
-\noindent$\mathrm{SuspiciousNearVehicle}_A$ $\equiv \begin{aligned}[t]
+\noindent$\mathrm{Suspicious\ Near\ Vehicle}_A$ $\equiv \begin{aligned}[t]
 &\pi_{M_1.\mathrm{arg}_1, M_1.\mathrm{arg}_2, M_1.s_t, M_1.e_t} ( \\
 &\quad \sigma_{M_1.e_t - M_1.s_t \ge 3} ( \\
-&\qquad \sigma_{\texttt{pred}=\text{`suspicious\_near\_vehicle'} \land \mathrm{arg}_1=\text{`person'} \land \mathrm{arg}_2=\text{`vehicle'}}(M_1) ) )
+&\quad \sigma_{\texttt{pred}=\text{`suspicious\_near\_vehicle'} \land \mathrm{arg}_1=\text{`person'} \land \mathrm{arg}_2=\text{`vehicle'}}(M_1) ) )
 \end{aligned}$
 \end{frame}
 
 \begin{frame}{ISEQL: Event Definitions (2/2)}
-\scriptsize
-\setlength{\jot}{2pt}
-\setlength{\abovedisplayskip}{4pt}
-\setlength{\belowdisplayskip}{4pt}
+\fontsize{7.5}{9}\selectfont
+\setlength{\jot}{0.9pt}
+\setlength{\abovedisplayskip}{3pt}
+\setlength{\belowdisplayskip}{3pt}
 \setlength{\abovedisplayshortskip}{0pt}
 \setlength{\belowdisplayshortskip}{0pt}
 
-\par\vspace{0.25em}
-\noindent\textbf{Vehicle Escape}\par\vspace{2pt}
+\par\vspace{0.05em}
+\noindent\textbf{Vehicle Escape}\par\vspace{0.9pt}
 \noindent$\mathrm{Vehicle\ Escape}_A$ $\equiv \begin{aligned}[t]
 &\pi_{M_1.\mathrm{arg}_1, M_2.\mathrm{arg}_2, M_1.s_t, M_2.e_t} ( \\
-&\quad \sigma_{M_1.\mathrm{arg}_1 = M_2.\mathrm{arg}_1} ( \sigma_{\texttt{pred}=\text{`running'} \land \mathrm{arg}_1=\text{`person'}}(M_1) \;\Bef(\delta:2;\,\zeta:\le,\,\rho:0)\; \sigma_{\texttt{pred}=\text{`enter\_or\_exit\_vehicle'} \land \mathrm{arg}_1=\text{`person'} \land \mathrm{arg}_2=\text{`vehicle'}}(M_2) ) )
-\end{aligned}$\par\vspace{2pt}
+&\quad \sigma_{M_1.\mathrm{arg}_1 = M_2.\mathrm{arg}_1} \\
+&\qquad ( \sigma_{\texttt{pred}=\text{`running'} \land \mathrm{arg}_1=\text{`person'}}(M_1) \;\Bef(\delta:2;\,\zeta:\le,\,\rho:0)\; \sigma_{\texttt{pred}=\text{`enter\_or\_exit\_vehicle'} \land \mathrm{arg}_1=\text{`person'} \land \mathrm{arg}_2=\text{`vehicle'}}(M_2) ) )
+\end{aligned}$\par\vspace{0.9pt}
 \noindent$\mathrm{Vehicle\ Escape}_B$ $\equiv \begin{aligned}[t]
 &\pi_{M_1.s_t, M_2.e_t} ( \\
     &\quad \sigma_{\texttt{pred}=\text{`engine'} \lor \texttt{pred}=\text{`vehicle'}}(M_1) \;\SP(\delta:\infty;\,\zeta:\le,\,\rho:0)\; \sigma_{\texttt{pred}=\text{`tire\_squeal'}}(M_2) )
-\end{aligned}$\par\vspace{2pt}
-\noindent$\mathrm{Vehicle\ Escape}_C$ $= \mathrm{Vehicle\ Escape}_A \cup \mathrm{Vehicle\ Escape}_B$\par\vspace{2pt}
+\end{aligned}$\par\vspace{0.9pt}
+\noindent$\mathrm{Vehicle\ Escape}_C$ $= \mathrm{Vehicle\ Escape}_A \cup \mathrm{Vehicle\ Escape}_B$\par\vspace{0.9pt}
 
-\par\vspace{0.25em}
-\noindent\textbf{Vehicle Collision}\par\vspace{2pt}
+\par\vspace{0.05em}
+\noindent\textbf{Vehicle Collision}\par\vspace{0.9pt}
 \noindent$\mathrm{Vehicle\ Collision}_A$ $\equiv \begin{aligned}[t]
 &\pi_{M_1.\mathrm{arg}_1, M_1.s_t, M_1.e_t} ( \\
 &\quad \sigma_{\texttt{pred}=\text{`vehicle\_collision'} \land \mathrm{arg}_1=\text{`vehicle'}}(M_1) )
-\end{aligned}$\par\vspace{2pt}
+\end{aligned}$\par\vspace{0.9pt}
 \noindent$\mathrm{Vehicle\ Collision}_B$ $\equiv \begin{aligned}[t]
 &\pi_{M_1.s_t, M_2.e_t} ( \\
     &\quad \sigma_{\texttt{pred}=\text{`horn'} \lor \texttt{pred}=\text{`skidding'}}(M_1) \;\SP(\delta:\infty;\,\zeta:\le,\,\rho:0)\; \sigma_{\texttt{pred}=\text{`impact'} \lor \texttt{pred}=\text{`glass\_breaking'}}(M_2) )
-\end{aligned}$\par\vspace{2pt}
-\noindent$\mathrm{Vehicle\ Collision}_C$ $= \mathrm{Vehicle\ Collision}_A \cup \mathrm{Vehicle\ Collision}_B$\par\vspace{2pt}
+\end{aligned}$\par\vspace{0.9pt}
+\noindent$\mathrm{Vehicle\ Collision}_C$ $= \mathrm{Vehicle\ Collision}_A \cup \mathrm{Vehicle\ Collision}_B$\par\vspace{0.9pt}
 
-\par\vspace{0.25em}
-\noindent\textbf{Gunshot / Explosion}\par\vspace{2pt}
+\par\vspace{0.05em}
+\noindent\textbf{Gunshot / Explosion}\par\vspace{0.9pt}
 \noindent$\mathrm{Gunshot\ /\ Explosion}_A$ $\equiv \begin{aligned}[t]
 &\pi_{M_1.\mathrm{arg}_1, M_1.s_t, M_1.e_t} ( \\
-&\quad \sigma_{( \texttt{pred}=\text{`gunshot\_visible'} \land \mathrm{arg}_1=\text{`person'} ) \lor ( \texttt{pred}=\text{`explosion\_visible'} \land ( \mathrm{arg}_1=\text{`vehicle'} \lor \mathrm{arg}_1=\text{`object'} ) )}(M_1) )
-\end{aligned}$\par\vspace{2pt}
+&\quad \sigma_{( \texttt{pred}=\text{`gunshot\_visible'} \land \mathrm{arg}_1=\text{`person'} ) \lor ( \texttt{pred}=\text{`explosion\_visible'} \land ( \mathrm{arg}_1=\text{`vehicle'} \lor \mathrm{arg}_1=\text{`object'} ) )} \\
+&\qquad (M_1) )
+\end{aligned}$\par\vspace{0.9pt}
 \noindent$\mathrm{Gunshot\ /\ Explosion}_B$ $\equiv \begin{aligned}[t]
 &\pi_{M_1.s_t, M_1.e_t} ( \\
 &\quad \sigma_{\texttt{pred}=\text{`gunshot\_or\_explosion'}}(M_1) )
-\end{aligned}$\par\vspace{2pt}
+\end{aligned}$\par\vspace{0.9pt}
 \noindent$\mathrm{Gunshot\ /\ Explosion}_C$ $= \mathrm{Gunshot\ /\ Explosion}_A \cup \mathrm{Gunshot\ /\ Explosion}_B$
 \end{frame}
 
@@ -274,7 +366,7 @@ This thesis uses primarily \textbf{Bef} and \textbf{SP}; Aft, ROJ, and RDJ are t
 \section{RQ1: Re-Identification}
 \begin{frame}{RQ1: Object Re-Identification Is Essential}
 \centering
-\begin{columns}[T]
+\begin{columns}[T,onlytextwidth]
 \column{0.5\textwidth}
 \small
 \textbf{Without re-ID:} VLM assigns new IDs per frame.\\
@@ -290,8 +382,9 @@ Frame 1: detect objects and assign IDs; embed crops (SigLIP, Zhai et al., 2023).
 Frames $k$: prompt = last 3 frames + top-5 similar from ChromaDB; match by class + block overlap.
 \end{columns}
 
-\vspace{0.9em}
 \footnotesize
+\vspace{\baselineskip}
+{\setlength{\tabcolsep}{3pt}%
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{l ccc ccc ccc ccc cc cc}
     \toprule
@@ -306,10 +399,9 @@ Frames $k$: prompt = last 3 frames + top-5 similar from ChromaDB; match by class
      Gemini 2.5 Flash & 0.419 & 0.737 & +0.318 & 0.692 & 0.778 & +0.086 & 0.300 & 0.700 & +0.400 & 9 & 21 & +12 & 4 & 6 & 21 & 9 \\
      \midrule
      Pixtral 12B & 0.553 & 0.667 & +0.114 & 0.765 & 0.704 & $-$0.061 & 0.433 & 0.633 & +0.200 & 13 & 19 & +6 & 4 & 8 & 17 & 11 \\
-    \bottomrule\end{tabular}}
+    \bottomrule\end{tabular}}}
 
-\vspace{0.9em}
-\footnotesize
+\vspace{\baselineskip}
 Re-ID mainly adds \alert{suspicious near vehicle, vehicle escape, handoff} (all 0/5 without re-ID):\\
 Gemini 3.6 Flash suspicious near vehicle 0/5$\to$5/5, escape 0/5$\to$3/5, handoff 0/5$\to$5/5.
 \end{frame}
@@ -320,7 +412,8 @@ Gemini 3.6 Flash suspicious near vehicle 0/5$\to$5/5, escape 0/5$\to$3/5, handof
 \centering
 \footnotesize
 \textbf{20 audio-relevant scenes. Qwen2-Audio (Chu et al., 2024) vs.\ PANNs (Kong et al., 2020). F1 = harmonic mean of precision and recall. Best config per model bolded.}
-\vspace{0.3em}
+\vspace{\baselineskip}
+\renewcommand{\arraystretch}{0.92}
 
 \begin{tabular}{lcccccccc}
 \toprule
@@ -346,7 +439,7 @@ PANNs CNN14 & 10.0 & 5.00 & 0.261 & 1.000 & 0.150 & 3 & 0 & 17 \\
 \bottomrule
 \end{tabular}
 
-\vspace{0.4em}
+\vspace{\baselineskip}
 \footnotesize
 \textbf{Qwen2-Audio: perfect precision (1.000) at 2.5s and 5.0s windows; best 5.0s/2.5s (F1=0.788).}
 \end{frame}
@@ -358,7 +451,7 @@ PANNs CNN14 & 10.0 & 5.00 & 0.261 & 1.000 & 0.150 & 3 & 0 & 17 \\
 \footnotesize
 \textbf{Condition C:} $C = A \cup B$ (no temporal cross-modal joins).\\
 Best audio window/hop per pair (all tied configs shown; complete 64-combo ranking in appendix).
-\vspace{0.6em}
+\vspace{\baselineskip}
 
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lccccccc}
@@ -376,7 +469,7 @@ VLM + Audio Model & Window/Hop (s) & F1 & Precision & Recall & TP & FP & FN \\
 \bottomrule
 \end{tabular}}
 
-\vspace{0.7em}
+\vspace{\baselineskip}
 \footnotesize
 Visual-only best \textbf{0.885} (Gemini 3.6 Flash); Audio-only best \textbf{0.788} (Qwen2, 5.0s/2.5s).\\
 \textbf{Thesis claim: $C \ge \max(A, B)$ holds on all 30 scenes.}
@@ -387,7 +480,7 @@ Visual-only best \textbf{0.885} (Gemini 3.6 Flash); Audio-only best \textbf{0.78
 \centering
 \footnotesize
 \textbf{Gemini 3.6 Flash + Qwen2-Audio \hspace{0.5em} 30/30 (F1 = 0.938) at 5.0s/2.5s window/hop}
-\vspace{0.6em}
+\vspace{\baselineskip}
 
 \begin{tabular}{lcccc}
 \toprule
@@ -404,7 +497,7 @@ Handoff & 5/5 & -- & 5/5 & visual only \\
 \bottomrule
 \end{tabular}
 
-\vspace{0.7em}
+\vspace{\baselineskip}
 Union is most valuable when modalities are complementary: audio catches what visual misses (vehicle escape, gunshot) and vice versa (fight).
 \end{frame}
 
@@ -433,11 +526,8 @@ Union is most valuable when modalities are complementary: audio catches what vis
 \end{enumerate}
 \end{frame}
 
-% ── THANK YOU ──
-\begin{frame}{Future Work \& Thank You}
-\begin{columns}[T]
-\column{0.5\textwidth}
-\textbf{Future directions:}
+% ── FUTURE WORK ──
+\begin{frame}{Future Work}
 \begin{itemize}
   \item Real CCTV evaluation (currently synthetic data)
   \item Stronger LALMs
@@ -446,26 +536,27 @@ Union is most valuable when modalities are complementary: audio catches what vis
   \item Trained fusion: weight visual vs.\ audio detection reliability
   \item Multi-camera / PTZ support
 \end{itemize}
+\end{frame}
 
-\column{0.5\textwidth}
-\begin{block}{Acknowledgments}
-VIS MODE team (Crescitelli, Persia, Cipriani, Pea)\\[2pt]
-IEJoin authors (Piatov, Helmer, Dignoes, Persia)\\[2pt]
-PANNs (Kong et al.) and Qwen2-Audio authors
-\end{block}
-\vspace{0.5em}
+% ── RESOURCES ──
+\begin{frame}{Resources}
 \centering
-\Large Thank you.\\[0.3em]
-\normalsize Questions?
-\end{columns}
-
-\vspace{1em}
-{\normalsize
-  \textbf{Dataset:} \url{https://doi.org/10.5281/zenodo.22157399}\\[0.4em]
-  \textbf{Code:} \url{https://github.com/ghiffaryr/multimodal-surveillance-iseql}\\[0.4em]
-  \textbf{Demo videos:} \url{https://www.youtube.com/playlist?list=PLFLgVwjKtX80}\\[0.4em]
+\vspace{\baselineskip}
+\noindent\begin{minipage}{\textwidth}
+\begin{minipage}[c]{0.70\textwidth}
+\raggedright\setlength{\leftskip}{0pt}\setlength{\parindent}{0pt}\footnotesize\noindent
+  \textbf{Dataset:} \url{https://doi.org/10.5281/zenodo.22157399}\\[0.5em]
+  \textbf{Code:} \url{https://github.com/ghiffaryr/multimodal-surveillance-iseql}\\[0.5em]
+  \textbf{Demo videos:} \url{https://www.youtube.com/playlist?list=PLFLgVwjKtX80}\\[0.5em]
   \textbf{Live application (free, no login):} \url{https://foiled-aubrie-chiropodial.ngrok-free.dev}
-}
+\end{minipage}%
+\hspace{0.4cm}%
+\begin{minipage}[c]{2.3cm}
+\centering
+\qrcode[height=2.0cm]{https://foiled-aubrie-chiropodial.ngrok-free.dev}\\[0.25em]
+{\scriptsize Live application}
+\end{minipage}
+\end{minipage}
 \end{frame}
 
 % ── APPENDIX: COMPLETE ABLATION ──
@@ -475,12 +566,12 @@ PANNs (Kong et al.) and Qwen2-Audio authors
 % ── APPENDIX: DETAILED ARCHITECTURE ──
 \begin{frame}{Appendix: Detailed System Architecture}
 \centering
-\resizebox{0.92\textwidth}{!}{%
+\hspace*{-0.25cm}\makebox[\textwidth][c]{\resizebox{1.06\textwidth}{!}{%
 \begin{tikzpicture}[
-  box/.style={rectangle,draw=blue!60,fill=blue!5,rounded corners=3pt,align=center,minimum height=0.42cm,font=\tiny,inner sep=2pt},
-  db/.style={cylinder,draw=blue!60,fill=blue!10,shape border rotate=90,aspect=0.2,minimum height=0.48cm,minimum width=1.55cm,align=center,font=\tiny,inner sep=2pt},
-  arrow/.style={-Stealth,thick,blue!60},
-  run/.style={font=\tiny,align=center,text=blue!50!black,fill=white,draw=blue!30,inner sep=1pt,rounded corners=1pt},
+  box/.style={rectangle,draw=navy!60,fill=navypale,rounded corners=3pt,align=center,minimum height=0.42cm,font=\tiny,inner sep=2pt},
+  db/.style={cylinder,draw=navy!60,fill=navy!12,shape border rotate=90,aspect=0.2,minimum height=0.48cm,minimum width=1.55cm,align=center,font=\tiny,inner sep=2pt},
+  arrow/.style={-Stealth,thick,navy!60},
+  run/.style={font=\tiny,align=center,text=navy!70!black,fill=white,draw=navy!30,inner sep=1pt,rounded corners=1pt},
 ]
 % INPUT + PERCEPTION
 \node[box] (video) at (0.6,3.9) {\textbf{Input video}};
@@ -499,9 +590,9 @@ PANNs (Kong et al.) and Qwen2-Audio authors
 \node[box] (ev) at (1.8,-3.2) {Events by condition\\A: 6 visual, B: 4 audio, C: 6 (UNION)};
 
 % RAG SUBTREE (wide shaded panel)
-\fill[blue!8] (-9.8,0.9) rectangle (-5.8,-4.0);
-\draw[blue!40,dashed,thick] (-9.8,0.9) rectangle (-5.8,-4.0);
-\node[font=\tiny\bfseries,text=blue!70!black,anchor=south] at (-7.8,0.9) {Object Re-Identification (RAG object memory)};
+\fill[amberpale] (-9.8,0.9) rectangle (-5.8,-4.0);
+\draw[amber!60,dashed,thick] (-9.8,0.9) rectangle (-5.8,-4.0);
+\node[font=\tiny\bfseries,text=amber!70!black,anchor=south] at (-7.8,0.9) {Object Re-Identification (RAG object memory)};
 \node[box] (sig) at (-7.8,0.0) {SigLIP embedding\\of grid-block crops};
 \node[db] (chroma) at (-7.8,-1.4) {Chroma vector store\\per-scene collection};
 \node[box] (retr) at (-7.8,-2.7) {top-5 similar retrieval\\+ last-3-frame recency};
@@ -523,28 +614,30 @@ PANNs (Kong et al.) and Qwen2-Audio authors
 \draw[arrow] (chroma.south) -- (retr.north);
 \draw[arrow] (retr.south) -- (track.north);
 \draw[arrow] (track.west) -- ++(-0.7,0) |- (vlm.west);
-\node[font=\tiny,text=blue!70!black,anchor=east] at (-10.1,-1.4) {reuse IDs};
-\end{tikzpicture}}
+\node[font=\tiny,text=amber!70!black,anchor=east] at (-10.1,-1.4) {reuse IDs};
+\end{tikzpicture}}}
 \end{frame}
+
+% ── APPENDIX: DATABASE SCHEMA ──
 
 % ── APPENDIX: DATABASE SCHEMA ──
 \begingroup
 \setlength{\fboxsep}{0.5pt}  % minimal padding so PK/FK boxes don't add row height
 \begin{frame}{Appendix: Database Schema}
 \centering
-\resizebox{\textwidth}{!}{%
+\makebox[\textwidth][c]{\resizebox{1.02\textwidth}{!}{%
 \begin{tikzpicture}[
-  tbl/.style={rectangle,draw=blue!60,fill=blue!5,rounded corners=2pt,align=left,inner sep=4pt,font=\tiny},
-  arrow/.style={-Stealth,thick,blue!60},
-  hd/.style={font=\tiny\bfseries,text=blue!70!black},
-  run/.style={font=\tiny,text=blue!50!black,fill=white,draw=blue!30,inner sep=1pt,rounded corners=1pt},
+  tbl/.style={rectangle,draw=navy!60,fill=navypale,rounded corners=2pt,align=left,inner sep=4pt,font=\tiny},
+  arrow/.style={-Stealth,thick,navy!60},
+  hd/.style={font=\tiny\bfseries,text=navy!70!black},
+  run/.style={font=\tiny,text=navy!50!black,fill=white,draw=navy!30,inner sep=1pt,rounded corners=1pt},
 ]
 % ANALYSES (tall, left column)
 \node[tbl] (analyses) at (-5.3,0.4) {%
 \begin{tabular}{@{}l@{\quad}l@{\quad}l@{}}
 \multicolumn{3}{@{}l@{}}{\textbf{Analyses}}\\
-\hline
-\strut \texttt{A-Z} & ID & \colorbox{yellow!40}{\textbf{PK}}\\
+\midrule
+\strut \texttt{A-Z} & ID & \colorbox{amberpale}{\textbf{PK}}\\
 \strut \texttt{A-Z} & VideoPath & \\
 \strut \texttt{A-Z} & VideoFilename & \\
 \strut \texttt{A-Z} & Condition & \\
@@ -576,19 +669,19 @@ PANNs (Kong et al.) and Qwen2-Audio authors
 \node[tbl] (vpf) at (-1.6,2.2) {%
 \begin{tabular}{@{}l@{\quad}l@{\quad}l@{}}
 \multicolumn{3}{@{}l@{}}{\textbf{VisualPerFrame}}\\
-\hline
-\strut \texttt{A-Z} & AnalysisID & \colorbox{yellow!40}{\textbf{PK}}\\
-\strut \texttt{123} & Frame & \colorbox{yellow!40}{\textbf{PK}}\\
-\strut \texttt{123} & ClassID & \colorbox{yellow!40}{\textbf{PK}}\\
-\strut \texttt{123} & Block & \colorbox{yellow!40}{\textbf{PK}}\\
+\midrule
+\strut \texttt{A-Z} & AnalysisID & \colorbox{amberpale}{\textbf{PK}}\\
+\strut \texttt{123} & Frame & \colorbox{amberpale}{\textbf{PK}}\\
+\strut \texttt{123} & ClassID & \colorbox{amberpale}{\textbf{PK}}\\
+\strut \texttt{123} & Block & \colorbox{amberpale}{\textbf{PK}}\\
 \strut \texttt{A-Z} & Class & \\
 \strut \texttt{A-Z} & Description & \\
 \end{tabular}};
 \node[tbl] (vint) at (1.7,2.2) {%
 \begin{tabular}{@{}l@{\quad}l@{\quad}l@{}}
 \multicolumn{3}{@{}l@{}}{\textbf{VisualPerInterval}}\\
-\hline
-\strut \texttt{123} & RelationID & \colorbox{yellow!40}{\textbf{PK}}\\
+\midrule
+\strut \texttt{123} & RelationID & \colorbox{amberpale}{\textbf{PK}}\\
 \strut \texttt{A-Z} & AnalysisID & \\
 \strut \texttt{123} & StartFrame & \\
 \strut \texttt{123} & EndFrame & \\
@@ -597,9 +690,9 @@ PANNs (Kong et al.) and Qwen2-Audio authors
 \node[tbl] (vpart) at (5.8,2.2) {%
 \begin{tabular}{@{}l@{\quad}l@{\quad}l@{}}
 \multicolumn{3}{@{}l@{}}{\textbf{VisualParticipant}}\\
-\hline
-\strut \texttt{123} & RelationID & \colorbox{yellow!40}{PK}\hspace{1pt}\colorbox{cyan!25}{FK}\\
-\strut \texttt{123} & ClassID & \colorbox{yellow!40}{\textbf{PK}}\\
+\midrule
+\strut \texttt{123} & RelationID & \colorbox{amberpale}{PK}\hspace{1pt}\colorbox{navypale}{FK}\\
+\strut \texttt{123} & ClassID & \colorbox{amberpale}{\textbf{PK}}\\
 \strut \texttt{A-Z} & Class & \\
 \end{tabular}};
 
@@ -607,18 +700,18 @@ PANNs (Kong et al.) and Qwen2-Audio authors
 \node[tbl] (vrel) at (-1.6,-0.2) {%
 \begin{tabular}{@{}l@{\quad}l@{\quad}l@{}}
 \multicolumn{3}{@{}l@{}}{\textbf{VisualRelation}}\\
-\hline
-\strut \texttt{A-Z} & AnalysisID & \colorbox{yellow!40}{\textbf{PK}}\\
-\strut \texttt{123} & Frame & \colorbox{yellow!40}{\textbf{PK}}\\
-\strut \texttt{123} & RelationID & \colorbox{yellow!40}{\textbf{PK}}\\
-\strut \texttt{123} & ClassID & \colorbox{yellow!40}{\textbf{PK}}\\
+\midrule
+\strut \texttt{A-Z} & AnalysisID & \colorbox{amberpale}{\textbf{PK}}\\
+\strut \texttt{123} & Frame & \colorbox{amberpale}{\textbf{PK}}\\
+\strut \texttt{123} & RelationID & \colorbox{amberpale}{\textbf{PK}}\\
+\strut \texttt{123} & ClassID & \colorbox{amberpale}{\textbf{PK}}\\
 \strut \texttt{A-Z} & RelationType & \\
 \end{tabular}};
 \node[tbl] (aint) at (2.0,-0.2) {%
 \begin{tabular}{@{}l@{\quad}l@{\quad}l@{}}
 \multicolumn{3}{@{}l@{}}{\textbf{AudioPerInterval}}\\
-\hline
-\strut \texttt{123} & AudioIntervalID & \colorbox{yellow!40}{\textbf{PK}}\\
+\midrule
+\strut \texttt{123} & AudioIntervalID & \colorbox{amberpale}{\textbf{PK}}\\
 \strut \texttt{A-Z} & AnalysisID & \\
 \strut \texttt{123} & StartFrame & \\
 \strut \texttt{123} & EndFrame & \\
@@ -630,30 +723,31 @@ PANNs (Kong et al.) and Qwen2-Audio authors
 \node[tbl] (config) at (-1.6,-2.5) {%
 \begin{tabular}{@{}l@{\quad}l@{\quad}l@{}}
 \multicolumn{3}{@{}l@{}}{\textbf{AppConfig}}\\
-\hline
-\strut \texttt{A-Z} & key & \colorbox{yellow!40}{\textbf{PK}}\\
+\midrule
+\strut \texttt{A-Z} & key & \colorbox{amberpale}{\textbf{PK}}\\
 \strut \texttt{A-Z} & value\_json & \\
 \strut \texttt{A-Z} & updated\_at & \\
 \end{tabular}};
 \node[tbl] (espec) at (2.2,-2.5) {%
 \begin{tabular}{@{}l@{\quad}l@{\quad}l@{}}
 \multicolumn{3}{@{}l@{}}{\textbf{EventSpec}}\\
-\hline
-\strut \texttt{A-Z} & id & \colorbox{yellow!40}{\textbf{PK}}\\
-\strut \texttt{A-Z} & condition & \colorbox{yellow!40}{\textbf{PK}}\\
+\midrule
+\strut \texttt{A-Z} & id & \colorbox{amberpale}{\textbf{PK}}\\
+\strut \texttt{A-Z} & condition & \colorbox{amberpale}{\textbf{PK}}\\
 \strut \texttt{A-Z} & model\_json & \\
 \strut \texttt{A-Z} & created\_at & \\
 \strut \texttt{A-Z} & updated\_at & \\
 \end{tabular}};
 
 % FOREIGN KEY (only declared FK in the schema)
-\draw[arrow] (vint.east) -- (vpart.west);\end{tikzpicture}}
+\draw[arrow] (vint.east) -- (vpart.west);\end{tikzpicture}}}
 \end{frame}
 \endgroup
 
 \begin{frame}{Appendix: Complete Multimodal Ablation (Condition C), Rows 1-16}
 \centering
 \footnotesize
+\vspace{\baselineskip}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lcccccccc}
 \toprule
@@ -682,6 +776,7 @@ VLM + Audio Model & Window (s) & Hop (s) & F1 & Precision & Recall & TP & FP & F
 \begin{frame}{Appendix: Complete Multimodal Ablation (Condition C), Rows 17-32}
 \centering
 \footnotesize
+\vspace{\baselineskip}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lcccccccc}
 \toprule
@@ -710,6 +805,7 @@ VLM + Audio Model & Window (s) & Hop (s) & F1 & Precision & Recall & TP & FP & F
 \begin{frame}{Appendix: Complete Multimodal Ablation (Condition C), Rows 33-48}
 \centering
 \footnotesize
+\vspace{\baselineskip}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lcccccccc}
 \toprule
@@ -738,6 +834,7 @@ VLM + Audio Model & Window (s) & Hop (s) & F1 & Precision & Recall & TP & FP & F
 \begin{frame}{Appendix: Complete Multimodal Ablation (Condition C), Rows 49-64}
 \centering
 \footnotesize
+\vspace{\baselineskip}
 \resizebox{\textwidth}{!}{%
 \begin{tabular}{lcccccccc}
 \toprule
