@@ -183,7 +183,7 @@
 \begin{frame}{The Surveillance Problem}
 \begin{columns}[c,onlytextwidth]
 \column{0.52\textwidth}
-\textbf{900 million} surveillance cameras worldwide.\\
+Surveillance footage is generated at a \textbf{scale far beyond} human monitoring capacity.\\
 \vspace{0.4em}
 A human operator watching \textbf{multiple feeds} experiences \alert{vigilance decrement} after approximately 20 minutes.\\
 \vspace{0.4em}
@@ -219,6 +219,23 @@ First ISEQL-based event detector using VLM perception.
 \textbf{Our fix:} Object re-identification unlocks tracking-dependent events; temperature $=0$, seed $=42$ make inference deterministic (audio uses greedy decoding, same seed).\hspace{0.5em}\textbf{Our extension:} Audio modality via LALM.
 \end{frame}
 
+% ── RESEARCH QUESTIONS ──
+\section{Research Questions}
+\begin{frame}{Research Questions}
+\begin{enumerate}
+  \item \textbf{RQ1 (Object Re-Identification)}\\
+  How does per-frame object re-identification using a retrieval-augmented object memory affect visual intervals and detected events, compared to no re-identification?
+  \vspace{0.4em}
+
+  \item \textbf{RQ2 (Audio Ablation)}\\
+  How do Qwen2-Audio-7B-Instruct (LALM) and PANNs CNN14 compare across sliding window and hop configurations on audio-relevant scenes?
+  \vspace{0.4em}
+
+  \item \textbf{RQ3 (Multimodal vs.\ Unimodal)}\\
+  What is the F1 of visual-only (A), audio-only (B), and multimodal union (C) across all 30 scenes, and does $C \ge \max(A,B)$ hold on every scene?
+\end{enumerate}
+\end{frame}
+
 % ── SYSTEM OVERVIEW ──
 \section{System}
 \begin{frame}{What We Built}
@@ -231,15 +248,13 @@ First ISEQL-based event detector using VLM perception.
 ]
 \node[box,fill=blue!5,draw=blue!35] (video) at (0,0) {\textbf{Input Video}\quad 30 scenes, 10s, 24fps};
 \node[box,fill=red!5,draw=red!35,text width=4.2cm] (A) at (-3.8,-2.2) {\textbf{Condition A (Visual)}\\VLM + RAG re-ID\\(SigLIP + ChromaDB)\\6 ISEQL queries};
-\node[box,fill=green!5,draw=green!35,text width=4.2cm] (B) at (3.8,-2.2) {\textbf{Condition B (Audio)}\\Qwen2-Audio / PANNs\\4 ISEQL queries};
+\node[box,fill=green!5,draw=green!35,text width=4.2cm] (B) at (3.8,-2.2) {\textbf{Condition B (Audio)}\\Audio Model\\4 ISEQL queries};
 \node[box,fill=blue!5,draw=blue!50,text width=4.8cm] (C) at (0,-4.4) {\textbf{Condition C (Multimodal)}\\$C = A \cup B$ (UNION), 6 ISEQL queries\\No temporal cross-modal joins};
 
 \draw[arrow] (video.south) -- (A.north);
 \draw[arrow] (video.south) -- (B.north);
 \draw[arrow] (A.south) -- (C.north);
 \draw[arrow] (B.south) -- (C.north);
-
-\node[font=\footnotesize,text=black!60] at (0,-5.5) {4 VLM models tested. 2 audio providers. Shared SQLite: VisualPerInterval + AudioPerInterval.};
 \end{tikzpicture}
 \end{frame}
 
@@ -519,6 +534,10 @@ Union is most valuable when modalities are complementary: audio catches what vis
 
   \item \textbf{Union-based multimodal design}\\
   $C = A \cup B$ preserves all detections; temporal joins reduce recall
+  \vspace{0.3em}
+
+  \item \textbf{VLM benchmark across four models}\\
+  Pixtral 12B, Ministral 3-14B, Gemini 2.5 Flash, Gemini 3.6 Flash; best F1 = 0.885
   \vspace{0.3em}
 
   \item \textbf{Fully auditable pipeline}\\
@@ -873,8 +892,6 @@ VLM + Audio Model & Window (s) & Hop (s) & F1 & Precision & Recall & TP & FP & F
 
 \item F.~Persia et al. Modeling and detecting high-level events in healthcare applications exploiting ISEQL+. \emph{Soft Computing}, 30(5):3667--3690, 2026.
 
-\item J.~F.~Allen. Maintaining Knowledge about Temporal Intervals. \emph{Communications of the ACM}, 26(11):832--843, 1983.
-
 \item X.~Zhai, B.~Mustafa, A.~Kolesnikov, and L.~Beyer. Sigmoid Loss for Language Image Pre-Training (SigLIP). \emph{Proc.\ ICCV}, pp.\ 11975--11986, 2023.
 
 \item Q.~Kong et al. {PANNs}: Large-Scale Pretrained Audio Neural Networks for Audio Pattern Recognition. \emph{IEEE/ACM Trans.\ Audio, Speech, Lang.\ Process.}, 28:2880--2894, 2020.
@@ -882,8 +899,6 @@ VLM + Audio Model & Window (s) & Hop (s) & F1 & Precision & Recall & TP & FP & F
 \item Y.~Chu et al. Qwen2-Audio Technical Report. \emph{arXiv preprint arXiv:2407.10759}, 2024.
 
 \item V.~Crescitelli et al. {VIS MODE}: Complex Event Detection from VLM-Based Video Observations. In \emph{Proc.\ ECCV (Demo Track)}. 2026.
-
-\item Y.~Tang et al. Video Understanding with Large Language Models: A Survey. \emph{IEEE Trans.\ Circuits Syst.\ Video Technol.}, 36(2):1355--1376, 2026.
 
 \end{itemize}
 \end{frame}
