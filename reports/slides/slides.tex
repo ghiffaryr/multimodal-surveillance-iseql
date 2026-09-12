@@ -386,8 +386,8 @@ First ISEQL-based event detector using VLM perception.
 \column{0.5\textwidth}
 \small
 \textbf{Without re-ID:} VLM assigns new IDs per frame.\\
-\textit{Carrying(person=1)} on frame 10,\\
-\textit{Carrying(person=7)} on frame 34.\\
+\textit{Carrying(person=1)} on frame 0,\\
+\textit{Carrying(person=2)} on frame 24.\\
 Intervals break into single frames.\\
 Tracking-dependent events fail duration thresholds.
 
@@ -427,7 +427,7 @@ Gemini 3.6 Flash suspicious near vehicle 0/5$\to$5/5, escape 0/5$\to$3/5, handof
 \begin{frame}{RQ2: Audio Model Ablation (Window/Hop)}
 \centering
 \footnotesize
-\textbf{20 audio-relevant scenes. Qwen2-Audio (Chu et al., 2024) vs.\ PANNs (Kong et al., 2020). F1 = harmonic mean of precision and recall. Best config per model bolded.}
+\textbf{Qwen2-Audio (Chu et al., 2024) vs.\ PANNs (Kong et al., 2020).}
 \vspace{\baselineskip}
 \renewcommand{\arraystretch}{0.92}
 
@@ -457,7 +457,7 @@ PANNs CNN14 & 10.0 & 5.00 & 0.261 & 1.000 & 0.150 & 3 & 0 & 17 \\
 
 \vspace{\baselineskip}
 \footnotesize
-\textbf{Qwen2-Audio: perfect precision (1.000) at 2.5s and 5.0s windows; best 5.0s/2.5s (F1=0.788).}
+\textbf{20 audio-relevant scenes. Best overall is Qwen2-Audio at 5.0s Window and 2.5s Hop with F1=0.788.}
 \end{frame}
 
 % ── RQ3: MULTIMODAL ──
