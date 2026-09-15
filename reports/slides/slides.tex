@@ -88,10 +88,11 @@
 \setbeamertemplate{title page}{%
   \vspace*{0.4cm}
   \begin{center}
-    \begin{tabular}{@{}c@{\hspace{0.6cm}}c@{\hspace{0.6cm}}c@{}}
+    \begin{tabular}{@{}c@{\hspace{0.6cm}}c@{\hspace{0.6cm}}c@{\hspace{0.6cm}}c@{}}
       \raisebox{0pt}[0pt][0pt]{\includegraphics[height=1.05cm,keepaspectratio]{Logos/univaq.png}} &
       \raisebox{0.0ex}{\includegraphics[height=0.84cm,keepaspectratio]{Logos/mathmods.jpg}} &
-      \raisebox{0pt}[0pt][0pt]{\includegraphics[height=1.05cm,keepaspectratio]{Logos/uhh.jpg}}
+      \raisebox{0pt}[0pt][0pt]{\includegraphics[height=1.05cm,keepaspectratio]{Logos/uhh.jpg}} &
+      \raisebox{0.285cm}[0pt][0pt]{\includegraphics[height=0.48cm,keepaspectratio]{Logos/hitachi.jpg}}
     \end{tabular}
 
     \vskip0.28cm
@@ -170,8 +171,7 @@
   {\footnotesize Joint Degree of Master of Science in Mathematical Modelling in Engineering: Theory, Numerics, Applications}\\[0.1em]
   {\footnotesize Universit\`a degli Studi dell'Aquila and Universit\"at Hamburg}\\[0.15em]
   {\footnotesize Supervisor: Prof.\ Fabio Persia}\\[0.15em]
-  {\scriptsize\itshape\color{slate} This work provided the functional system used for the ECCV 2026 demonstration}\\
-  {\scriptsize\itshape\color{slate} Submitted for peer review at the IEEE/CVF WACV 2027, as first author}
+  {\footnotesize In collaboration with HITACHI}
 }
 \date{Master's Thesis Defense}
 
@@ -239,24 +239,73 @@ First ISEQL-based event detector using VLM perception.
 
 % ── SYSTEM OVERVIEW ──
 \section{System}
-\begin{frame}{What I Developed}
+\begin{frame}{System Architecture}
 \centering
-\footnotesize
+\hspace*{-0.25cm}\makebox[\textwidth][c]{\resizebox{0.99\textwidth}{!}{%
 \begin{tikzpicture}[
-  node distance=0.6cm,
-  box/.style={rectangle,draw=navy!60,fill=navypale,rounded corners=3pt,align=center,minimum height=1.0cm,font=\footnotesize},
-  arrow/.style={-Stealth,thick,navy!35},
+  box/.style={rectangle,draw=navy!60,fill=navypale,rounded corners=3pt,align=center,minimum height=0.42cm,font=\tiny,inner sep=2pt},
+  db/.style={cylinder,draw=navy!60,fill=navy!12,shape border rotate=90,aspect=0.2,minimum height=0.48cm,minimum width=1.55cm,align=center,font=\tiny,inner sep=2pt},
+  arrow/.style={-Stealth,thick,navy!60},
+  run/.style={font=\tiny,align=center,text=navy!70!black,fill=white,draw=navy!30,inner sep=1pt,rounded corners=1pt},
 ]
-\node[box,fill=blue!5,draw=blue!35] (video) at (0,0) {\textbf{Input Video}\quad 30 scenes, 10s, 24fps};
-\node[box,fill=red!5,draw=red!35,text width=4.2cm] (A) at (-3.8,-2.2) {\textbf{Condition A (Visual)}\\VLM + RAG re-ID\\(SigLIP + ChromaDB)\\6 ISEQL queries};
-\node[box,fill=green!5,draw=green!35,text width=4.2cm] (B) at (3.8,-2.2) {\textbf{Condition B (Audio)}\\Audio Model\\4 ISEQL queries};
-\node[box,fill=blue!5,draw=blue!50,text width=4.8cm] (C) at (0,-4.4) {\textbf{Condition C (Multimodal)}\\$C = A \cup B$ (UNION), 6 ISEQL queries\\No temporal cross-modal joins};
+% VISUAL PIPELINE AREA (RAG memory nested inside, like README subgraph; covers eva)
+\fill[red!5] (-9.8,3.2) rectangle (1.6,-4.0);
+\draw[red!35,dashed,thick] (-9.8,3.2) rectangle (1.6,-4.0);
+\node[font=\tiny\bfseries,text=red!70!black,anchor=south] at (-4.1,3.2) {Visual Pipeline};
+% AUDIO PIPELINE AREA (ff, aud, aint, qb, evb)
+\fill[green!5] (2.6,3.2) rectangle (5.8,-3.1);
+\draw[green!35,dashed,thick] (2.6,3.2) rectangle (5.8,-3.1);
+\node[font=\tiny\bfseries,text=green!50!black,anchor=south] at (4.2,3.2) {Audio Pipeline};
+% INPUT + PERCEPTION
+\node[box] (video) at (0.6,3.9) {\textbf{Input video}};
+\node[box] (vlm) at (-2.0,2.5) {VLM visual reasoning\\Gemini 3.6 Flash, Ministral 3-14B\\Pixtral 12B, Gemini 2.5 Flash};
+\node[box] (ff) at (4.2,2.5) {ffmpeg extract\\16 kHz mono wav};
 
-\draw[arrow] (video.south) -- (A.north);
-\draw[arrow] (video.south) -- (B.north);
-\draw[arrow] (A.south) -- (C.north);
-\draw[arrow] (B.south) -- (C.north);
-\end{tikzpicture}
+% STORAGE LEVEL (database cylinders)
+\node[db] (vpf) at (-4.2,0.9) {VisualPerFrame\\(SQLite)};
+\node[db] (vrel) at (0.0,0.9) {VisualRelation\\(SQLite)};
+\node[box] (aud) at (4.2,0.9) {audio detection\\PANNs CNN14 / Qwen2-Audio-7B};
+\node[db] (aint) at (4.2,-0.7) {AudioPerInterval\\(SQLite)};
+
+% INTERVALS + OUTPUT
+\node[db] (vint) at (0.0,-0.7) {VisualPerInterval\\+ VisualParticipant\\(SQLite)};
+\node[box] (qa) at (0.0,-1.8) {Visual queries\\6 ISEQL queries};
+\node[box] (qb) at (4.2,-1.8) {Audio queries\\4 ISEQL queries};
+\node[box] (eva) at (0.0,-2.8) {Visual events\\6 events};
+\node[box] (evb) at (4.2,-2.8) {Audio events\\4 events};
+\node[box] (union) at (2.1,-2.8) {Multimodal queries (UNION)\\6 ISEQL queries};
+\node[box] (evc) at (2.1,-3.8) {Multimodal events\\6 events};
+
+% RAG SUBTREE (wide shaded panel)
+\fill[amberpale] (-9.8,0.9) rectangle (-5.8,-4.0);
+\draw[amber!60,dashed,thick] (-9.8,0.9) rectangle (-5.8,-4.0);
+\node[font=\tiny\bfseries,text=amber!70!black,anchor=south] at (-7.8,0.9) {Object Re-Identification (RAG object memory)};
+\node[box] (sig) at (-7.8,0.0) {SigLIP embedding\\of grid-block crops};
+\node[db] (chroma) at (-7.8,-1.4) {Chroma vector store\\per-scene collection};
+\node[box] (retr) at (-7.8,-2.7) {top-5 similar retrieval\\+ last-3-frame recency};
+\node[box] (track) at (-7.8,-3.6) {tracking prompt\\ID reuse + reconciliation};
+
+% EDGES
+\draw[arrow] (video.south) -- (vlm.north);
+\draw[arrow] (video.south) -- (ff.north);
+\draw[arrow] (vlm.south) -- (vpf.north) node[pos=0.5,run]{objects per frame};
+\draw[arrow] (vlm.south) -- (vrel.north) node[pos=0.5,run]{relations per frame};
+\draw[arrow] (ff.south) -- (aud.north);
+\draw[arrow] (aud.south) -- (aint.north);
+\draw[arrow] (vrel.south) -- (vint.north);
+\draw[arrow] (vint.south) -- (qa.north);
+\draw[arrow] (aint.south) -- (qb.north);
+\draw[arrow] (qa.south) -- (eva.north);
+\draw[arrow] (qb.south) -- (evb.north);
+\draw[arrow] (qa.east) -- (union.west);
+\draw[arrow] (qb.west) -- (union.east);
+\draw[arrow] (union.south) -- (evc.north);
+\draw[arrow] (vpf.south) -- (sig.north);
+\draw[arrow] (sig.south) -- (chroma.north);
+\draw[arrow] (chroma.south) -- (retr.north);
+\draw[arrow] (retr.south) -- (track.north);
+\draw[arrow] (track.west) -- ++(-0.7,0) |- (vlm.west);
+\end{tikzpicture}}}
 \end{frame}
 
 % ── ISEQL FORMAL EXPRESSIONS ──
@@ -264,7 +313,7 @@ First ISEQL-based event detector using VLM perception.
 \begin{frame}{ISEQL: Interval Operators}
 \scriptsize
 \renewcommand{\arraystretch}{0.85}
-\textbf{ISEQL (Helmer \& Persia, 2016; Persia et al., 2017; Persia et al., 2026):} interval-based query language; we adopt the ISEQL+ parameter set.\\
+\textbf{ISEQL (Helmer \& Persia, 2016; Persia et al., 2017; Piatov et al., 2021; Persia et al., 2026):} interval-based surveillance event query language; we adopt the ISEQL+ parameter set.\\
 \textbf{Notation:} $r$, $s$: interval operands; $T_s$, $T_e$: endpoints; $\delta,\varepsilon$: distance tolerances (default $\infty$); $\zeta,\eta \in \{\le,<\}$: strictness (default $\le$); $\rho$: robustness (default 0).
 \vspace{\baselineskip}
 \setlength{\abovedisplayskip}{1pt}
@@ -376,6 +425,31 @@ First ISEQL-based event detector using VLM perception.
 &\quad \sigma_{\texttt{pred}=\text{`gunshot\_or\_explosion'}}(M_1) )
 \end{aligned}$\par\vspace{0.9pt}
 \noindent$\mathrm{Gunshot\ /\ Explosion}_C$ $= \mathrm{Gunshot\ /\ Explosion}_A \cup \mathrm{Gunshot\ /\ Explosion}_B$
+\end{frame}
+
+% ── DATASET ──
+\section{Dataset}
+\begin{frame}{Evaluation Dataset}
+\footnotesize
+\textbf{30} synthetic surveillance scenes, generated with Dreamina Seedance 2.0 (Team Seedance, 2026).
+Each scene is 10 s at 1280$\times$720, 24 fps, with a fixed camera angle.
+Annotated per frame for visual relations and audio classes, with event-level binary verdicts.
+\vspace{\baselineskip}
+
+\begin{center}
+\begin{tabular}{lcc}
+\toprule
+Event & Scenes & Modalities \\
+\midrule
+Fight & 5 & visual + audio \\
+Gunshot / Explosion & 5 & visual + audio \\
+Vehicle Escape & 5 & visual + audio \\
+Vehicle Collision & 5 & visual + audio \\
+Handoff & 5 & visual only \\
+Suspicious Near Vehicle & 5 & visual only \\
+\bottomrule
+\end{tabular}
+\end{center}
 \end{frame}
 
 % ── RQ1: RE-ID ──
@@ -503,7 +577,7 @@ Visual-only best \textbf{0.885} (Gemini 3.6 Flash); Audio-only best \textbf{0.78
 Event & Visual (A) & Audio (B) & Multimodal (C) & C benefit \\
 \midrule
 Fight & 5/5 & 0/5 & 5/5 & visual carries \\
-Gunshot/Explosion & 4/5 & \textbf{5/5} & \textbf{5/5} & audio adds 1 \\
+Gunshot / Explosion & 4/5 & \textbf{5/5} & \textbf{5/5} & audio adds 1 \\
 Vehicle Escape & 3/5 & 5/5 & \textbf{5/5} & audio adds 2 \\
 Vehicle Collision & 5/5 & 3/5 & 5/5 & both contribute \\
 Handoff & 5/5 & -- & 5/5 & visual only \\
@@ -559,15 +633,17 @@ Union is most valuable when modalities are complementary: audio catches what vis
 \end{frame}
 
 % ── RESOURCES ──
-\begin{frame}{Resources}
+\begin{frame}{Access and Publications}
 \centering
-\vspace{\baselineskip}
+\vspace{0.5\baselineskip}
 \noindent\begin{minipage}{\textwidth}
+{\small\bfseries\color{navy}Access}\par
+\vspace{0.3\baselineskip}
 \begin{minipage}[c]{0.70\textwidth}
 \raggedright\setlength{\leftskip}{0pt}\setlength{\parindent}{0pt}\footnotesize\noindent
-  \textbf{Dataset:} \url{https://doi.org/10.5281/zenodo.22157399}\\[0.5em]
-  \textbf{Code:} \url{https://github.com/ghiffaryr/multimodal-surveillance-iseql}\\[0.5em]
-  \textbf{Demo videos:} \url{https://www.youtube.com/playlist?list=PLFLgVwjKtX80}\\[0.5em]
+  \textbf{Dataset:} \url{https://doi.org/10.5281/zenodo.22157399}\\[0.4em]
+  \textbf{Code:} \url{https://github.com/ghiffaryr/multimodal-surveillance-iseql}\\[0.4em]
+  \textbf{Demo videos:} \url{https://www.youtube.com/playlist?list=PLFLgVwjKtX80}\\[0.4em]
   \textbf{Live application (free, no login):} \url{https://foiled-aubrie-chiropodial.ngrok-free.dev}
 \end{minipage}%
 \hspace{0.4cm}%
@@ -576,69 +652,21 @@ Union is most valuable when modalities are complementary: audio catches what vis
 \qrcode[height=2.0cm]{https://foiled-aubrie-chiropodial.ngrok-free.dev}\\[0.25em]
 {\scriptsize Live application}
 \end{minipage}
+
+\vspace{0.9\baselineskip}
+{\small\bfseries\color{navy}Publications}\par
+\vspace{0.3\baselineskip}
+{\raggedright\footnotesize\setlength{\parskip}{0.5em}\setlength{\parindent}{0pt}\noindent
+  This work provided the functional system used for the ECCV 2026 demonstration.\par
+  Submitted for peer review at the IEEE/CVF WACV 2027, as first author.\par
+  Submitted to AAAI 2027.\par
+}
 \end{minipage}
 \end{frame}
 
 % ── APPENDIX: COMPLETE ABLATION ──
 \appendix
 \section*{Appendix}
-
-% ── APPENDIX: DETAILED ARCHITECTURE ──
-\begin{frame}{Appendix: Detailed System Architecture}
-\centering
-\hspace*{-0.25cm}\makebox[\textwidth][c]{\resizebox{1.06\textwidth}{!}{%
-\begin{tikzpicture}[
-  box/.style={rectangle,draw=navy!60,fill=navypale,rounded corners=3pt,align=center,minimum height=0.42cm,font=\tiny,inner sep=2pt},
-  db/.style={cylinder,draw=navy!60,fill=navy!12,shape border rotate=90,aspect=0.2,minimum height=0.48cm,minimum width=1.55cm,align=center,font=\tiny,inner sep=2pt},
-  arrow/.style={-Stealth,thick,navy!60},
-  run/.style={font=\tiny,align=center,text=navy!70!black,fill=white,draw=navy!30,inner sep=1pt,rounded corners=1pt},
-]
-% INPUT + PERCEPTION
-\node[box] (video) at (0.6,3.9) {\textbf{Input video}};
-\node[box] (vlm) at (-2.0,2.5) {VLM visual reasoning\\Gemini 3.6 Flash, Ministral 3-14B\\Pixtral 12B, Gemini 2.5 Flash};
-\node[box] (ff) at (4.2,2.5) {ffmpeg extract\\16 kHz mono wav};
-
-% STORAGE LEVEL (database cylinders)
-\node[db] (vpf) at (-4.2,0.9) {VisualPerFrame\\(SQLite)};
-\node[db] (vrel) at (0.0,0.9) {VisualRelation\\(SQLite)};
-\node[box] (aud) at (4.2,1.5) {audio detection\\PANNs CNN14 / Qwen2-Audio-7B};
-\node[db] (aint) at (4.2,-0.7) {AudioPerInterval\\(SQLite)};
-
-% INTERVALS + OUTPUT
-\node[db] (vint) at (0.0,-0.7) {VisualPerInterval\\+ VisualParticipant\\(SQLite)};
-\node[box] (det) at (1.8,-2.0) {High-level event detector\\ISEQL queries};
-\node[box] (ev) at (1.8,-3.2) {Events by condition\\A: 6 visual, B: 4 audio, C: 6 (UNION)};
-
-% RAG SUBTREE (wide shaded panel)
-\fill[amberpale] (-9.8,0.9) rectangle (-5.8,-4.0);
-\draw[amber!60,dashed,thick] (-9.8,0.9) rectangle (-5.8,-4.0);
-\node[font=\tiny\bfseries,text=amber!70!black,anchor=south] at (-7.8,0.9) {Object Re-Identification (RAG object memory)};
-\node[box] (sig) at (-7.8,0.0) {SigLIP embedding\\of grid-block crops};
-\node[db] (chroma) at (-7.8,-1.4) {Chroma vector store\\per-scene collection};
-\node[box] (retr) at (-7.8,-2.7) {top-5 similar retrieval\\+ last-3-frame recency};
-\node[box] (track) at (-7.8,-3.6) {tracking prompt\\ID reuse + reconciliation};
-
-% EDGES
-\draw[arrow] (video.south) -- (vlm.north);
-\draw[arrow] (video.south) -- (ff.north);
-\draw[arrow] (vlm.south) -- (vpf.north) node[pos=0.5,run]{objects per frame};
-\draw[arrow] (vlm.south) -- (vrel.north) node[pos=0.5,run]{relations per frame};
-\draw[arrow] (ff.south) -- (aud.north);
-\draw[arrow] (aud.south) -- (aint.north) node[midway,yshift=1.5mm,run]{condition B / C};
-\draw[arrow] (vrel.south) -- (vint.north);
-\draw[arrow] (vint.south) -- (det.north) node[midway,run]{condition A / C};
-\draw[arrow] (aint.south) -- (det.north);
-\draw[arrow] (det.south) -- (ev.north);
-\draw[arrow] (vpf.south) -- (sig.north);
-\draw[arrow] (sig.south) -- (chroma.north);
-\draw[arrow] (chroma.south) -- (retr.north);
-\draw[arrow] (retr.south) -- (track.north);
-\draw[arrow] (track.west) -- ++(-0.7,0) |- (vlm.west);
-\node[font=\tiny,text=amber!70!black,anchor=east] at (-10.1,-1.4) {reuse IDs};
-\end{tikzpicture}}}
-\end{frame}
-
-% ── APPENDIX: DATABASE SCHEMA ──
 
 % ── APPENDIX: DATABASE SCHEMA ──
 \begingroup
@@ -893,6 +921,8 @@ VLM + Audio Model & Window (s) & Hop (s) & F1 & Precision & Recall & TP & FP & F
 
 \item F.~Persia et al. Modeling and detecting high-level events in healthcare applications exploiting ISEQL+. \emph{Soft Computing}, 30(5):3667--3690, 2026.
 
+\item D.~Piatov, S.~Helmer, A.~Dign\"os, and F.~Persia. Cache-efficient Sweeping-based Interval Joins for Extended Allen Relation Predicates. \emph{The VLDB Journal}, 30(3):379--402, 2021.
+
 \item X.~Zhai, B.~Mustafa, A.~Kolesnikov, and L.~Beyer. Sigmoid Loss for Language Image Pre-Training (SigLIP). \emph{Proc.\ ICCV}, pp.\ 11975--11986, 2023.
 
 \item Q.~Kong et al. {PANNs}: Large-Scale Pretrained Audio Neural Networks for Audio Pattern Recognition. \emph{IEEE/ACM Trans.\ Audio, Speech, Lang.\ Process.}, 28:2880--2894, 2020.
@@ -900,6 +930,8 @@ VLM + Audio Model & Window (s) & Hop (s) & F1 & Precision & Recall & TP & FP & F
 \item Y.~Chu et al. Qwen2-Audio Technical Report. \emph{arXiv preprint arXiv:2407.10759}, 2024.
 
 \item V.~Crescitelli et al. {VIS MODE}: Complex Event Detection from VLM-Based Video Observations. In \emph{Proc.\ ECCV (Demo Track)}. 2026.
+
+\item Team Seedance et al. Seedance 2.0: Advancing Video Generation for World Complexity. \emph{arXiv preprint arXiv:2604.14148}, 2026.
 
 \end{itemize}
 \end{frame}

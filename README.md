@@ -45,33 +45,44 @@ A multimodal forensic surveillance framework that detects events through a **thr
 flowchart TB
     VIDEO["video.mp4"]
 
-    VIDEO --> FF["ffmpeg extract<br/>16 kHz mono wav"]
-    FF --> AUD["audio detection<br/>PANNs CNN14 / Qwen2-Audio-7B"]
-    AUD -->|condition B / C| AINT[("AudioPerInterval<br/>(SQLite)")]
-
-    VIDEO --> VLM["VLM visual reasoning<br/>Gemini 3.6 Flash, Ministral 3-14B<br/>Pixtral 12B, Gemini 2.5 Flash"]
-
-    VLM -->|objects per frame| VPF[("VisualPerFrame<br/>(SQLite)")]
-    VLM -->|relations per frame| VREL[("VisualRelation<br/>(SQLite)")]
-
-    subgraph REID["Object Re-Identification (RAG object memory)"]
+    subgraph VIS["Visual Pipeline"]
         direction TB
-        EMB["SigLIP embedding<br/>of grid-block crops"]
-        CHROMA[("Chroma vector store<br/>per-scene collection")]
-        RET["top-5 similar retrieval<br/>+ last-3-frame recency"]
-        TRACK["tracking prompt<br/>ID reuse + reconciliation"]
-        EMB --> CHROMA --> RET --> TRACK
+        VLM["VLM visual reasoning<br/>Gemini 3.6 Flash, Ministral 3-14B<br/>Pixtral 12B, Gemini 2.5 Flash"]
+        VPF[("VisualPerFrame<br/>(SQLite)")]
+        VREL[("VisualRelation<br/>(SQLite)")]
+        subgraph REID["Object Re-Identification (RAG object memory)"]
+            direction TB
+            EMB["SigLIP embedding<br/>of grid-block crops"]
+            CHROMA[("Chroma vector store<br/>per-scene collection")]
+            RET["top-5 similar retrieval<br/>+ last-3-frame recency"]
+            TRACK["tracking prompt<br/>ID reuse + reconciliation"]
+            EMB --> CHROMA --> RET --> TRACK
+        end
+        VINT[("VisualPerInterval<br/>+ VisualParticipant<br/>(SQLite)")]
+        QA["Visual queries<br/>6 ISEQL queries"]
+        EVA["Visual events<br/>6"]
+        VLM -->|objects per frame| VPF
+        VLM -->|relations per frame| VREL
+        VPF --> EMB
+        TRACK --> VLM
+        VREL --> VINT --> QA --> EVA
     end
 
-    VPF --> EMB
-    TRACK --> VLM
+    subgraph AUD2["Audio Pipeline"]
+        direction TB
+        FF["ffmpeg extract<br/>16 kHz mono wav"]
+        AUD["audio detection<br/>PANNs CNN14 / Qwen2-Audio-7B"]
+        AINT[("AudioPerInterval<br/>(SQLite)")]
+        QB["Audio queries<br/>4 ISEQL queries"]
+        EVB["Audio events<br/>4"]
+        FF --> AUD --> AINT --> QB --> EVB
+    end
 
-    VREL --> VINT[("VisualPerInterval<br/>+ VisualParticipant<br/>(SQLite)")]
+    VIDEO --> VLM
+    VIDEO --> FF
 
-    AINT --> DET["High-level event detector<br/>ISEQL queries"]
-    VINT -->|condition A / C| DET
-
-    DET --> COND["Events by condition<br/>A: 6 visual, B: 4 audio, C: 6 (UNION)"]
+    QA & QB --> UNIONC["Multimodal queries (UNION)<br/>6 ISEQL queries"]
+    UNIONC --> EVC["Multimodal events<br/>6"]
 ```
 
 - **Backend**: FastAPI + Pipenv (Python 3.10)
