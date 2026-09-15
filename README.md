@@ -47,7 +47,7 @@ flowchart TB
 
     subgraph VIS["Visual Pipeline"]
         direction TB
-        VLM["VLM visual reasoning<br/>Gemini 3.6 Flash, Ministral 3-14B<br/>Pixtral 12B, Gemini 2.5 Flash"]
+        VLM["Visual perception (VLM)<br/>Gemini 3.6 Flash, Ministral 3-14B<br/>Pixtral 12B, Gemini 2.5 Flash"]
         VPF[("VisualPerFrame<br/>(SQLite)")]
         VREL[("VisualRelation<br/>(SQLite)")]
         subgraph REID["Object Re-Identification (RAG object memory)"]
@@ -59,7 +59,7 @@ flowchart TB
             EMB --> CHROMA --> RET --> TRACK
         end
         VINT[("VisualPerInterval<br/>+ VisualParticipant<br/>(SQLite)")]
-        QA["Visual queries<br/>6 ISEQL queries"]
+        QA["Visual reasoning<br/>6 ISEQL queries"]
         EVA["Visual events<br/>6"]
         VLM -->|objects per frame| VPF
         VLM -->|relations per frame| VREL
@@ -71,9 +71,9 @@ flowchart TB
     subgraph AUD2["Audio Pipeline"]
         direction TB
         FF["ffmpeg extract<br/>16 kHz mono wav"]
-        AUD["audio detection<br/>PANNs CNN14 / Qwen2-Audio-7B"]
+        AUD["Audio perception (CNN / LALM)<br/>PANNs CNN14 / Qwen2-Audio-7B"]
         AINT[("AudioPerInterval<br/>(SQLite)")]
-        QB["Audio queries<br/>4 ISEQL queries"]
+        QB["Audio reasoning<br/>4 ISEQL queries"]
         EVB["Audio events<br/>4"]
         FF --> AUD --> AINT --> QB --> EVB
     end
@@ -81,7 +81,7 @@ flowchart TB
     VIDEO --> VLM
     VIDEO --> FF
 
-    QA & QB --> UNIONC["Multimodal queries (UNION)<br/>6 ISEQL queries"]
+    QA & QB --> UNIONC["Multimodal reasoning<br/>6 ISEQL queries"]
     UNIONC --> EVC["Multimodal events<br/>6"]
 ```
 

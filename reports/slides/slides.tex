@@ -258,22 +258,22 @@ First ISEQL-based event detector using VLM perception.
 \node[font=\tiny\bfseries,text=green!50!black,anchor=south] at (4.2,3.2) {Audio Pipeline};
 % INPUT + PERCEPTION
 \node[box] (video) at (0.6,3.9) {\textbf{Input video}};
-\node[box] (vlm) at (-2.0,2.5) {VLM visual reasoning\\Gemini 3.6 Flash, Ministral 3-14B\\Pixtral 12B, Gemini 2.5 Flash};
+\node[box] (vlm) at (-2.0,2.5) {Visual perception (VLM)\\Gemini 3.6 Flash, Ministral 3-14B\\Pixtral 12B, Gemini 2.5 Flash};
 \node[box] (ff) at (4.2,2.5) {ffmpeg extract\\16 kHz mono wav};
 
 % STORAGE LEVEL (database cylinders)
 \node[db] (vpf) at (-4.2,0.9) {VisualPerFrame\\(SQLite)};
 \node[db] (vrel) at (0.0,0.9) {VisualRelation\\(SQLite)};
-\node[box] (aud) at (4.2,0.9) {audio detection\\PANNs CNN14 / Qwen2-Audio-7B};
+\node[box] (aud) at (4.2,0.9) {Audio perception (CNN / LALM)\\PANNs CNN14 / Qwen2-Audio-7B};
 \node[db] (aint) at (4.2,-0.7) {AudioPerInterval\\(SQLite)};
 
 % INTERVALS + OUTPUT
 \node[db] (vint) at (0.0,-0.7) {VisualPerInterval\\+ VisualParticipant\\(SQLite)};
-\node[box] (qa) at (0.0,-1.8) {Visual queries\\6 ISEQL queries};
-\node[box] (qb) at (4.2,-1.8) {Audio queries\\4 ISEQL queries};
+\node[box] (qa) at (0.0,-1.8) {Visual reasoning\\6 ISEQL queries};
+\node[box] (qb) at (4.2,-1.8) {Audio reasoning\\4 ISEQL queries};
 \node[box] (eva) at (0.0,-2.8) {Visual events\\6 events};
 \node[box] (evb) at (4.2,-2.8) {Audio events\\4 events};
-\node[box] (union) at (2.1,-2.8) {Multimodal queries (UNION)\\6 ISEQL queries};
+\node[box] (union) at (2.1,-2.8) {Multimodal reasoning\\6 ISEQL queries};
 \node[box] (evc) at (2.1,-3.8) {Multimodal events\\6 events};
 
 % RAG SUBTREE (wide shaded panel)
@@ -431,13 +431,16 @@ First ISEQL-based event detector using VLM perception.
 \section{Dataset}
 \begin{frame}{Evaluation Dataset}
 \footnotesize
-\textbf{30} synthetic surveillance scenes, generated with Dreamina Seedance 2.0 (Team Seedance, 2026).
-Each scene is 10 s at 1280$\times$720, 24 fps, with a fixed camera angle.
-Annotated per frame for visual relations and audio classes, with event-level binary verdicts.
-\vspace{\baselineskip}
-
-\begin{center}
-\begin{tabular}{lcc}
+\begin{columns}[T,onlytextwidth]
+\column{0.48\textwidth}
+\begin{itemize}
+  \item \textbf{30 scenes:} synthetic, Dreamina Seedance 2.0 (Team Seedance, 2026)
+  \item \textbf{Format:} 10 s, 1280$\times$720, 24 fps, fixed camera
+  \item \textbf{Sampling:} 11 frames/scene ($\approx$1.1 Hz), 330 total frames for VLM reasoning
+  \item \textbf{Labels:} per-frame visual + audio ground truth, event-level binary verdicts
+\end{itemize}
+\column{0.48\textwidth}
+\raggedright\leavevmode\hspace*{-0.12cm}\begin{tabular}{lcc}
 \toprule
 Event & Scenes & Modalities \\
 \midrule
@@ -449,7 +452,7 @@ Handoff & 5 & visual only \\
 Suspicious Near Vehicle & 5 & visual only \\
 \bottomrule
 \end{tabular}
-\end{center}
+\end{columns}
 \end{frame}
 
 % ── RQ1: RE-ID ──
@@ -739,7 +742,7 @@ Union is most valuable when modalities are complementary: audio catches what vis
 \begin{tabular}{@{}l@{\quad}l@{\quad}l@{}}
 \multicolumn{3}{@{}l@{}}{\textbf{VisualParticipant}}\\
 \midrule
-\strut \texttt{123} & RelationID & \colorbox{amberpale}{PK}\hspace{1pt}\colorbox{navypale}{FK}\\
+\strut \texttt{123} & RelationID & \colorbox{amberpale}{\textbf{PK}}\hspace{1pt}\colorbox{navypale}{\textbf{FK}}\\
 \strut \texttt{123} & ClassID & \colorbox{amberpale}{\textbf{PK}}\\
 \strut \texttt{A-Z} & Class & \\
 \end{tabular}};
