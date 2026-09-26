@@ -222,7 +222,7 @@ class VLMClient:
         response = requests.post(
             f"{self._client}/api/chat",
             json=payload,
-            timeout=self.timeout
+            timeout=(self.timeout, None)
         )
         response.raise_for_status()
         return json.loads(response.content.decode('utf-8'))["message"]["content"]

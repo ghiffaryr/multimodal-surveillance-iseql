@@ -71,7 +71,7 @@ def _load_ollama_embedder(model_id: str, base_url: str) -> Callable[[list[Image.
         resp = httpx.post(
             f"{base_url.rstrip('/')}/api/embed",
             json={"model": model_id, "images": images},
-            timeout=60.0,
+            timeout=httpx.Timeout(60.0, read=None),
         )
         resp.raise_for_status()
         data = resp.json()
