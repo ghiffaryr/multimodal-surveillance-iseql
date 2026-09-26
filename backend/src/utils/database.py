@@ -46,7 +46,6 @@ SCHEMA_STATEMENTS: list[str] = [
         GridCols       INTEGER,
         SamplingRate   INTEGER,
         VLMDelay       REAL    DEFAULT 0.0,
-        VLMQuantization TEXT   DEFAULT 'none',
         MaxRetries     INTEGER DEFAULT 3,
         EmbedProvider  TEXT    DEFAULT 'huggingface',
         EmbedModel     TEXT    DEFAULT 'google/siglip-base-patch16-224',
@@ -214,6 +213,7 @@ def setup_database(db_path: Path) -> Tuple[sqlite3.Connection, sqlite3.Cursor]:
     for stmt in SCHEMA_STATEMENTS:
         cursor.execute(stmt)
     _migrate_eventspec(conn)
+    _migrate_drop_vlm_quantization(conn)
     _ensure_columns(conn, "Analyses", {
         "EmbedProvider": "TEXT DEFAULT 'huggingface'",
         "EmbedModel": "TEXT DEFAULT 'google/siglip-base-patch16-224'",
@@ -264,6 +264,21 @@ def _migrate_eventspec(conn: sqlite3.Connection) -> None:
     conn.execute("ALTER TABLE EventSpec_migrated RENAME TO EventSpec")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_EventSpec_condition ON EventSpec (condition)")
     log.info("Migrated EventSpec: dropped legacy columns")
+
+
+def _migrate_drop_vlm_quantization(conn: sqlite3.Connection) -> None:
+    """Drop the legacy Analyses.VLMQuantization column.
+
+    The Ollama VLM quantization picker was never wired to a real effect (Ollama
+    quantization is a property of the pulled model tag, not a request knob), so
+    the column is dead. SQLite supports DROP COLUMN since 3.35.0; guard on the
+    column's presence so this is a no-op on fresh or already-migrated DBs.
+    """
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(Analyses)").fetchall()}
+    if "VLMQuantization" not in cols:
+        return
+    conn.execute("ALTER TABLE Analyses DROP COLUMN VLMQuantization")
+    log.info("Migrated Analyses: dropped legacy VLMQuantization column")
 
 
 def _ensure_columns(conn: sqlite3.Connection, table: str, columns: dict[str, str]) -> None:

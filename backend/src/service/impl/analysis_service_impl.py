@@ -229,7 +229,6 @@ def _row_to_runstate(row: sqlite3.Row | dict) -> RunState:
         grid_cols=_as_int("GridCols"),
         sampling_rate=_as_int("SamplingRate"),
         vlm_delay=_as_float("VLMDelay"),
-        vlm_quantization=_col("VLMQuantization"),
         max_retries=_as_int("MaxRetries"),
         embed_provider=_as_str("EmbedProvider", "huggingface"),
         embed_model=_as_str("EmbedModel", "google/siglip-base-patch16-224"),
@@ -343,7 +342,6 @@ class AnalysisServiceImpl(AnalysisService):
         grid_cols: int,
         sampling_rate: int,
         vlm_delay: float,
-        vlm_quantization: str,
         max_retries: int,
         embed_provider: str = "huggingface",
         embed_model: str = "google/siglip-base-patch16-224",
@@ -371,7 +369,6 @@ class AnalysisServiceImpl(AnalysisService):
             grid_cols=grid_cols,
             sampling_rate=sampling_rate,
             vlm_delay=vlm_delay,
-            vlm_quantization=vlm_quantization,
             max_retries=max_retries,
             embed_provider=embed_provider,
             embed_model=embed_model,
@@ -401,7 +398,7 @@ class AnalysisServiceImpl(AnalysisService):
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
                 "SELECT ID, VideoFilename, Condition, VLMProvider, Model, Stage, SamplingRate, "
-                "GridRows, GridCols, VLMDelay, VLMQuantization, MaxRetries, "
+                "GridRows, GridCols, VLMDelay, MaxRetries, "
                 "EmbedProvider, EmbedModel, MemoryN, MemoryTopK, "
                 "AudioProvider, AudioModel, AudioQuantization, AudioWindow, AudioHop, "
                 "DeltasJson, DeltaUnit, CreatedAt, CompletedAt "
@@ -421,7 +418,6 @@ class AnalysisServiceImpl(AnalysisService):
                     "grid_rows": r["GridRows"],
                     "grid_cols": r["GridCols"],
                     "vlm_delay": r["VLMDelay"],
-                    "vlm_quantization": r["VLMQuantization"],
                     "max_retries": r["MaxRetries"],
                     "embed_provider": r["EmbedProvider"],
                     "embed_model": r["EmbedModel"],
@@ -560,7 +556,7 @@ class AnalysisServiceImpl(AnalysisService):
             conn.row_factory = sqlite3.Row
             row = conn.execute(
                 "SELECT ID, VideoPath, VideoFilename, Condition, VLMProvider, Model, "
-                "GridRows, GridCols, SamplingRate, VLMDelay, VLMQuantization, MaxRetries, "
+                "GridRows, GridCols, SamplingRate, VLMDelay, MaxRetries, "
                 "EmbedProvider, EmbedModel, MemoryN, MemoryTopK, AudioProvider, AudioModel, AudioQuantization, Stage "
                 "FROM Analyses ORDER BY CreatedAt DESC LIMIT 1"
             ).fetchone()
@@ -586,7 +582,7 @@ class AnalysisServiceImpl(AnalysisService):
             conn.row_factory = sqlite3.Row
             row = conn.execute(
                 "SELECT ID, VideoPath, VideoFilename, Condition, VLMProvider, Model, "
-                "GridRows, GridCols, SamplingRate, VLMDelay, VLMQuantization, MaxRetries, "
+                "GridRows, GridCols, SamplingRate, VLMDelay, MaxRetries, "
                 "EmbedProvider, EmbedModel, MemoryN, MemoryTopK, AudioProvider, AudioModel, AudioQuantization, Stage "
                 "FROM Analyses WHERE ID = ?",
                 (analysis_id,),
@@ -604,13 +600,13 @@ class AnalysisServiceImpl(AnalysisService):
             conn = _get_db_conn(cfg)
             conn.execute(
                 "INSERT INTO Analyses (ID, VideoPath, VideoFilename, Condition, VLMProvider, Model, "
-                "GridRows, GridCols, SamplingRate, VLMDelay, VLMQuantization, MaxRetries, "
+                "GridRows, GridCols, SamplingRate, VLMDelay, MaxRetries, "
                 "EmbedProvider, EmbedModel, MemoryN, MemoryTopK, "
                 "AudioProvider, AudioModel, AudioQuantization, AudioWindow, AudioHop, Stage, CreatedAt) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (run.id, str(run.video_path), run.video_filename, run.condition,
                  run.vlm_provider, run.model, run.grid_rows, run.grid_cols,
-                 run.sampling_rate, run.vlm_delay, run.vlm_quantization, run.max_retries,
+                 run.sampling_rate, run.vlm_delay, run.max_retries,
                  run.embed_provider, run.embed_model, run.memory_n, run.memory_top_k,
                  run.audio_provider, run.audio_model, run.audio_quantization,
                  run.audio_window, run.audio_hop,

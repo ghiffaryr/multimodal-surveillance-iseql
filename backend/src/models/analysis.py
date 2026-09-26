@@ -37,7 +37,6 @@ class RunState:
     grid_cols: int
     sampling_rate: int
     vlm_delay: float = 0.0
-    vlm_quantization: str = "none"
     max_retries: int = 3
     embed_provider: str = "huggingface"
     embed_model: str = "google/siglip-base-patch16-224"

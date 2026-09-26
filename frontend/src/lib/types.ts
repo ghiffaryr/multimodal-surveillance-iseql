@@ -93,7 +93,6 @@ export interface VlmConfig {
   grid_rows: number;
   grid_cols: number;
   vlm_delay: number;
-  quantization: string;
   max_retries: number;
   embed_provider: string;
   embed_model: string;
@@ -127,7 +126,6 @@ export interface AnalysisRecord {
   grid_rows?: number;
   grid_cols?: number;
   vlm_delay?: number;
-  vlm_quantization?: string;
   max_retries?: number;
   embed_provider?: string;
   embed_model?: string;

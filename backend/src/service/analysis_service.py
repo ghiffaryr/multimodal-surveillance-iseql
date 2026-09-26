@@ -25,7 +25,6 @@ class AnalysisService(ABC):
         grid_cols: int,
         sampling_rate: int,
         vlm_delay: float,
-        vlm_quantization: str,
         max_retries: int,
         audio_provider: str,
         audio_model: str,

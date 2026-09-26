@@ -77,7 +77,6 @@
     grid_rows: 2,
     grid_cols: 4,
     vlm_delay: 3.0,
-    quantization: 'none',
     max_retries: 10,
     embed_provider: 'huggingface',
     embed_model: 'google/siglip-base-patch16-224',
@@ -274,7 +273,6 @@
         grid_rows: item.grid_rows ?? 2,
         grid_cols: item.grid_cols ?? 4,
         vlm_delay: item.vlm_delay ?? 0.0,
-        quantization: item.vlm_quantization ?? 'none',
         max_retries: item.max_retries ?? 3,
         embed_provider: item.embed_provider ?? 'huggingface',
         embed_model: item.embed_model ?? 'google/siglip-base-patch16-224',
@@ -325,7 +323,6 @@
     form.append('grid_rows', String(vlmConfig.grid_rows));
     form.append('grid_cols', String(vlmConfig.grid_cols));
     form.append('vlm_delay', String(vlmConfig.vlm_delay));
-    form.append('vlm_quantization', vlmConfig.quantization || 'none');
     form.append('max_retries', String(vlmConfig.max_retries));
     form.append('embed_provider', vlmConfig.embed_provider);
     form.append('embed_model', vlmConfig.embed_model);

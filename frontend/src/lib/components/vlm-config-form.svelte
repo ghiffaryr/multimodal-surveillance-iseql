@@ -25,12 +25,6 @@
     zhipu: 'glm-4v-flash',
   };
 
-  const QUANTIZATION_OPTIONS = [
-    { value: 'none', label: 'None (full precision)' },
-    { value: '8bit', label: '8-bit' },
-    { value: '4bit', label: '4-bit' },
-  ];
-
   const EMBED_PROVIDERS = ['huggingface', 'ollama'];
 
   const EMBED_MODEL_DEFAULTS: Record<string, string> = {
@@ -201,19 +195,6 @@
     />
   </Field>
 
-
-  {#if isOllama}
-    <Field>
-      <Label for="vlm-quantization">Quantization (Ollama only)</Label>
-      <Select
-        id="vlm-quantization"
-        options={QUANTIZATION_OPTIONS}
-        value={value.quantization || 'none'}
-        onchange={(e) => patch({ quantization: selectValue(e) })}
-        {disabled}
-      />
-    </Field>
-  {/if}
 
   <Field>
     <Label for="grid-rows">Grid Rows</Label>
