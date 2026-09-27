@@ -44,7 +44,6 @@
   let ollamaModels = $state<{ value: string; label: string }[]>([]);
   let ollamaModelsLoading = $state(false);
   let ollamaModelsFailed = $state(false);
-  let _ollamaFetched = false;
 
   let isOllama = $derived(value.provider === 'ollama');
   let providerOptions = $derived(
@@ -59,8 +58,7 @@
   }
 
   async function fetchOllamaModels() {
-    if (_ollamaFetched || ollamaModelsLoading) return;
-    _ollamaFetched = true;
+    if (ollamaModelsLoading) return;
     ollamaModelsLoading = true;
     ollamaModelsFailed = false;
     try {
@@ -89,6 +87,12 @@
     }
     if (!value.embed_provider) {
       patch({ embed_provider: EMBED_PROVIDERS[0], embed_model: EMBED_MODEL_DEFAULTS[EMBED_PROVIDERS[0]] });
+    }
+  });
+
+  $effect(() => {
+    if (isOllama && ollamaModels.length === 0 && !ollamaModelsLoading && !ollamaModelsFailed) {
+      fetchOllamaModels();
     }
   });
 
