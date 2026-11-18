@@ -6,7 +6,8 @@
   import Input from '$lib/components/ui/input.svelte';
   import CountBadge from '$lib/components/ui/count-badge.svelte';
   import UnitToggle from '$lib/components/unit-toggle.svelte';
-  import { DatabaseZap, ImageOff, LayoutGrid, List, MousePointerClick, Hand } from 'lucide-svelte';
+  import * as Popover from '$lib/components/ui/popover/index.js';
+  import { DatabaseZap, Hand, ImageOff, Info, LayoutGrid, List, MousePointerClick } from 'lucide-svelte';
   import { cn } from '$lib/utils';
   import type { DetectionResult, Unit } from '$lib/types';
 
@@ -150,6 +151,15 @@
 
   function markThumbnailFailed(key: string) {
     failedThumbnails = { ...failedThumbnails, [key]: true };
+  }
+
+  function fieldLabel(key: string): string {
+    return key.replace(/^M(\d+)_/, 'M$1.');
+  }
+
+  function displayValue(value: unknown): string {
+    if (value === null || value === undefined) return '';
+    return typeof value === 'object' ? JSON.stringify(value) : String(value);
   }
 
   function formatEventTime(seconds: number) {
@@ -372,56 +382,74 @@
     {:else}
       <div class="grid grid-cols-1 gap-3 py-1 sm:grid-cols-2 xl:grid-cols-3">
         {#each galleryRows as item (item.key)}
-          <button
-            type="button"
-            class={cn(
-              'group flex min-w-0 flex-col overflow-hidden rounded-xl border bg-card text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              selectedKey === item.key
-                ? 'border-primary/60 ring-1 ring-primary/30'
-                : 'border-border hover:border-primary/40 hover:bg-muted/20'
-            )}
-            onclick={() => seekRow(item.i)}
-          >
-            {#if item.previewFrame !== null && !failedThumbnails[item.thumbKey]}
-              <img
-                src={`/api/analysis/${analysisId}/thumbnail?frame=${item.previewFrame}`}
-                alt=""
-                loading="lazy"
-                class="aspect-video w-full bg-black object-cover"
-                onerror={() => markThumbnailFailed(item.thumbKey)}
-              />
-            {:else}
-              <span class="flex aspect-video w-full items-center justify-center bg-muted/40 text-muted-foreground">
-                <ImageOff class="size-5" />
-              </span>
-            {/if}
-            <span class="flex flex-1 flex-col gap-2 p-3">
-              <span class="flex flex-col gap-0.5">
-                <span class="truncate text-sm font-medium">{String(item.row['Event'] ?? 'Result')}</span>
-                {#if item.interval}
-                  <span class="font-mono text-[10px] text-muted-foreground">
-                    {formatIntervalRange(item.interval)}
+          <div class="relative min-w-0">
+            <button
+              type="button"
+              class={cn(
+                'group flex w-full min-w-0 flex-col overflow-hidden rounded-xl border bg-card text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                selectedKey === item.key
+                  ? 'border-primary/60 ring-1 ring-primary/30'
+                  : 'border-border hover:border-primary/40 hover:bg-muted/20'
+              )}
+              onclick={() => seekRow(item.i)}
+            >
+              {#if item.previewFrame !== null && !failedThumbnails[item.thumbKey]}
+                <img
+                  src={`/api/analysis/${analysisId}/thumbnail?frame=${item.previewFrame}`}
+                  alt=""
+                  loading="lazy"
+                  class="aspect-video w-full bg-black object-cover"
+                  onerror={() => markThumbnailFailed(item.thumbKey)}
+                />
+              {:else}
+                <span class="flex aspect-video w-full items-center justify-center bg-muted/40 text-muted-foreground">
+                  <ImageOff class="size-5" />
+                </span>
+              {/if}
+              <span class="flex flex-1 flex-col gap-2 p-3">
+                <span class="flex flex-col gap-0.5">
+                  <span class="truncate text-sm font-medium">{String(item.row['Event'] ?? 'Result')}</span>
+                  {#if item.interval}
+                    <span class="font-mono text-[10px] text-muted-foreground">
+                      {formatIntervalRange(item.interval)}
+                    </span>
+                  {/if}
+                </span>
+                {#if cardColumns.length > 0}
+                  <span class="grid grid-cols-2 gap-x-3 gap-y-1.5 border-t border-border/60 pt-2 text-[11px]">
+                    {#each cardColumns as c (c.key)}
+                      <span class="min-w-0">
+                        <span class="block truncate text-muted-foreground">{c.label}</span>
+                        <span class="block truncate font-mono text-foreground">
+                          {displayValue(item.row[c.key])}
+                        </span>
+                      </span>
+                    {/each}
                   </span>
                 {/if}
               </span>
-              {#if cardColumns.length > 0}
-                <span class="grid grid-cols-2 gap-x-3 gap-y-1.5 border-t border-border/60 pt-2 text-[11px]">
-                  {#each cardColumns as c (c.key)}
-                    <span class="min-w-0">
-                      <span class="block truncate text-muted-foreground">{c.label}</span>
-                      <span class="block truncate font-mono text-foreground">
-                        {#if typeof item.row[c.key] === 'object' && item.row[c.key] !== null}
-                          {JSON.stringify(item.row[c.key])}
-                        {:else}
-                          {item.row[c.key]}
-                        {/if}
-                      </span>
-                    </span>
+            </button>
+
+            <Popover.Root>
+              <Popover.Trigger
+                class="absolute right-2 top-2 z-20 inline-flex size-7 items-center justify-center rounded-md border border-border/60 bg-background/85 text-muted-foreground shadow-sm backdrop-blur transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                title="Show result metadata"
+                aria-label="Show result metadata"
+              >
+                <Info class="size-3.5" />
+              </Popover.Trigger>
+              <Popover.Content class="w-[22rem] max-w-[calc(100vw-2rem)] p-3" align="end">
+                <div class="max-h-64 space-y-1.5 overflow-y-auto pr-1">
+                  {#each Object.entries(item.row).filter(([key]) => !key.startsWith('__p')) as [key, value] (key)}
+                    <div class="grid grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)] items-baseline gap-2 text-xs">
+                      <span class="truncate text-muted-foreground" title={key}>{fieldLabel(key)}</span>
+                      <span class="truncate text-right font-mono text-foreground" title={displayValue(value)}>{displayValue(value)}</span>
+                    </div>
                   {/each}
-                </span>
-              {/if}
-            </span>
-          </button>
+                </div>
+              </Popover.Content>
+            </Popover.Root>
+          </div>
         {/each}
       </div>
     {/if}
